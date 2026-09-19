@@ -155,12 +155,13 @@ function onPointerDown(e) {
       .filter(Boolean)
       .map((n) => ({ n, x: n.x, y: n.y }))
     const start = screenToWorld(p.x, p.y, vp)
-    act = { mode: 'drag', start, origins, moved: false, px: p.x, py: p.y }
+    // 不立即 setPointerCapture:捕获会把后续 click/dblclick 的目标重定向到
+    // 舞台,双击编辑等点击语义就全丢了。拖过阈值后再捕获。
+    act = { mode: 'drag', start, origins, moved: false, px: p.x, py: p.y, pid: e.pointerId }
   } else {
     act = { mode: 'marquee', px: p.x, py: p.y, base: new Set(selection.value) }
     marquee.value = { x: p.x, y: p.y, w: 0, h: 0 }
   }
-  stageEl.value.setPointerCapture(e.pointerId)
 }
 
 let rafPending = false
@@ -189,6 +190,7 @@ function applyMove(e) {
     if (!act.moved) {
       if (Math.hypot(p.x - act.px, p.y - act.py) < 3) return
       act.moved = true
+      try { stageEl.value.setPointerCapture(act.pid) } catch { /* 已释放 */ }
     }
     const cur = screenToWorld(p.x, p.y, vp)
     const dx = cur.x - act.start.x

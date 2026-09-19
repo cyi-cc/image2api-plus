@@ -2,7 +2,7 @@
 // 单个画布节点。位置/尺寸由 stage 的世界层 transform 统一缩放,
 // 这里只负责节点自身内容:image / note / gen(生成中占位)。
 // 性能:contain 隔离布局;图片 lazy + async 解码 + 缩略图。
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { thumbUrl } from '../../api'
 
 const props = defineProps({
@@ -19,6 +19,17 @@ onMounted(() => {
   // 非受控 contenteditable:只在挂载时写初值,避免输入时光标被 v-model 回写打跳。
   if (props.node.type === 'note' && noteEl.value) noteEl.value.innerText = props.node.text || ''
 })
+
+// 撤销/重做会整体替换 nodes 数组但复用组件(key 不变),DOM 文字会变成
+// 旧值 —— 非编辑状态下把 node.text 同步回 DOM。
+watch(
+  () => props.node.text,
+  (t) => {
+    if (props.node.type !== 'note' || editing.value || !noteEl.value) return
+    const want = t || ''
+    if (noteEl.value.innerText !== want) noteEl.value.innerText = want
+  },
+)
 
 function onImgLoad(e) {
   imgLoaded.value = true
@@ -54,9 +65,12 @@ function startEdit() {
 }
 
 function commitNote() {
-  if (!editing.value) return
+  const el = noteEl.value
   editing.value = false
-  const text = (noteEl.value?.innerText || '').slice(0, 4000)
+  if (!el) return
+  // 不依赖 editing 标志做早退:焦点/事件时序可能把标志先置 false,
+  // 但用户输入的文字仍然必须被提交(否则静默丢字)。
+  const text = (el.innerText || '').replace(/\u00a0/g, ' ').slice(0, 4000)
   if (text !== (props.node.text || '')) emit('note-commit', text)
 }
 
@@ -105,7 +119,7 @@ defineExpose({ startEdit, commitNote })
       v-else-if="node.type === 'note'"
       ref="noteEl"
       class="cv-node__note"
-      contenteditable="true"
+      :contenteditable="editing"
       spellcheck="false"
       @blur="commitNote"
       @keydown.enter.exact.prevent="commitNote"

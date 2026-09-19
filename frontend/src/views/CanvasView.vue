@@ -551,7 +551,10 @@ const saveLabel = computed(() => ({
 </script>
 
 <template>
-  <div class="cv-page">
+  <!-- 传送到 body:布局 <main> 自带 relative z-10 层叠上下文,留在里面会被
+       站点固定顶栏(z-40)盖住,画布工具栏无法点击。 -->
+  <Teleport to="body">
+    <div class="cv-page">
     <!-- 顶栏 -->
     <div class="cv-top">
       <div class="cv-top__left">
@@ -675,7 +678,8 @@ const saveLabel = computed(() => ({
         </div>
       </div>
     </div>
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -719,7 +723,8 @@ const saveLabel = computed(() => ({
 .cv-page {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  /* 站点顶栏是 z-40;画布全屏接管时必须盖住它 */
+  z-index: 50;
   display: flex;
   flex-direction: column;
   background: #0e1015;
