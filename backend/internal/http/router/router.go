@@ -37,6 +37,16 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 	}
 
 	engine := gin.New()
+	// Only the in-stack reverse proxies (traefik → frontend nginx, all on
+	// private docker networks) may supply forwarding headers; ClientIP then
+	// resolves the real client instead of a spoofable X-Forwarded-For.
+	_ = engine.SetTrustedProxies([]string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"127.0.0.0/8",
+		"::1/128",
+	})
 	engine.Use(gin.Recovery())
 	engine.Use(middleware.RequestID())
 	engine.Use(cors.New(cors.Config{
@@ -64,6 +74,8 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		publicAdmin.GET("/site", handlers.Site.Public)
 		publicAdmin.GET("/showcase", handlers.Showcase.List)
 		publicAdmin.GET("/managed-models", handlers.AdminRead.Models)
+		// Aggregates only (counts/sizes/latency) — the recent-files list with
+		// owner names is admin-only, see /stats/recent below.
 		publicAdmin.GET("/stats", handlers.AdminRead.Stats)
 		publicAdmin.GET("/video-presets", handlers.UserGen.VideoPresets)
 		publicAdmin.GET("/catalog", handlers.UserGen.Catalog)
@@ -106,6 +118,8 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 	authed.Use(middleware.RequireAdminSession(auth, cfg))
 	{
 		authed.GET("/dashboard", handlers.AdminRead.Dashboard)
+		// Recent generated files include owner-directory names — admin only.
+		authed.GET("/stats/recent", handlers.AdminRead.StatsRecent)
 		authed.GET("/users", handlers.AdminRead.Users)
 		authed.GET("/invites", handlers.AdminRead.Invites)
 		authed.POST("/users", handlers.AdminWrite.CreateUser)

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -968,6 +969,16 @@ func (s *V1Service) runVideoJob(ctx context.Context, principal *APIPrincipal, in
 	s.inflight.Add(eventID, cancel)
 	defer s.inflight.Done(eventID)
 	startedAt := time.Now()
+
+	// A panic in provider fan-out must fail the event (and refund), not
+	// take down the whole API process with it.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[v1] panic in runVideoJob event=%s model=%s: %v\n%s", eventID, modelItem.Name, r, debug.Stack())
+			_ = s.refundIfNeeded(ctx, principal, eventID, price)
+			_ = s.events.UpdateStatus(ctx, eventID, "failed", fmt.Sprintf("internal error: %v", r), 0)
+		}
+	}()
 
 	// No-store: capture only the UPSTREAM video URL. /content streams it on demand
 	// (grok URLs are auth-gated → fetched with the generating account's token).

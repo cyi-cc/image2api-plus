@@ -187,6 +187,17 @@ func (h *AdminReadHandler) Stats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// StatsRecent serves the recent-files list (owner names included) — only
+// mounted on the admin-session route group.
+func (h *AdminReadHandler) StatsRecent(c *gin.Context) {
+	data, err := h.admin.StatsRecent(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load recent files"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (h *AdminReadHandler) Dashboard(c *gin.Context) {
 	data, err := h.admin.Dashboard(c.Request.Context())
 	if err != nil {

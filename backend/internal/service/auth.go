@@ -100,6 +100,34 @@ func ownsImageDir(user *model.User, owner string) bool {
 	return false
 }
 
+// checkOwnerDirCollision rejects a signup whose sanitized username or email
+// local-part collides with any existing user's directory candidates. Media
+// authorization (ownsImageDir) matches on those candidates, so without this
+// check registering as <victim-name>@any-domain would grant access to the
+// victim's /images/<name>/ directory.
+func (s *AuthService) checkOwnerDirCollision(ctx context.Context, username, email string) error {
+	newName := sanitizeOwnerName(username)
+	newEmail := sanitizeOwnerName(strings.Split(email, "@")[0])
+	if newName == "" && newEmail == "" {
+		return nil
+	}
+	users, err := s.users.ListOwnerCandidates(ctx)
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		oldName := sanitizeOwnerName(u.Name)
+		oldEmail := sanitizeOwnerName(strings.Split(u.Email, "@")[0])
+		if newName != "" && (oldName == newName || oldEmail == newName) {
+			return errors.New("用户名与已有用户冲突,请更换")
+		}
+		if newEmail != "" && newName != newEmail && (oldName == newEmail || oldEmail == newEmail) {
+			return errors.New("邮箱前缀与已有用户冲突,请更换")
+		}
+	}
+	return nil
+}
+
 func (s *AuthService) CurrentUserFromBearer(ctx context.Context, authHeader string) (*model.User, *SessionPayload, error) {
 	token := ParseBearer(authHeader)
 	return s.currentUserFromToken(ctx, token)
@@ -271,6 +299,9 @@ func (s *AuthService) Register(ctx context.Context, email, username, password, i
 	}
 	if exists {
 		return nil, "", nil, errors.New("用户名已存在")
+	}
+	if err := s.checkOwnerDirCollision(ctx, normalizedUsername, normalizedEmail); err != nil {
+		return nil, "", nil, err
 	}
 
 	passwordHash, err := HashPassword(password)

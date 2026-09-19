@@ -307,14 +307,13 @@ func writeLoginLocked(c *gin.Context, err error) bool {
 	return false
 }
 
+// clientIP resolves the caller for rate limiting. It must NOT read
+// client-supplied X-Forwarded-For / X-Real-Ip directly: the first XFF value
+// is attacker-controlled and rotating it resets every throttle bucket.
+// gin's ClientIP walks the header chain right-to-left and only honors
+// forwarding headers from the trusted proxies configured in the router
+// (the in-stack traefik/nginx on private docker networks).
 func clientIP(c *gin.Context) string {
-	if fwd := strings.TrimSpace(c.GetHeader("X-Forwarded-For")); fwd != "" {
-		parts := strings.Split(fwd, ",")
-		return strings.TrimSpace(parts[0])
-	}
-	if real := strings.TrimSpace(c.GetHeader("X-Real-Ip")); real != "" {
-		return real
-	}
 	return c.ClientIP()
 }
 

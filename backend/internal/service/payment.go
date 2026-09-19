@@ -55,9 +55,6 @@ func (s *PaymentService) get(ctx context.Context, key string) string {
 
 func (s *PaymentService) Settings(ctx context.Context) PaySettings {
 	api := strings.TrimRight(strings.TrimSpace(s.get(ctx, "pay.api_base")), "/")
-	if api == "" {
-		api = "https://www.ezfpy.cn"
-	}
 	ratio, _ := strconv.Atoi(s.get(ctx, "pay.points_ratio"))
 	if ratio <= 0 {
 		ratio = 100
@@ -147,6 +144,11 @@ func (s *PaymentService) CreateOrder(ctx context.Context, user *model.User, amou
 	if cfg.PID == "" || cfg.Key == "" {
 		return nil, ErrPayNotConfig
 	}
+	// Never guess a gateway: an empty api_base must fail loudly instead of
+	// silently routing signed payment traffic to some hardcoded third party.
+	if cfg.APIBase == "" {
+		return nil, ErrPayNotConfig
+	}
 	if !cfg.allows(method) {
 		return nil, ErrPayMethod
 	}
@@ -226,6 +228,11 @@ func (s *PaymentService) HandleNotify(ctx context.Context, params map[string]str
 	order, err := s.orders.Get(ctx, orderID)
 	if err != nil || order == nil {
 		return false, ErrOrderNotFound
+	}
+	// The gateway signs whatever the cashier actually collected — verify the
+	// paid amount matches the order, or an underpaid notify credits full points.
+	if money, perr := strconv.ParseFloat(strings.TrimSpace(params["money"]), 64); perr != nil || math.Abs(money-order.Amount) > 0.01 {
+		return false, errors.New("notify amount mismatch")
 	}
 	credited, err := s.orders.MarkPaid(ctx, order.ID, params["trade_no"], time.Now())
 	if err != nil {

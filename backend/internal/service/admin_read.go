@@ -221,7 +221,6 @@ func (s *AdminReadService) Stats(ctx context.Context) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	recentFiles, _ := s.RecentImages(ctx, 24)
 	files, _, _ := s.scanGeneratedFiles(ctx)
 	// Exclude homepage showcase media so 已生成作品 matches the 作品管理 total.
 	pinned := map[string]struct{}{}
@@ -239,13 +238,24 @@ func (s *AdminReadService) Stats(ctx context.Context) (map[string]any, error) {
 		count++
 		size += f.Size
 	}
+	// Aggregate-only: `recent` (owner dirs + filenames) is served via
+	// StatsRecent behind an admin session — it must not leak publicly.
 	return map[string]any{
 		"generated_count":      count,
 		"generated_size_bytes": size,
-		"recent":               recentFiles,
 		"avg_elapsed_ms":       stats.AvgElapsedMS,
 		"avg_elapsed_ms_24h":   stats.AvgElapsedMS24,
 	}, nil
+}
+
+// StatsRecent backs the admin image picker; the route lives in the
+// RequireAdminSession group because entries carry per-user owner names.
+func (s *AdminReadService) StatsRecent(ctx context.Context) (map[string]any, error) {
+	recentFiles, err := s.RecentImages(ctx, 24)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"recent": recentFiles}, nil
 }
 
 // Dashboard assembles the admin overview's analytics entirely server-side

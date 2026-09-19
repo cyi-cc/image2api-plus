@@ -129,6 +129,18 @@ func (r *UserRepository) ExistsName(ctx context.Context, name, excludeUserID str
 	return count > 0, nil
 }
 
+// ListOwnerCandidates returns every user's name+email. Consumed by the
+// registration-time owner-directory collision check (media paths derive
+// from sanitized names / email local-parts, so those namespaces must stay
+// disjoint across users). Self-hosted user counts keep this scan cheap.
+func (r *UserRepository) ListOwnerCandidates(ctx context.Context) ([]model.User, error) {
+	var users []model.User
+	if err := r.db.WithContext(ctx).Select("name", "email").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (r *UserRepository) GetByAPIKeyHash(ctx context.Context, keyHash string) (*model.User, error) {
 	var apiKey model.APIKey
 	if err := r.db.WithContext(ctx).First(&apiKey, "key_hash = ?", keyHash).Error; err != nil {
