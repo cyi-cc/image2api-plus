@@ -100,9 +100,28 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    labels: []
+    labels:
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.image2api-image2api-2lszlu-8-web.rule=Host(`image.cyi.cc`)
+      - traefik.http.routers.image2api-image2api-2lszlu-8-web.entrypoints=web
+      - traefik.http.services.image2api-image2api-2lszlu-8-web.loadbalancer.server.port=2000
+      - traefik.http.routers.image2api-image2api-2lszlu-8-web.service=image2api-image2api-2lszlu-8-web
+      - traefik.http.routers.image2api-image2api-2lszlu-8-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.image2api-image2api-2lszlu-8-websecure.rule=Host(`image.cyi.cc`)
+      - traefik.http.routers.image2api-image2api-2lszlu-8-websecure.entrypoints=websecure
+      - traefik.http.services.image2api-image2api-2lszlu-8-websecure.loadbalancer.server.port=2000
+      - traefik.http.routers.image2api-image2api-2lszlu-8-websecure.service=image2api-image2api-2lszlu-8-websecure
+      - traefik.http.routers.image2api-image2api-2lszlu-8-websecure.tls=true
+      - traefik.http.routers.image2api-image2api-2lszlu-8-websecure.tls.certresolver=letsencrypt
+      - traefik.enable=true
+    networks:
+      - default
+      - dokploy-network
 volumes:
   pgdata: null
   redisdata: null
   rustfsdata: null
   generated: null
+networks:
+  dokploy-network:
+    external: true
