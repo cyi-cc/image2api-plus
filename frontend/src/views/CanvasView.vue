@@ -58,9 +58,75 @@ async function loadList() {
   canvases.value = r.data?.data || []
 }
 
+// ---- 本地缓存(localStorage):打开画布先渲染缓存秒开,再后台对齐服务器 ----
+const CV_CACHE_PREFIX = 'cv:cache:'
+
+function readCache(id) {
+  try {
+    const raw = localStorage.getItem(CV_CACHE_PREFIX + id)
+    if (!raw) return null
+    const c = JSON.parse(raw)
+    if (typeof c.data !== 'string') return null
+    return { title: typeof c.title === 'string' ? c.title : '未命名画布', data: c.data }
+  } catch {
+    return null
+  }
+}
+function writeCache(id) {
+  if (!id) return
+  try {
+    localStorage.setItem(
+      CV_CACHE_PREFIX + id,
+      JSON.stringify({ title: title.value, data: serializeDoc(doc) }),
+    )
+  } catch { /* 配额满等异常:缓存是尽力而为,失败不影响功能 */ }
+}
+function clearCache(id) {
+  try { localStorage.removeItem(CV_CACHE_PREFIX + id) } catch { /* 同上 */ }
+}
+
+function applyDoc(id, docTitle, d) {
+  currentId.value = id
+  title.value = docTitle || '未命名画布'
+  doc.viewport = d.viewport
+  doc.nodes = d.nodes
+  doc.edges = d.edges
+  selectionIds.value = []
+  resetHistory()
+  saveState.value = 'saved'
+}
+
 async function loadCanvas(id) {
+  // 1) 本地缓存先行:立即渲染、立即可交互(离线也可用)
+  let appliedFromCache = false
+  const cached = readCache(id)
+  if (cached) {
+    const cd = normalizeDoc(safeParse(cached.data))
+    for (const n of cd.nodes) {
+      if (n.type === 'gen' && n.status === 'running') {
+        n.status = 'failed'
+        n.error = '页面已刷新,任务中断'
+      }
+    }
+    applyDoc(id, cached.title, cd)
+    appliedFromCache = true
+    loading.value = false
+    await nextTick()
+    stage.value?.setViewport(cd.viewport)
+    stage.value?.syncZTop()
+  }
+
+  // 2) 服务器版本对齐
   const r = await api(`/canvas/${id}`)
-  if (!r.ok) throw new Error(r.data?.detail || '加载画布失败')
+  if (!r.ok) {
+    if (appliedFromCache) return // 拉取失败但缓存可用:继续用缓存
+    throw new Error(r.data?.detail || '加载画布失败')
+  }
+  const serverData = typeof r.data?.data === 'string' ? r.data.data : serializeDoc(normalizeDoc(safeParse(r.data?.data)))
+  if (appliedFromCache && cached && cached.data === serverData && cached.title === (r.data.title || '未命名画布')) {
+    writeCache(id) // 刷新缓存时间戳意义不大,但保持一致路径
+    return // 内容一致:不重刷,保留撤销历史与当前交互
+  }
   const d = normalizeDoc(safeParse(r.data?.data))
   // 页面刷新会丢掉进行中的生成任务结果(无轮询),如实标记中断。
   for (const n of d.nodes) {
@@ -69,17 +135,11 @@ async function loadCanvas(id) {
       n.error = '页面已刷新,任务中断'
     }
   }
-  currentId.value = r.data.id
-  title.value = r.data.title || '未命名画布'
-  doc.viewport = d.viewport
-  doc.nodes = d.nodes
-  doc.edges = d.edges
-  selectionIds.value = []
-  resetHistory()
-  saveState.value = 'saved'
+  applyDoc(r.data.id, r.data.title, d)
   await nextTick()
   stage.value?.setViewport(d.viewport)
   stage.value?.syncZTop()
+  writeCache(id)
 }
 
 function safeParse(s) {
@@ -130,6 +190,7 @@ async function saveNow() {
     )
     if (r.ok) {
       saveState.value = 'saved'
+      writeCache(currentId.value)
       const row = canvases.value.find((c) => c.id === currentId.value)
       if (row) row.title = title.value
     } else {
@@ -304,6 +365,7 @@ async function deleteCanvas() {
   if (!window.confirm(`删除画布「${title.value}」?此操作不可撤销。`)) return
   const r = await api(`/canvas/${currentId.value}`, { method: 'DELETE' })
   if (!r.ok) return
+  clearCache(currentId.value)
   await loadList()
   if (canvases.value.length) {
     await loadCanvas(canvases.value[0].id)
