@@ -146,6 +146,8 @@ func NewApp(ctx context.Context) (*App, error) {
 	bannedWordRepo := repo.NewBannedWordRepository(db)
 	v1Svc.SetBannedWords(bannedWordRepo)
 	userGenSvc := service.NewUserGenerationService(v1Svc, eventRepo, userRepo, modelRepo)
+	canvasRepo := repo.NewCanvasRepository(db)
+	canvasSvc := service.NewCanvasService(canvasRepo)
 
 	engine := router.New(cfg, authSvc, router.Handlers{
 		Health:        handler.NewHealthHandler(),
@@ -166,6 +168,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		Announcement:  handler.NewAnnouncementHandler(announcementSvc),
 		Payment:       handler.NewPaymentHandler(paymentSvc),
 		BannedWords:   handler.NewBannedWordsHandler(bannedWordRepo),
+		Canvas:        handler.NewCanvasHandler(canvasSvc),
 	})
 
 	// Background self-healing sweep (quota recovery, cookie refresh, stale-pending

@@ -250,6 +250,7 @@ func AutoMigrateModels() []any {
 		&StatCounter{},
 		&ConcurrencyGroup{},
 		&Order{},
+		&Canvas{},
 	}
 }
 
@@ -287,6 +288,18 @@ type ConcurrencyGroup struct {
 	IsDefault      bool   `gorm:"not null;default:false;index"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+}
+
+// Canvas is one user's infinite-canvas document. Data stores the whole
+// node/edge graph as a versioned JSON blob; saves are whole-document
+// replacements (last write wins), which matches the single-editor frontend.
+type Canvas struct {
+	ID        string    `gorm:"primaryKey;size:40"`
+	UserID    string    `gorm:"size:32;index;not null"`
+	Title     string    `gorm:"size:120;not null;default:'未命名画布'"`
+	Data      string    `gorm:"type:text"`
+	CreatedAt time.Time
+	UpdatedAt time.Time `gorm:"index"`
 }
 
 // StatCounter is a persistent monotonic counter (key → value), independent of the

@@ -35,6 +35,7 @@ const ImagesView = () => import('./views/ImagesView.vue')
 const LogsView = () => import('./views/LogsView.vue')
 const ConfigView = () => import('./views/ConfigView.vue')
 const ShowcaseView = () => import('./views/ShowcaseView.vue')
+const CanvasView = () => import('./views/CanvasView.vue')
 
 const routes = [
   {
@@ -43,6 +44,7 @@ const routes = [
     children: [
       { path: '', component: HomeView, meta: { label: '首页' } },
       { path: 'user', component: PlaygroundView, meta: { label: '画图' } },
+      { path: 'canvas', component: CanvasView, meta: { label: '无限画布' } },
       { path: 'logs', component: UserLogsView, meta: { label: '图片' } },
       { path: 'mylogs', component: UserLogsTableView, meta: { label: '日志' } },
       { path: 'invite', component: InviteView, meta: { label: '邀请' } },
@@ -95,7 +97,7 @@ const router = createRouter({
 
 // Pages that require a login. The home page (/) stays public; everything a
 // signed-in user touches (画图/记录/设置) and the whole admin area is gated.
-const PROTECTED = ['/user', '/logs', '/invite', '/settings', '/orders']
+const PROTECTED = ['/user', '/canvas', '/logs', '/invite', '/settings', '/orders']
 function isProtected(path) {
   return path.startsWith('/admin') || PROTECTED.includes(path)
 }

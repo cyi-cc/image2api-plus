@@ -29,6 +29,7 @@ type Handlers struct {
 	Announcement  *handler.AnnouncementHandler
 	Payment       *handler.PaymentHandler
 	BannedWords   *handler.BannedWordsHandler
+	Canvas        *handler.CanvasHandler
 }
 
 func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.Engine {
@@ -112,6 +113,12 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		userAuthed.GET("/pay/orders", handlers.Payment.MyOrders)
 		userAuthed.GET("/pay/orders/:id", handlers.Payment.OrderStatus)
 		userAuthed.POST("/pay/orders/:id/continue", handlers.Payment.ContinueOrder)
+		// 无限画布 documents — session-authed, owner-scoped.
+		userAuthed.GET("/canvas", handlers.Canvas.List)
+		userAuthed.POST("/canvas", handlers.Canvas.Create)
+		userAuthed.GET("/canvas/:id", handlers.Canvas.Get)
+		userAuthed.PUT("/canvas/:id", handlers.Canvas.Save)
+		userAuthed.DELETE("/canvas/:id", handlers.Canvas.Delete)
 	}
 
 	authed := engine.Group("/admin/api")

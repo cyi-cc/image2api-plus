@@ -18,6 +18,7 @@ const nav = computed(() => {
   const items = [{ to: '/', label: '首页' }]
   if (isAuthed()) {
     items.push({ to: '/user', label: '画图' })
+    items.push({ to: '/canvas', label: '画布' })
     items.push({ to: '/logs', label: '图片' })
   }
   items.push({ to: '/docs', label: '文档' })
