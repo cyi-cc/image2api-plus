@@ -21,9 +21,10 @@ const props = defineProps({
 const emit = defineEmits([
   'move-end',        // 拖拽结束(父级 push undo)
   'selection',       // 选中变化 -> ids[]
+  'link-create',     // 手动连线完成 -> { from, to }
   'node-action',     // 双击图片等 -> { type:'preview', id }
-  'note-commit',     // 笔记提交 -> { id, text }
-  'img-size',        // 图片尺寸校正 -> { id, w, h }
+  'note-commit',     // 笔记文本提交 -> { id, text }
+  'img-size',        // 图片真实尺寸校正 -> { id, w, h }
   'viewport-rest',   // 视口静止 700ms -> viewport
   'pan-zoom',        // 视口变化(用于百分比显示,高频)
 ])
@@ -32,13 +33,20 @@ const stageEl = ref(null)
 const vp = reactive({ x: 0, y: 0, scale: 1 })
 const stageSize = reactive({ w: 0, h: 0 })
 const selection = ref(new Set())
+const edgeSel = ref(new Set())
 const marquee = ref(null)
+const linkLine = ref(null) // 手动连线进行中 {x1,y1,x2,y2} 世界坐标
 const spaceHeld = ref(false)
 const panning = ref(false)
 
-const visibleNodes = computed(() =>
-  nodesInViewport(props.nodes, vp, stageSize.w, stageSize.h),
-)
+// 视口剔除。尺寸强下限:Teleport/过渡时序下 ResizeObserver 可能给出
+// 0/极小/延迟的尺寸,任何一种都不允许把节点剔除出渲染(剔除只是性能
+// 优化,正确性优先;多挂载一圈屏幕外节点对千级节点也毫无压力)。
+const visibleNodes = computed(() => {
+  const w = Math.max(stageSize.w || 0, window.innerWidth || 0, 1600)
+  const h = Math.max(stageSize.h || 0, window.innerHeight || 0, 900)
+  return nodesInViewport(props.nodes, vp, w, h)
+})
 const nodeById = computed(() => {
   const m = new Map()
   for (const n of props.nodes) m.set(n.id, n)
@@ -68,6 +76,14 @@ const edgePaths = computed(() => {
 const worldStyle = computed(() => ({
   transform: `translate3d(${vp.x}px, ${vp.y}px, 0) scale(${vp.scale})`,
 }))
+
+// 手动连线进行中的预览路径
+const linkPath = computed(() => {
+  const l = linkLine.value
+  if (!l) return ''
+  const dx = Math.max(60, Math.abs(l.x2 - l.x1) * 0.45)
+  return `M ${l.x1} ${l.y1} C ${l.x1 + dx} ${l.y1}, ${l.x2 - dx} ${l.y2}, ${l.x2} ${l.y2}`
+})
 const gridStyle = computed(() => {
   const cell = Math.max(14, 24 * vp.scale)
   return {
@@ -78,19 +94,61 @@ const gridStyle = computed(() => {
 
 // ---- 尺寸/键盘监听 ----
 let ro = null
-onMounted(() => {
-  ro = new ResizeObserver((entries) => {
-    const r = entries[0].contentRect
+
+function measure() {
+  const r = stageEl.value?.getBoundingClientRect()
+  if (r && r.width > 0 && r.height > 0) {
     stageSize.w = r.width
     stageSize.h = r.height
-  })
-  ro.observe(stageEl.value)
+  }
+}
+
+function attachStageBits() {
+  if (!stageEl.value) return false
+  measure()
+  if (!ro) {
+    ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect
+      if (r) {
+        stageSize.w = r.width
+        stageSize.h = r.height
+      }
+    })
+    ro.observe(stageEl.value)
+  }
   stageEl.value.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onSpaceDown)
   window.addEventListener('keyup', onSpaceUp)
   syncZTop()
+  return true
+}
+
+let attachTimer = null
+onMounted(() => {
+  // Teleport + 路由过渡下模板 ref/尺寸偶发延迟:重试到挂上为止
+  if (!attachStageBits()) {
+    let tries = 0
+    clearInterval(attachTimer)
+    attachTimer = setInterval(() => {
+      tries += 1
+      if (attachStageBits() || tries > 20) clearInterval(attachTimer)
+    }, 100)
+  }
+  // rAF 自愈:挂载初期持续测量,直到拿到非零尺寸(过渡动画结束后必命中)
+  const heal = () => {
+    if (stageSize.w > 0 && stageSize.h > 0) return
+    measure()
+    requestAnimationFrame(heal)
+  }
+  requestAnimationFrame(heal)
+  // 调试信标(生产可留:只读状态)
+  window.__cvDebug = () => ({
+    stageSize: { ...stageSize },
+    hasEl: !!stageEl.value,
+  })
 })
 onBeforeUnmount(() => {
+  clearInterval(attachTimer)
   ro?.disconnect()
   stageEl.value?.removeEventListener('wheel', onWheel)
   window.removeEventListener('keydown', onSpaceDown)
@@ -127,6 +185,38 @@ let act = null // { mode: 'pan'|'drag'|'marquee', ... }
 function onPointerDown(e) {
   // 文本编辑中完全放行
   if (e.target.closest?.('.cv-node--note.is-editing')) return
+
+  // 1) 连线出口:拖到目标节点建边
+  const port = e.target.closest?.('[data-port]')
+  if (port && e.button === 0) {
+    const node = hitNode(e)
+    if (node) {
+      clearEdgeSel()
+      setSelection(new Set([node.id]))
+      act = { mode: 'link', fromId: node.id }
+      linkLine.value = {
+        x1: node.x + node.w,
+        y1: node.y + node.h / 2,
+        x2: node.x + node.w,
+        y2: node.y + node.h / 2,
+      }
+      try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
+      return
+    }
+  }
+
+  // 2) 点击连线:切换选中(不再落入平移)
+  const edgeHit = e.target.closest?.('.cv-edge-hit')
+  if (edgeHit && e.button === 0) {
+    const id = edgeHit.dataset.edgeId
+    const s = new Set(edgeSel.value)
+    if (s.has(id)) s.delete(id)
+    else s.add(id)
+    edgeSel.value = s
+    if (s.size) clearSelection()
+    return
+  }
+
   const node = hitNode(e)
   const p = localXY(e)
 
@@ -135,12 +225,13 @@ function onPointerDown(e) {
   if (wantPan) {
     panning.value = true
     act = { mode: 'pan', px: p.x, py: p.y, vx: vp.x, vy: vp.y }
-    stageEl.value.setPointerCapture(e.pointerId)
+    try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
     return
   }
   if (e.button !== 0) return
 
   if (node) {
+    clearEdgeSel()
     if (e.shiftKey) {
       const s = new Set(selection.value)
       if (s.has(node.id)) s.delete(node.id)
@@ -201,6 +292,12 @@ function applyMove(e) {
     }
     return
   }
+  if (act.mode === 'link' && linkLine.value) {
+    const cur = screenToWorld(p.x, p.y, vp)
+    linkLine.value.x2 = cur.x
+    linkLine.value.y2 = cur.y
+    return
+  }
   if (act.mode === 'marquee') {
     marquee.value = {
       x: Math.min(act.px, p.x),
@@ -223,12 +320,39 @@ function onPointerUp(e) {
   panning.value = false
   try { stageEl.value.releasePointerCapture(e.pointerId) } catch { /* 已释放 */ }
   if (a.mode === 'drag' && a.moved) emit('move-end')
+  if (a.mode === 'link') {
+    const target = hitNode(e)
+    if (target && target.id !== a.fromId) emit('link-create', { from: a.fromId, to: target.id })
+    linkLine.value = null
+  }
 }
 function onPointerCancel() {
   if (act?.mode === 'drag' && act.moved) emit('move-end')
   act = null
   marquee.value = null
+  linkLine.value = null
   panning.value = false
+}
+
+// 取消进行中的连线(Esc)
+function cancelLink() {
+  if (act?.mode === 'link') {
+    act = null
+    linkLine.value = null
+  }
+}
+
+// 返回并清空选中的连线(父级 Delete 处理用)
+function consumeSelectedEdges() {
+  const ids = [...edgeSel.value]
+  edgeSel.value = new Set()
+  return ids
+}
+function clearEdgeSel() {
+  if (edgeSel.value.size) edgeSel.value = new Set()
+}
+function hasSelectedEdges() {
+  return edgeSel.value.size > 0
 }
 
 function onWheel(e) {
@@ -306,6 +430,7 @@ function screenRectToWorld(r) {
 }
 defineExpose({
   setViewport, zoomBy, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
+  cancelLink, consumeSelectedEdges, hasSelectedEdges,
 })
 </script>
 
@@ -323,13 +448,19 @@ defineExpose({
   >
     <div class="cv-world" :style="worldStyle">
       <svg class="cv-edges" aria-hidden="true">
-        <path
-          v-for="p in edgePaths"
-          :key="p.id"
-          :d="p.d"
-          class="cv-edge"
-          :class="{ 'cv-edge--hot': selection.has(p.to) }"
-        />
+        <g v-for="p in edgePaths" :key="p.id">
+          <path
+            class="cv-edge-hit"
+            :data-edge-id="p.id"
+            :d="p.d"
+          />
+          <path
+            class="cv-edge"
+            :class="{ 'cv-edge--hot': selection.has(p.to), 'cv-edge--sel': edgeSel.has(p.id) }"
+            :d="p.d"
+          />
+        </g>
+        <path v-if="linkLine" class="cv-linkline" :d="linkPath" />
       </svg>
       <CanvasNodeView
         v-for="n in visibleNodes"
@@ -343,7 +474,7 @@ defineExpose({
     </div>
 
     <div v-if="marquee" class="cv-marquee" :style="marquee" />
-    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · Shift+拖拽框选 · 双击笔记编辑 · 按住空格+拖拽平移</div>
+    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 拖节点右侧圆点连线 · 点击连线可选中删除 · 双击笔记编辑</div>
   </div>
 </template>
 
@@ -375,7 +506,6 @@ defineExpose({
   width: 1px;
   height: 1px;
   overflow: visible;
-  pointer-events: none;
 }
 .cv-edge {
   fill: none;
@@ -385,6 +515,25 @@ defineExpose({
 .cv-edge--hot {
   stroke: #7c6cff;
   stroke-width: 2;
+}
+.cv-edge--sel {
+  stroke: #ff7b8f;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 3px rgb(255 123 143 / 0.6));
+}
+.cv-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.cv-linkline {
+  fill: none;
+  stroke: #a99dff;
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+  pointer-events: none;
 }
 .cv-marquee {
   position: absolute;

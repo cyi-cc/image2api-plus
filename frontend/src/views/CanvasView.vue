@@ -323,11 +323,25 @@ function viewportCenterWorld() {
 }
 
 function deleteSelection() {
-  if (!selectionIds.value.length) return
   const dead = new Set(selectionIds.value)
-  doc.nodes = doc.nodes.filter((n) => !dead.has(n.id))
-  doc.edges = doc.edges.filter((e) => !dead.has(e.from) && !dead.has(e.to))
+  const deadEdges = stage.value?.consumeSelectedEdges() || []
+  if (!dead.size && !deadEdges.length) return
+  if (dead.size) {
+    doc.nodes = doc.nodes.filter((n) => !dead.has(n.id))
+    doc.edges = doc.edges.filter((e) => !dead.has(e.from) && !dead.has(e.to))
+  }
+  if (deadEdges.length) {
+    const gone = new Set(deadEdges)
+    doc.edges = doc.edges.filter((e) => !gone.has(e.id))
+  }
   selectionIds.value = []
+  pushHistory()
+}
+
+// ---- 手动连线 ----
+function onLinkCreate({ from, to }) {
+  if (doc.edges.some((e) => e.from === from && e.to === to)) return // 去重
+  doc.edges.push({ id: newId('e'), from, to })
   pushHistory()
 }
 
@@ -557,6 +571,7 @@ function onKeydown(e) {
     e.preventDefault()
     deleteSelection()
   } else if (e.key === 'Escape') {
+    stage.value?.cancelLink()
     stage.value?.clearSelection()
     previewSrc.value = ''
     pickerOpen.value = false
@@ -660,6 +675,7 @@ const saveLabel = computed(() => ({
           :edges="doc.edges"
           @selection="onSelection"
           @move-end="onMoveEnd"
+          @link-create="onLinkCreate"
           @note-commit="onNoteCommit"
           @img-size="onImgSize"
           @viewport-rest="onViewportRest"
@@ -672,11 +688,14 @@ const saveLabel = computed(() => ({
       <aside class="cv-panel">
         <div class="cv-panel__title">生成到画布</div>
         <label class="cv-label">模型</label>
-        <select v-model="gen.modelId" class="cv-input" @change="gen.ratio = ratios[0]">
+        <select v-if="imageModels.length" v-model="gen.modelId" class="cv-input" @change="gen.ratio = ratios[0]">
           <option v-for="m in imageModels" :key="m.id" :value="m.id">
             {{ m.alias || m.name || m.id }}
           </option>
         </select>
+        <div v-else class="cv-nomodels">
+          ⚠ 站点还没有可用的图像模型。请管理员到「管理后台 → 模型管理」添加并启用模型后,这里就能选择了。
+        </div>
 
         <label class="cv-label">比例</label>
         <div class="cv-ratios">
@@ -708,8 +727,8 @@ const saveLabel = computed(() => ({
         <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
 
         <div class="cv-tips">
-          双击笔记可编辑;Delete 删除选中;Ctrl+Z 撤销;
-          生成结果会自动连线到来源节点。
+          拖节点右侧圆点可连线(点击连线选中,Delete 删除);双击笔记编辑;
+          生成结果会自动连线到来源节点;Ctrl+Z 撤销。
         </div>
       </aside>
     </div>
@@ -933,6 +952,14 @@ const saveLabel = computed(() => ({
   font-size: 11px;
   color: #9aa1b2;
   word-break: break-all;
+}
+.cv-nomodels {
+  font-size: 11px;
+  color: #d8a657;
+  line-height: 1.6;
+  border: 1px dashed rgb(216 166 87 / 0.4);
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 .cv-tips {
   font-size: 11px;

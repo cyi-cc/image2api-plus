@@ -99,6 +99,8 @@ defineExpose({ startEdit, commitNote })
     :data-node-id="node.id"
     @dblclick="onSelfDblClick"
   >
+    <!-- 连线出口:拖到目标节点创建连线(舞台接管手势) -->
+    <span v-if="node.type !== 'gen'" class="cv-port" data-port="out" />
     <!-- 图片节点 -->
     <template v-if="node.type === 'image'">
       <img
@@ -240,5 +242,25 @@ defineExpose({ startEdit, commitNote })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cv-port {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #7c6cff;
+  border: 2.5px solid #0e1015;
+  opacity: 0;
+  transition: opacity 0.12s;
+  cursor: crosshair;
+  z-index: 2;
+}
+.cv-node:hover .cv-port,
+.cv-node.is-selected .cv-port {
+  opacity: 1;
 }
 </style>
