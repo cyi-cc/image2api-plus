@@ -1,10 +1,3 @@
-# image2api — one-command stack: PostgreSQL + Redis + RustFS (S3) + backend
-# (built from source) + frontend/nginx (HTTP only on port 2000). Self-contained:
-#   docker compose up -d --build
-# No .env needed — all values are inline below. TLS + domain are handled by YOUR
-# OWN reverse proxy in front of the web container (host port 2000).
-# ⚠ Before exposing to production, change the passwords/keys (POSTGRES_PASSWORD,
-#   RUSTFS_ACCESS_KEY/SECRET_KEY) and set CORS_ORIGINS to your real site origin.
 services:
   postgres:
     image: postgres:16-alpine
@@ -15,54 +8,53 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d vivid_ai"]
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d vivid_ai
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
+    labels: []
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - --appendonly
+      - yes
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD
+        - redis-cli
+        - ping
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
-  # RustFS — S3-compatible object storage. The backend talks plain S3 (v4-signed)
-  # on port 9000. Media is served (cookie-authed) via the backend's /images
-  # proxy, so the bucket stays private.
+    labels: []
   rustfs:
     image: rustfs/rustfs:latest
     environment:
       RUSTFS_ACCESS_KEY: vividai
       RUSTFS_SECRET_KEY: vividai-secret-change-me
-      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_ADDRESS: :9000
       RUSTFS_VOLUMES: /data
     volumes:
       - rustfsdata:/data
     restart: unless-stopped
-
-  # One-shot: wait for RustFS, create the bucket, then exit. mc (the MinIO client)
-  # speaks S3 so it works against RustFS too.
+    labels: []
   createbucket:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       - rustfs
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set s3 http://rustfs:9000 vividai vividai-secret-change-me; do
+    entrypoint: |
+      /bin/sh -c " until mc alias set s3 http://rustfs:9000 vividai vividai-secret-change-me; do
         echo 'waiting for rustfs...'; sleep 2;
-      done;
-      mc mb -p s3/vivid-ai || true;
-      echo 'bucket ready';
-      "
-    restart: "no"
-
+      done; mc mb -p s3/vivid-ai || true; echo 'bucket ready'; "
+    restart: no
+    labels: []
   backend:
     build:
       context: ./backend
@@ -78,9 +70,7 @@ services:
       RUSTFS_BUCKET: vivid-ai
       RUSTFS_ACCESS_KEY: vividai
       RUSTFS_SECRET_KEY: vividai-secret-change-me
-      # Set to the URL your reverse proxy serves the site on (comma-separated).
       CORS_ORIGINS: http://localhost:2000
-      # true only if your reverse proxy serves HTTPS; false for plain HTTP.
       COOKIE_SECURE: "false"
     volumes:
       - generated:/app/data/generated
@@ -92,25 +82,27 @@ services:
       createbucket:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:6666/health"]
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://127.0.0.1:6666/health
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
+    labels: []
   web:
     build:
       context: ./frontend
-    # nginx serves the SPA + proxies the API on container port 2000 (HTTP only).
-    # Point your own reverse proxy at host:2000.
     ports:
-      - "2000:2000"
+      - 2000:2000
     depends_on:
       - backend
     restart: unless-stopped
-
+    labels: []
 volumes:
-  pgdata:
-  redisdata:
-  rustfsdata:
-  generated:
+  pgdata: null
+  redisdata: null
+  rustfsdata: null
+  generated: null
