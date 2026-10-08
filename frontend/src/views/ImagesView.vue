@@ -215,12 +215,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-indigo-300/80">图像</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-indigo-300">{{ stats.image }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-sky-300/80">图像</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-sky-300">{{ stats.image }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-fuchsia-300/80">视频</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-fuchsia-300">{{ stats.video }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">视频</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.video }}</div>
       </div>
       <div class="card p-4">
         <div class="text-[11px] uppercase tracking-wider text-amber-300/80">存储</div>
@@ -293,7 +293,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
             <Icon name="check" class="w-3 h-3" />
           </button>
           <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ring-1"
-                :class="f.kind === 'video' ? 'bg-fuchsia-500/20 text-fuchsia-200 ring-fuchsia-400/30' : 'bg-indigo-500/20 text-indigo-200 ring-indigo-400/30'">
+                :class="f.kind === 'video' ? 'bg-rose-500/20 text-rose-200 ring-rose-400/30' : 'bg-sky-500/20 text-sky-200 ring-sky-400/30'">
             {{ f.kind === 'video' ? '视频' : '图像' }}
           </span>
         </div>
@@ -327,8 +327,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
             <span class="shrink-0 flex items-center gap-1">
               <span v-if="f.resolution" class="text-emerald-300/90">{{ f.resolution }}</span>
               <span v-if="f.ratio" class="text-white/40">{{ f.ratio }}</span>
-              <span v-if="f.kind === 'video' && f.duration" class="text-fuchsia-300/80">{{ f.duration }}</span>
-              <span v-if="f.deai" class="text-[#7c3aed]">去AI</span>
+              <span v-if="f.kind === 'video' && f.duration" class="text-rose-300/80">{{ f.duration }}</span>
+              <span v-if="f.deai" class="text-[#ec5b13]">去AI</span>
             </span>
           </div>
           <div class="text-[10px] text-white/35 mt-0.5 tabular-nums">{{ fmtSize(f.size) }} · {{ fmtTs(f.mtime) }}</div>
@@ -438,6 +438,6 @@ html.dark .pg-on { background: rgb(255 255 255 / 0.92); color: rgb(15 23 42); }
 .pick svg { opacity: 0; transition: opacity 0.15s; }
 .pick:hover { background: rgb(0 0 0 / 0.65); }
 .pick:hover svg { opacity: 0.6; }
-.pick-on { background: rgb(217 70 239); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.9); }
+.pick-on { background: rgb(244 63 94); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.9); }
 .pick-on svg { opacity: 1; }
 </style>

@@ -67,7 +67,7 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-violet-400/30">
+  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30">
     <!-- ===== Top bar ===== -->
     <header class="fixed top-0 inset-x-0 z-40 backdrop-blur-xl top-bar">
       <div class="mx-auto max-w-[1400px] px-4 md:px-8 h-[58px] flex items-center gap-3">

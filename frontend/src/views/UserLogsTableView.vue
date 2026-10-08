@@ -70,7 +70,7 @@ onMounted(load)
 const isApi = (e) => e.source === 'v1'
 const sourceLabel = (e) => (isApi(e) ? 'API' : '画图台')
 const sourcePill = (e) => (isApi(e)
-  ? 'bg-violet-50 text-violet-700 ring-violet-200'
+  ? 'bg-orange-50 text-orange-700 ring-orange-200'
   : 'bg-sky-50 text-sky-700 ring-sky-200')
 
 // 搜索走服务端(跨页)，直接展示服务端返回的当页结果。
@@ -218,7 +218,7 @@ const params = (e) => {
               <!-- API(v1) videos are no-store: file is an external provider URL
                    (not a RustFS path), so it can't be previewed in-browser — show —. -->
               <button v-if="e.status === 'success' && e.file && !e.file.startsWith('http')" @click="lightbox = e"
-                      class="block w-11 h-11 mx-auto rounded-lg overflow-hidden ring-1 ring-slate-200 hover:ring-fuchsia-300 transition-all">
+                      class="block w-11 h-11 mx-auto rounded-lg overflow-hidden ring-1 ring-slate-200 hover:ring-rose-300 transition-all">
                 <img v-if="e.kind !== 'video' || !thumbFail[e.id]" :src="thumbUrl(e.file)" loading="lazy" class="w-full h-full object-cover"
                      @error="e.kind === 'video' && (thumbFail[e.id] = true)" />
                 <video v-else :src="generatedUrl(e.file)" muted preload="metadata" class="w-full h-full object-cover" />
@@ -241,7 +241,7 @@ const params = (e) => {
               <div class="font-mono text-xs text-slate-800 break-all" :title="e.model">{{ e.model }}</div>
               <div class="mt-0.5 flex items-center gap-1.5">
                 <span class="text-[10px] uppercase tracking-wider font-medium"
-                      :class="e.kind === 'video' ? 'text-fuchsia-600' : 'text-indigo-600'">
+                      :class="e.kind === 'video' ? 'text-rose-600' : 'text-sky-600'">
                   {{ e.kind === 'video' ? '视频' : '图像' }}
                 </span>
                 <span class="inline-flex items-center rounded px-1.5 py-px text-[10px] font-medium ring-1 whitespace-nowrap"
@@ -257,7 +257,7 @@ const params = (e) => {
                    :title="e.error + ' — 点击复制'"
                    @click.stop="copyError(e)">⚠ {{ e.error }}</div>
             </td>
-            <td class="px-3 py-3 align-middle text-xs text-slate-500 tabular-nums">{{ params(e) || '—' }}<span v-if="e.deai"> · <span class="text-[#7c3aed]">去AI特征</span></span></td>
+            <td class="px-3 py-3 align-middle text-xs text-slate-500 tabular-nums">{{ params(e) || '—' }}<span v-if="e.deai"> · <span class="text-[#ec5b13]">去AI特征</span></span></td>
             <td class="px-3 py-3 align-middle text-right text-xs text-slate-700 tabular-nums">{{ e.cost ? points(e.cost) : '—' }}</td>
             <td class="px-3 py-3 align-middle text-right text-xs text-slate-500 tabular-nums">{{ e.elapsed_ms ? (e.elapsed_ms / 1000).toFixed(1) + 's' : '—' }}</td>
           </tr>
@@ -299,14 +299,14 @@ const params = (e) => {
 
 <style scoped>
 /* Row hover — light-theme twin of the admin 日志 page's .log-row: a subtle
-   tint plus a violet accent bar on the left edge of the hovered row. */
+   tint plus a orange accent bar on the left edge of the hovered row. */
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td {
   border-bottom: 1px solid rgb(15 23 42 / 0.06);
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .log-row:hover td { background: rgb(15 23 42 / 0.025); }
-.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(124 58 237 / 0.6); }
+.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(234 88 12 / 0.6); }
 .log-row:last-child td { border-bottom: none; }
 
 /* Numbered pagination buttons — light-theme twin of the admin 日志 page's .pg */

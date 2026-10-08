@@ -101,9 +101,9 @@ html:not(.dark) .theme-text :is([class*="bg-slate-900"], [class*="bg-slate-800"]
    shell and washes out on white. In LIGHT mode, darken to the -600 tone. The
    matcher also catches the /80 opacity variants. Badges keep their pale tinted
    bg (bg-*-500/10) which reads fine on white. */
-html:not(.dark) .theme-text :is([class*="text-indigo-300"], [class*="text-indigo-200"]) { color: rgb(79 70 229); }
-html:not(.dark) .theme-text :is([class*="text-violet-300"], [class*="text-violet-200"]) { color: rgb(124 58 237); }
-html:not(.dark) .theme-text :is([class*="text-fuchsia-300"], [class*="text-fuchsia-200"]) { color: rgb(192 38 211); }
+html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(79 70 229); }
+html:not(.dark) .theme-text :is([class*="text-orange-300"], [class*="text-orange-200"]) { color: rgb(234 88 12); }
+html:not(.dark) .theme-text :is([class*="text-rose-300"], [class*="text-rose-200"]) { color: rgb(225 29 72); }
 html:not(.dark) .theme-text :is([class*="text-emerald-300"], [class*="text-emerald-200"]) { color: rgb(5 150 105); }
 html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(2 132 199); }
 html:not(.dark) .theme-text :is([class*="text-amber-300"], [class*="text-amber-200"]) { color: rgb(217 119 6); }
@@ -121,8 +121,8 @@ html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset
   color: var(--fg); background: var(--hover);
 }
 html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) { background: var(--fg); color: #fff; box-shadow: 2px 2px 0 var(--m-orange); }
-/* Tag chips (TagInput) — near-white violet text is unreadable on white; keep
-   the violet tint but switch the label to dark ink. */
+/* Tag chips (TagInput) — near-white orange text is unreadable on white; keep
+   the orange tint but switch the label to dark ink. */
 html:not(.dark) .theme-text .chip { color: rgb(15 23 42 / 0.9); }
 html:not(.dark) .theme-text .chip .chip-x { color: rgb(15 23 42 / 0.55); background: transparent; box-shadow: none; }
 html:not(.dark) .theme-text .chip .chip-x:hover { color: #fff; background: rgb(244 63 94 / 0.6); }
@@ -137,10 +137,9 @@ html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on { background: var(--
    placed later, so the selection reads on a white page. */
 html:not(.dark) .theme-text .fp-emerald { background: rgb(16 185 129 / 0.14); color: rgb(4 120 87); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.45); }
 html:not(.dark) .theme-text .fp-rose { background: rgb(244 63 94 / 0.12); color: rgb(190 18 60); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.45); }
-html:not(.dark) .theme-text .fp-fuchsia { background: rgb(217 70 239 / 0.12); color: rgb(162 28 175); box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.45); }
 html:not(.dark) .theme-text .fp-amber { background: rgb(245 158 11 / 0.16); color: rgb(180 83 9); box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.5); }
-html:not(.dark) .theme-text .fp-violet { background: rgb(139 92 246 / 0.14); color: rgb(109 40 217); box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.45); }
-html:not(.dark) .theme-text .fp-purple { background: rgb(168 85 247 / 0.14); color: rgb(107 33 168); box-shadow: inset 0 0 0 1px rgb(168 85 247 / 0.45); }
+html:not(.dark) .theme-text .fp-orange { background: rgb(249 115 22 / 0.14); color: rgb(194 65 12); box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.45); }
+html:not(.dark) .theme-text .fp-pink { background: rgb(244 114 182 / 0.14); color: rgb(190 24 93); box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.45); }
 html:not(.dark) .theme-text .fp-slate { background: rgb(100 116 139 / 0.14); color: rgb(51 65 85); box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.45); }
 html:not(.dark) .theme-text .fp-sky { background: rgb(14 165 233 / 0.14); color: rgb(3 105 161); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.45); }
 html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color: rgb(15 118 110); box-shadow: inset 0 0 0 1px rgb(20 184 166 / 0.45); }
@@ -148,7 +147,7 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
 /* Custom checkbox for admin tables (<input type="checkbox" class="chk">).
    Replaces the plain accent-color box with a rounded, branded one + white check.
    Neutral border + transparent bg so it reads on both the dark admin shell and
-   light mode; fills fuchsia when checked. */
+   light mode; fills rose when checked. */
 .chk {
   appearance: none;
   -webkit-appearance: none;
@@ -196,11 +195,11 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   white-space: nowrap;
 }
 .acct-tag-sub { background: rgb(14 165 233 / 0.14); color: rgb(3 105 161); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.4); }
-.acct-tag-master { background: rgb(139 92 246 / 0.14); color: rgb(109 40 217); box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.4); }
+.acct-tag-master { background: rgb(249 115 22 / 0.14); color: rgb(194 65 12); box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.4); }
 .acct-tag-free { background: rgb(100 116 139 / 0.14); color: rgb(51 65 85); box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.4); }
 .acct-tag-limit { background: rgb(245 158 11 / 0.16); color: rgb(180 83 9); box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.4); }
 html.dark .acct-tag-sub { background: rgb(14 165 233 / 0.18); color: rgb(125 211 252); box-shadow: inset 0 0 0 1px rgb(56 189 248 / 0.35); }
-html.dark .acct-tag-master { background: rgb(139 92 246 / 0.22); color: rgb(196 181 253); box-shadow: inset 0 0 0 1px rgb(167 139 250 / 0.35); }
+html.dark .acct-tag-master { background: rgb(249 115 22 / 0.22); color: rgb(253 186 116); box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.35); }
 html.dark .acct-tag-free { background: rgb(148 163 184 / 0.22); color: rgb(226 232 240); box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.35); }
 html.dark .acct-tag-limit { background: rgb(245 158 11 / 0.18); color: rgb(252 211 77); box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.35); }
 /* Capability chips (ModelsView): all variants need bg + ring + color reset in light mode.
@@ -255,9 +254,9 @@ html:not(.dark) .media-card :is([class*="border-white/"], [class*="ring-white/"]
 /* Accent text inside a media-card sits on dark imagery too — keep it at its
    bright (dark-mode) shade instead of the darkened light-theme rescue above. */
 html:not(.dark) .media-card :is([class*="text-emerald-3"], [class*="text-emerald-2"]) { color: rgb(110 231 183) !important; }
-html:not(.dark) .media-card :is([class*="text-fuchsia-3"], [class*="text-fuchsia-2"]) { color: rgb(240 171 252) !important; }
-html:not(.dark) .media-card :is([class*="text-indigo-3"], [class*="text-indigo-2"]) { color: rgb(165 180 252) !important; }
-html:not(.dark) .media-card :is([class*="text-violet-3"], [class*="text-violet-2"]) { color: rgb(196 181 253) !important; }
+html:not(.dark) .media-card :is([class*="text-rose-3"], [class*="text-rose-2"]) { color: rgb(251 207 232) !important; }
+html:not(.dark) .media-card :is([class*="text-sky-3"], [class*="text-sky-2"]) { color: rgb(147 197 253) !important; }
+html:not(.dark) .media-card :is([class*="text-orange-3"], [class*="text-orange-2"]) { color: rgb(253 186 116) !important; }
 html:not(.dark) .media-card :is([class*="text-sky-3"], [class*="text-sky-2"]) { color: rgb(125 211 252) !important; }
 html:not(.dark) .media-card :is([class*="text-amber-3"], [class*="text-amber-2"]) { color: rgb(252 211 77) !important; }
 

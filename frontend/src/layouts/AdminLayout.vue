@@ -47,7 +47,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="theme-x h-screen flex bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-violet-400/30 overflow-hidden">
+  <div class="theme-x h-screen flex bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30 overflow-hidden">
     <!-- ===== Sidebar ===== -->
     <aside class="w-60 shrink-0 border-r-[3px] border-r-[color:var(--ink)] bg-[var(--surface)] backdrop-blur-md flex flex-col">
       <router-link to="/" class="h-16 flex items-center gap-2.5 px-5 border-b-[3px] border-b-[color:var(--ink)] group">

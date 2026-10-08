@@ -81,8 +81,8 @@ onMounted(load)
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums text-white/70">{{ g.user_count }}</td>
             <td class="px-3 py-3.5 align-middle">
-              <span v-if="g.is_default" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-fuchsia-500/10 text-fuchsia-300 ring-1 ring-fuchsia-400/30">
-                <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span> 默认
+              <span v-if="g.is_default" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-rose-500/10 text-rose-300 ring-1 ring-rose-400/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> 默认
               </span>
               <button v-else @click="setDefault(g)" class="btn-soft text-xs">设为默认</button>
             </td>

@@ -273,7 +273,7 @@ async function copy(text) {
             <dt class="text-white/45">你的 Key</dt><dd class="font-mono text-white/70">{{ keyHint }}</dd>
           </div>
         </dl>
-        <p class="text-[11px] text-white/40 mt-4">还没有 Key?去 <router-link to="/settings" class="text-violet-300 underline">设置 → API Key</router-link> 生成。</p>
+        <p class="text-[11px] text-white/40 mt-4">还没有 Key?去 <router-link to="/settings" class="text-orange-300 underline">设置 → API Key</router-link> 生成。</p>
       </div>
 
       <div class="card p-6">
@@ -528,15 +528,15 @@ html.dark .badge-err { background: rgb(244 63 94 / 0.15); color: rgb(253 164 175
 
 .cap { display: inline-flex; align-items: center; padding: 0.18rem 0.55rem; font-size: 0.7rem; border-radius: 9999px; white-space: nowrap; }
 .cap-k { background: rgb(16 185 129 / 0.12); color: rgb(4 120 87); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.3); }
-.cap-dur { background: rgb(99 102 241 / 0.12); color: rgb(55 48 163); box-shadow: inset 0 0 0 1px rgb(99 102 241 / 0.3); }
-.cap-frame { background: rgb(236 72 153 / 0.12); color: rgb(159 18 57); box-shadow: inset 0 0 0 1px rgb(236 72 153 / 0.3); }
+.cap-dur { background: rgb(14 165 233 / 0.12); color: rgb(55 48 163); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.3); }
+.cap-frame { background: rgb(251 113 133 / 0.12); color: rgb(159 18 57); box-shadow: inset 0 0 0 1px rgb(251 113 133 / 0.3); }
 .cap-ref { background: rgb(16 185 129 / 0.12); color: rgb(4 120 87); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.3); }
 .cap-media { background: rgb(245 158 11 / 0.12); color: rgb(146 64 14); box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.3); }
 .cap-price { background: rgb(14 165 233 / 0.12); color: rgb(3 105 161); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.3); font-variant-numeric: tabular-nums; }
 .cap-ratio { background: rgb(100 116 139 / 0.1); color: rgb(51 65 85); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.25); }
 html.dark .cap-k { background: rgb(16 185 129 / 0.18); color: rgb(110 231 183); box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.4); }
-html.dark .cap-dur { background: rgb(99 102 241 / 0.18); color: rgb(165 180 252); box-shadow: inset 0 0 0 1px rgb(129 140 248 / 0.4); }
-html.dark .cap-frame { background: rgb(236 72 153 / 0.18); color: rgb(244 114 182); box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.45); }
+html.dark .cap-dur { background: rgb(14 165 233 / 0.18); color: rgb(147 197 253); box-shadow: inset 0 0 0 1px rgb(129 140 248 / 0.4); }
+html.dark .cap-frame { background: rgb(251 113 133 / 0.18); color: rgb(244 114 182); box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.45); }
 html.dark .cap-ref { background: rgb(16 185 129 / 0.18); color: rgb(110 231 183); box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.4); }
 html.dark .cap-media { background: rgb(245 158 11 / 0.18); color: rgb(252 211 77); box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.45); }
 html.dark .cap-price { background: rgb(14 165 233 / 0.18); color: rgb(125 211 252); box-shadow: inset 0 0 0 1px rgb(56 189 248 / 0.45); }

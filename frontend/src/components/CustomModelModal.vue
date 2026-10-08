@@ -156,7 +156,7 @@ async function save() {
           <div class="flex flex-wrap gap-1.5">
             <button v-for="r in RATIO_OPTS" :key="r" type="button" @click="toggleRatio(r)"
                     class="px-2 py-1 rounded text-xs ring-1 transition-colors"
-                    :class="ratios.includes(r) ? 'bg-indigo-500/15 text-indigo-600 ring-indigo-300' : 'bg-slate-50 text-slate-500 ring-slate-200 hover:ring-slate-300'">{{ r }}</button>
+                    :class="ratios.includes(r) ? 'bg-sky-500/15 text-sky-600 ring-sky-300' : 'bg-slate-50 text-slate-500 ring-slate-200 hover:ring-slate-300'">{{ r }}</button>
           </div>
         </div>
 

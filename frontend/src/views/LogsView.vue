@@ -145,7 +145,7 @@ const statusDot = (s) => ({
 // Source: backend stamps "v1" (API key), "user" (画图台), "admin" (后台测试模型).
 const sourceLabel = (s) => ({ v1: 'API', user: '画图台', admin: '测试' }[s] || '画图台')
 const sourcePill = (s) => ({
-  v1:    'bg-violet-500/15 text-violet-300 ring-violet-400/30',
+  v1:    'bg-orange-500/15 text-orange-300 ring-orange-400/30',
   admin: 'bg-amber-500/15 text-amber-300 ring-amber-400/30',
   user:  'bg-sky-500/15 text-sky-300 ring-sky-400/30',
 }[s] || 'bg-sky-500/15 text-sky-300 ring-sky-400/30')
@@ -254,7 +254,7 @@ const sourcePill = (s) => ({
             <td class="px-4 py-3.5 align-middle text-center">
               <button v-if="e.status === 'success' && e.file && e.source !== 'v1'"
                       @click="openPreview(e)"
-                      class="block w-12 h-12 mx-auto rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-fuchsia-400/60 transition-all">
+                      class="block w-12 h-12 mx-auto rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-rose-400/60 transition-all">
                 <img v-if="e.kind !== 'video' || !thumbFail[e.id]" :src="thumbUrl(e.file)" loading="lazy"
                      class="w-full h-full object-cover"
                      @error="e.kind === 'video' && (thumbFail[e.id] = true)" />
@@ -291,7 +291,7 @@ const sourcePill = (s) => ({
               <div class="font-mono text-xs text-white/90 break-all" :title="e.model">{{ e.model }}</div>
               <div class="mt-1 flex items-center gap-1.5 min-w-0">
                 <span class="text-[10px] uppercase tracking-wider font-medium truncate min-w-0"
-                      :class="e.kind === 'video' ? 'text-fuchsia-300/80' : 'text-indigo-300/80'">
+                      :class="e.kind === 'video' ? 'text-rose-300/80' : 'text-sky-300/80'">
                   {{ e.kind === 'video' ? '视频' : '图像' }}
                   <span v-if="e.provider" class="text-white/30 ml-1">· {{ e.provider }}</span>
                 </span>
@@ -327,7 +327,7 @@ const sourcePill = (s) => ({
               </template>
               <template v-if="e.deai">
                 <span class="text-white/25 mx-1.5">·</span>
-                <span class="text-[#7c3aed]">去AI特征</span>
+                <span class="text-[#ec5b13]">去AI特征</span>
               </template>
             </td>
             <td class="px-3 py-3.5 text-right text-xs tabular-nums align-middle whitespace-nowrap">
@@ -437,7 +437,7 @@ const sourcePill = (s) => ({
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* --- log table: subtle row separators + a barely-there hover tint that
-       extends a soft violet accent on the left of the row (read as a
+       extends a soft orange accent on the left of the row (read as a
        focus indicator without being noisy). --- */
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td {
@@ -446,7 +446,7 @@ const sourcePill = (s) => ({
 }
 .log-row:hover td { background: rgb(255 255 255 / 0.025); }
 .log-row:hover td:first-child {
-  box-shadow: inset 2px 0 0 rgb(167 139 250 / 0.55);
+  box-shadow: inset 2px 0 0 rgb(253 186 116 / 0.55);
 }
 .log-row:last-child td { border-bottom: none; }
 

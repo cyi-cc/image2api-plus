@@ -327,7 +327,7 @@ onUnmounted(() => {
             <Icon name="check" class="w-3 h-3" />
           </button>
           <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ring-1"
-                :class="e.kind === 'video' ? 'bg-fuchsia-500/20 text-fuchsia-200 ring-fuchsia-400/30' : 'bg-indigo-500/20 text-indigo-200 ring-indigo-400/30'">
+                :class="e.kind === 'video' ? 'bg-rose-500/20 text-rose-200 ring-rose-400/30' : 'bg-sky-500/20 text-sky-200 ring-sky-400/30'">
             {{ e.kind === 'video' ? '视频' : '图像' }}
           </span>
         </div>
@@ -360,8 +360,8 @@ onUnmounted(() => {
             <span class="shrink-0 flex items-center gap-1">
               <span v-if="e.resolution" class="text-emerald-300/90">{{ e.resolution }}</span>
               <span v-if="e.ratio" class="text-white/40">{{ e.ratio }}</span>
-              <span v-if="e.kind === 'video' && e.duration" class="text-fuchsia-300/80">{{ e.duration }}</span>
-              <span v-if="e.deai" class="text-[#7c3aed]">去AI</span>
+              <span v-if="e.kind === 'video' && e.duration" class="text-rose-300/80">{{ e.duration }}</span>
+              <span v-if="e.deai" class="text-[#ec5b13]">去AI</span>
             </span>
           </div>
           <div class="text-[10px] text-white/35 mt-0.5 tabular-nums">{{ fmtTs(e.ts) }}<span v-if="e.elapsed_ms"> · {{ fmtMs(e.elapsed_ms) }}</span></div>
@@ -436,6 +436,6 @@ onUnmounted(() => {
 .pick svg { opacity: 0; transition: opacity 0.15s; }
 .pick:hover { background: rgb(0 0 0 / 0.65); }
 .pick:hover svg { opacity: 0.6; }
-.pick-on { background: rgb(217 70 239); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.9); }
+.pick-on { background: rgb(244 63 94); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.9); }
 .pick-on svg { opacity: 1; }
 </style>

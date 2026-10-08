@@ -131,7 +131,7 @@ async function doSmartImport() {
             <span v-if="detected.adobe" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-rose-700 bg-rose-50 ring-1 ring-rose-200">
               Adobe · <span class="tabular-nums">{{ detected.adobe }}</span>
             </span>
-            <span v-if="detected.runway" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-violet-700 bg-violet-50 ring-1 ring-violet-200">
+            <span v-if="detected.runway" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-orange-700 bg-orange-50 ring-1 ring-orange-200">
               Runway · <span class="tabular-nums">{{ detected.runway }}</span>
             </span>
             <span v-if="detected.leonardo" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-amber-700 bg-amber-50 ring-1 ring-amber-200">
@@ -146,7 +146,7 @@ async function doSmartImport() {
             <span v-if="detected.grok" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-slate-700 bg-slate-100 ring-1 ring-slate-300">
               Grok · <span class="tabular-nums">{{ detected.grok }}</span>
             </span>
-            <span v-if="detected.cf" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-fuchsia-700 bg-fuchsia-50 ring-1 ring-fuchsia-200">
+            <span v-if="detected.cf" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-rose-700 bg-rose-50 ring-1 ring-rose-200">
               Creative Fabrica · <span class="tabular-nums">{{ detected.cf }}</span>
             </span>
           </template>

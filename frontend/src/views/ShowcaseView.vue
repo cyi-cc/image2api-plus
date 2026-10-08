@@ -208,8 +208,8 @@ onMounted(refresh)
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
         <div class="absolute top-3 left-3 flex items-center gap-1.5">
           <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ring-1"
-                :class="rec.kind === 'hero' ? 'bg-fuchsia-500/20 text-fuchsia-200 ring-fuchsia-400/30'
-                       : rec.kind === 'bento' ? 'bg-violet-500/20 text-violet-200 ring-violet-400/30'
+                :class="rec.kind === 'hero' ? 'bg-rose-500/20 text-rose-200 ring-rose-400/30'
+                       : rec.kind === 'bento' ? 'bg-orange-500/20 text-orange-200 ring-orange-400/30'
                        : 'bg-sky-500/20 text-sky-200 ring-sky-400/30'">
             {{ rec.kind }}
           </span>
@@ -265,7 +265,7 @@ onMounted(refresh)
           <div class="p-5 space-y-4">
             <!-- live preview — click or drag an image here to upload as 底图 -->
             <div class="relative rounded-2xl overflow-hidden ring-1 ring-white/10 aspect-[5/2] bg-white/[0.04] cursor-pointer transition-all"
-                 :class="scDragOver ? 'ring-2 ring-indigo-400' : ''"
+                 :class="scDragOver ? 'ring-2 ring-sky-400' : ''"
                  :style="bgFor(form.image)"
                  @click="pickShowcaseImg" @drop="onScDrop" @dragover.prevent="scDragOver = true" @dragleave="scDragOver = false">
               <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
@@ -368,7 +368,7 @@ onMounted(refresh)
             <div v-if="!recentFiles.length" class="text-center text-xs text-[color:var(--fg-faint)] py-10">尚未有生成过的图片</div>
             <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               <button v-for="f in recentFiles" :key="f.name" type="button" @click="pickImage(f)"
-                      class="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-fuchsia-400/60 transition-all">
+                      class="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-rose-400/60 transition-all">
                 <img :src="generatedUrl(f.name)" loading="lazy" class="w-full h-full object-cover" />
               </button>
             </div>

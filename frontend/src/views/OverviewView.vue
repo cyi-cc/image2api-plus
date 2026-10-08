@@ -162,7 +162,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="card p-4">
         <div class="flex items-center justify-between">
           <span class="text-xs text-white/55">用户</span>
-          <span class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-300 grid place-items-center ring-1 ring-indigo-400/20">
+          <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-300 grid place-items-center ring-1 ring-sky-400/20">
             <Icon name="accounts" class="w-3.5 h-3.5" />
           </span>
         </div>
@@ -197,7 +197,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="card p-4">
         <div class="flex items-center justify-between">
           <span class="text-xs text-white/55">近 24 小时生成</span>
-          <span class="w-7 h-7 rounded-lg bg-violet-500/15 text-violet-300 grid place-items-center ring-1 ring-violet-400/20">
+          <span class="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-300 grid place-items-center ring-1 ring-orange-400/20">
             <Icon name="spark" class="w-3.5 h-3.5" />
           </span>
         </div>
@@ -223,7 +223,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="card p-4">
         <div class="flex items-center justify-between">
           <span class="text-xs text-white/55">累计生成</span>
-          <span class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-300 grid place-items-center ring-1 ring-indigo-400/20">
+          <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-300 grid place-items-center ring-1 ring-sky-400/20">
             <Icon name="overview" class="w-3.5 h-3.5" />
           </span>
         </div>
@@ -317,7 +317,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="card p-4">
         <div class="flex items-center justify-between">
           <span class="text-xs text-white/55">邀请</span>
-          <span class="w-7 h-7 rounded-lg bg-fuchsia-500/15 text-fuchsia-300 grid place-items-center ring-1 ring-fuchsia-400/20">
+          <span class="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 grid place-items-center ring-1 ring-rose-400/20">
             <Icon name="accounts" class="w-3.5 h-3.5" />
           </span>
         </div>
@@ -387,8 +387,8 @@ onUnmounted(() => clearInterval(timer))
         <div class="px-5 py-3 border-b border-white/[0.06] flex items-baseline justify-between">
           <h2 class="text-sm font-semibold">24 小时生成趋势</h2>
           <div class="text-[11px] text-white/45 flex items-center gap-3">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-indigo-400/80"></span>图像</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-fuchsia-400/80"></span>视频</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-sky-400/80"></span>图像</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-rose-400/80"></span>视频</span>
             <span class="tabular-nums">峰值 {{ hourMax }}/h</span>
           </div>
         </div>
@@ -402,8 +402,8 @@ onUnmounted(() => clearInterval(timer))
                           whitespace-nowrap rounded-md bg-black/90 ring-1 ring-white/10 px-2 py-1 text-[10px] text-white/90 tabular-nums">
                 {{ 23 - i }}h 前 · 图 {{ b.image }} / 视 {{ b.video }}
               </div>
-              <div v-if="b.video" class="bg-fuchsia-400/80 group-hover/bar:bg-fuchsia-400" :style="{ flex: b.video }"></div>
-              <div v-if="b.image" class="bg-indigo-400/80 group-hover/bar:bg-indigo-400" :style="{ flex: b.image }"></div>
+              <div v-if="b.video" class="bg-rose-400/80 group-hover/bar:bg-rose-400" :style="{ flex: b.video }"></div>
+              <div v-if="b.image" class="bg-sky-400/80 group-hover/bar:bg-sky-400" :style="{ flex: b.image }"></div>
               <div v-if="!b.image && !b.video" class="bg-white/[0.06] group-hover/bar:bg-white/15 flex-1 rounded-t"></div>
             </div>
           </div>
@@ -448,7 +448,7 @@ onUnmounted(() => clearInterval(timer))
                 </span>
               </div>
               <div class="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-500"
+                <div class="h-full rounded-full bg-gradient-to-r from-orange-400 to-rose-500"
                      :style="{ width: ((m.count / usageMax) * 100) + '%' }"></div>
               </div>
             </div>
@@ -544,7 +544,7 @@ onUnmounted(() => clearInterval(timer))
                class="flex items-center gap-3 px-2 py-2 text-xs rounded-lg hover:bg-white/[0.03]">
             <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="logDot(e.status)"></span>
             <span class="text-[10px] uppercase tracking-wider font-medium w-9"
-                  :class="e.kind === 'video' ? 'text-fuchsia-300' : 'text-indigo-300'">
+                  :class="e.kind === 'video' ? 'text-rose-300' : 'text-sky-300'">
               {{ e.kind === 'video' ? '视频' : '图像' }}
             </span>
             <span class="font-mono text-white/85 truncate w-40 shrink-0">{{ e.model }}</span>

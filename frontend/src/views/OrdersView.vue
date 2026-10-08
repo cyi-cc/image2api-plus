@@ -140,7 +140,7 @@ async function cont(o) {
             <td class="px-3 py-3 align-middle text-xs text-slate-500 whitespace-nowrap">{{ fmt(o.created_at) }}</td>
             <td class="px-3 py-3 align-middle text-xs text-slate-500 whitespace-nowrap">{{ fmt(o.paid_at) }}</td>
             <td class="px-3 py-3 align-middle text-right tabular-nums text-slate-800 font-medium">¥{{ o.amount }}</td>
-            <td class="px-3 py-3 align-middle text-right tabular-nums text-violet-600 font-medium">{{ o.points }}</td>
+            <td class="px-3 py-3 align-middle text-right tabular-nums text-orange-600 font-medium">{{ o.points }}</td>
             <td class="px-3 py-3 align-middle">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 whitespace-nowrap" :class="statusPill(o.status)">
                 <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(o.status)"></span>{{ STATUS[o.status] }}
@@ -149,7 +149,7 @@ async function cont(o) {
             </td>
             <td class="px-4 py-3 align-middle text-right">
               <button v-if="o.status === 'pending'" @click="cont(o)" :disabled="continuingId === o.id"
-                      class="rounded-lg bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5">
+                      class="rounded-lg bg-orange-600 text-white hover:bg-orange-500 disabled:opacity-60 disabled:cursor-not-allowed px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5">
                 <span v-if="continuingId === o.id" class="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin"></span>
                 {{ continuingId === o.id ? '处理中…' : '继续支付' }}
               </button>
@@ -177,7 +177,7 @@ async function cont(o) {
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td { border-bottom: 1px solid rgb(15 23 42 / 0.06); transition: background-color 0.15s ease, box-shadow 0.15s ease; }
 .log-row:hover td { background: rgb(15 23 42 / 0.025); }
-.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(124 58 237 / 0.6); }
+.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(234 88 12 / 0.6); }
 .log-row:last-child td { border-bottom: none; }
 .pg {
   min-width: 1.75rem; padding: 0.3rem 0.55rem; font-size: 0.72rem; font-weight: 500; text-align: center;

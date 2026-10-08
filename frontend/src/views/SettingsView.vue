@@ -222,7 +222,7 @@ async function recharge() {
     <!-- header -->
     <header class="flex items-end justify-between flex-wrap gap-4">
       <div>
-        <div class="text-[10px] uppercase tracking-[0.3em] text-violet-300/70 font-medium">账户</div>
+        <div class="text-[10px] uppercase tracking-[0.3em] text-orange-300/70 font-medium">账户</div>
         <h1 class="mt-2 text-4xl md:text-5xl font-bold tracking-tight">设置</h1>
         <p class="text-white/45 mt-2">API Key、密码、积分、登录状态 — 都在这里。</p>
       </div>
@@ -235,7 +235,7 @@ async function recharge() {
     <!-- ===== Account info ===== -->
     <section class="card p-6">
       <div class="flex items-center gap-2 mb-4">
-        <Icon name="accounts" class="w-4 h-4 text-violet-300" />
+        <Icon name="accounts" class="w-4 h-4 text-orange-300" />
         <h2 class="text-sm font-semibold">账户信息</h2>
       </div>
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
@@ -273,10 +273,10 @@ async function recharge() {
       <section class="lg:col-span-2 card overflow-hidden">
         <div class="p-7 md:p-8 relative">
           <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30 blur-3xl"
-               style="background: radial-gradient(circle,#a855f7,transparent 60%)"></div>
+               style="background: radial-gradient(circle,#f97316,transparent 60%)"></div>
           <div class="relative grid md:grid-cols-[260px_1fr] gap-8 items-start">
             <div>
-              <div class="inline-grid w-10 h-10 rounded-xl bg-violet-500/15 ring-1 ring-violet-400/30 grid place-items-center text-violet-300">
+              <div class="inline-grid w-10 h-10 rounded-xl bg-orange-500/15 ring-1 ring-orange-400/30 grid place-items-center text-orange-300">
                 <Icon name="plug" class="w-4 h-4" />
               </div>
               <h2 class="text-xl font-bold mt-4">API Key</h2>
@@ -323,7 +323,7 @@ async function recharge() {
 
               <p class="text-[11px] text-white/40 mt-3">
                 Key 由系统随机生成,不能手动填写。重新生成会让旧 Key 立刻失效。完整调用示例见
-                <router-link to="/docs" class="text-violet-300 underline">接口文档</router-link>。
+                <router-link to="/docs" class="text-orange-300 underline">接口文档</router-link>。
               </p>
             </div>
           </div>
@@ -384,7 +384,7 @@ async function recharge() {
         </div>
 
         <div class="mt-5 flex items-center justify-between gap-3">
-          <span class="text-sm text-white/60">到账 <strong class="text-violet-300 text-base tabular-nums">{{ pointsPreview }}</strong> 积分</span>
+          <span class="text-sm text-white/60">到账 <strong class="text-orange-300 text-base tabular-nums">{{ pointsPreview }}</strong> 积分</span>
           <button @click="recharge" :disabled="recharging"
                   class="rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-60 disabled:cursor-not-allowed px-6 py-2.5 text-sm font-semibold transition-colors inline-flex items-center gap-2">
             <span v-if="recharging" class="w-3.5 h-3.5 rounded-full border-2 border-black/30 border-t-black animate-spin"></span>
@@ -476,7 +476,7 @@ async function recharge() {
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
 
 /* Recharge amount / method buttons — theme-aware (clean in light AND dark).
-   Selected uses the inverted solid-button color, not a harsh violet. */
+   Selected uses the inverted solid-button color, not a harsh orange. */
 .amt {
   border-radius: 0.6rem;
   padding: 0.6rem 0;

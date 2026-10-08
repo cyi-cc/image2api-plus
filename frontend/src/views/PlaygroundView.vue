@@ -889,7 +889,7 @@ onUnmounted(() => {
       <div v-if="perSecondRate && secsRange">
         <label class="block text-xs font-medium text-slate-500 mb-1.5">时长 <span class="text-slate-400 font-normal tabular-nums">{{ secs }}s</span></label>
         <input type="range" v-model.number="secs" :min="secsRange.min" :max="secsRange.max" step="1"
-               class="w-full accent-indigo-500 h-2 rounded-lg appearance-none bg-slate-200 cursor-pointer" />
+               class="w-full accent-sky-500 h-2 rounded-lg appearance-none bg-slate-200 cursor-pointer" />
         <div class="flex justify-between text-[10px] text-slate-400 mt-0.5"><span>{{ secsRange.min }}s</span><span>{{ secsRange.max }}s</span></div>
       </div>
       <div v-if="mode === 'video' && durations.length > 0 && !perSecondRate">
@@ -922,7 +922,7 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="flex gap-2 flex-wrap items-start rounded-lg transition-colors"
-             :class="dragOver ? 'ring-2 ring-indigo-400 ring-offset-2 bg-indigo-50/40' : ''"
+             :class="dragOver ? 'ring-2 ring-sky-400 ring-offset-2 bg-sky-50/40' : ''"
              @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave">
           <div v-for="(img, i) in tileRefs" :key="img.mediaUrl || img.url || img.name + i"
                class="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 transition-all">
@@ -1058,7 +1058,7 @@ onUnmounted(() => {
               <div class="pg-cap text-[11px] leading-tight font-medium line-clamp-2 transition-colors"
                    :class="item.prompt ? 'pointer-events-auto cursor-pointer' : ''"
                    :title="item.prompt ? '点击复制提示词' : ''" @click.stop="copyPrompt(item)">{{ item.prompt }}</div>
-              <div class="pg-cap-sub text-[9px] mt-0.5 font-mono truncate">{{ item.model }}<span v-if="item.deai"> · <span class="text-[#7c3aed]">去AI</span></span><span v-if="item.elapsed_ms"> · {{ (item.elapsed_ms / 1000).toFixed(1) }}s</span></div>
+              <div class="pg-cap-sub text-[9px] mt-0.5 font-mono truncate">{{ item.model }}<span v-if="item.deai"> · <span class="text-[#ec5b13]">去AI</span></span><span v-if="item.elapsed_ms"> · {{ (item.elapsed_ms / 1000).toFixed(1) }}s</span></div>
             </div>
           </template>
           <!-- pending / running -->

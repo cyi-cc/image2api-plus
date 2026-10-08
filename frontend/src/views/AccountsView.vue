@@ -65,11 +65,11 @@ function typePill(t) {
   return {
     adobe: 'bg-rose-500/10 text-rose-300 ring-rose-400/30',
     openai: 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30',
-    runway: 'bg-violet-500/10 text-violet-300 ring-violet-400/30',
+    runway: 'bg-orange-500/10 text-orange-300 ring-orange-400/30',
     leonardo: 'bg-amber-500/10 text-amber-300 ring-amber-400/30',
     krea: 'bg-sky-500/10 text-sky-300 ring-sky-400/30',
     imagine: 'bg-teal-500/10 text-teal-300 ring-teal-400/30',
-    creativefabrica: 'bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-400/30',
+    creativefabrica: 'bg-rose-500/10 text-rose-300 ring-rose-400/30',
   }[t] || 'bg-white/[0.06] text-white/70 ring-white/15'
 }
 // 与后端 accountConcurrency 保持一致：adobe 普号固定 1 并发，会员号取配置值
@@ -339,7 +339,7 @@ onMounted(() => { loadAccounts(); loadModelList() })
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
         <div class="text-[10px] text-white/35 mt-0.5">成功/失败/限额</div>
       </div>
-      <div v-for="t in [['openai','OpenAI','text-emerald-300/80'],['adobe','Adobe','text-rose-300/80'],['runway','Runway','text-violet-300/80'],['leonardo','Leonardo','text-amber-300/80'],['krea','Krea','text-sky-300/80'],['imagine','Imagine','text-teal-300/80'],['grok','Grok','text-slate-300/80'],['creativefabrica','Creative Fabrica','text-fuchsia-300/80']]"
+      <div v-for="t in [['openai','OpenAI','text-emerald-300/80'],['adobe','Adobe','text-rose-300/80'],['runway','Runway','text-orange-300/80'],['leonardo','Leonardo','text-amber-300/80'],['krea','Krea','text-sky-300/80'],['imagine','Imagine','text-teal-300/80'],['grok','Grok','text-slate-300/80'],['creativefabrica','Creative Fabrica','text-rose-300/80']]"
            :key="t[0]" class="card p-4">
         <div class="text-[11px] uppercase tracking-wider" :class="t[2]">{{ t[1] }}</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">
@@ -359,8 +359,8 @@ onMounted(() => { loadAccounts(); loadModelList() })
         <button @click="setFilter(() => typeFilter = 'adobe')" class="fp" :class="typeFilter === 'adobe' && 'fp-rose'">
           <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>Adobe
         </button>
-        <button @click="setFilter(() => typeFilter = 'runway')" class="fp" :class="typeFilter === 'runway' && 'fp-violet'">
-          <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>Runway
+        <button @click="setFilter(() => typeFilter = 'runway')" class="fp" :class="typeFilter === 'runway' && 'fp-orange'">
+          <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>Runway
         </button>
         <button @click="setFilter(() => typeFilter = 'leonardo')" class="fp" :class="typeFilter === 'leonardo' && 'fp-amber'">
           <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Leonardo
@@ -375,7 +375,7 @@ onMounted(() => { loadAccounts(); loadModelList() })
           <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Grok
         </button>
         <button @click="setFilter(() => typeFilter = 'creativefabrica')" class="fp" :class="typeFilter === 'creativefabrica' && 'fp-on'">
-          <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>Creative Fabrica
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>Creative Fabrica
         </button>
       </div>
       <div class="w-px h-5 bg-white/10"></div>
@@ -397,7 +397,7 @@ onMounted(() => { loadAccounts(); loadModelList() })
         <button @click="setFilter(() => planFilter = '')" class="fp" :class="planFilter === '' && 'fp-on'">全部账号</button>
         <button @click="setFilter(() => planFilter = 'free')" class="fp" :class="planFilter === 'free' && 'fp-slate'">普号</button>
         <button @click="setFilter(() => planFilter = 'sub')" class="fp" :class="planFilter === 'sub' && 'fp-sky'">子号</button>
-        <button @click="setFilter(() => planFilter = 'master')" class="fp" :class="planFilter === 'master' && 'fp-purple'">会员号</button>
+        <button @click="setFilter(() => planFilter = 'master')" class="fp" :class="planFilter === 'master' && 'fp-pink'">会员号</button>
       </div>
       </template>
       <div class="flex-1 min-w-[200px]">
@@ -552,7 +552,7 @@ onMounted(() => { loadAccounts(); loadModelList() })
             <td class="px-3 py-3.5 align-middle">
               <div class="flex items-center justify-center gap-1.5 text-xs tabular-nums">
                 <span class="px-1.5 py-0.5 rounded"
-                      :class="a.in_flight ? 'bg-indigo-500/15 text-indigo-300 font-semibold' : 'text-white/25'"
+                      :class="a.in_flight ? 'bg-sky-500/15 text-sky-300 font-semibold' : 'text-white/25'"
                       title="在途">{{ a.in_flight || 0 }}</span>
                 <span class="text-white/20">/</span>
                 <span class="px-1.5 py-0.5 rounded text-emerald-300 font-medium" title="成功">{{ a.success_total || 0 }}</span>
@@ -645,10 +645,10 @@ onMounted(() => { loadAccounts(); loadModelList() })
   color: rgb(253 224 71);
   box-shadow: inset 0 0 0 1px rgb(253 224 71 / 0.4);
 }
-.fp-violet {
-  background: rgb(139 92 246 / 0.22);
-  color: rgb(196 181 253);
-  box-shadow: inset 0 0 0 1px rgb(196 181 253 / 0.45);
+.fp-orange {
+  background: rgb(249 115 22 / 0.22);
+  color: rgb(253 186 116);
+  box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.45);
 }
 .fp-sky {
   background: rgb(56 189 248 / 0.22);
@@ -660,10 +660,10 @@ onMounted(() => { loadAccounts(); loadModelList() })
   color: rgb(94 234 212);
   box-shadow: inset 0 0 0 1px rgb(94 234 212 / 0.45);
 }
-.fp-purple {
-  background: rgb(168 85 247 / 0.22);
-  color: rgb(216 180 254);
-  box-shadow: inset 0 0 0 1px rgb(216 180 254 / 0.45);
+.fp-pink {
+  background: rgb(244 114 182 / 0.22);
+  color: rgb(249 168 212);
+  box-shadow: inset 0 0 0 1px rgb(249 168 212 / 0.45);
 }
 .fp-slate {
   background: rgb(148 163 184 / 0.22);
@@ -725,10 +725,10 @@ onMounted(() => { loadAccounts(); loadModelList() })
   background: rgb(244 63 94 / 0.8);
   box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.6);
 }
-/* pending (import quota probe in flight) — neutral indigo, thumb stays left */
+/* pending (import quota probe in flight) — neutral sky, thumb stays left */
 .sw-pending {
-  background: rgb(99 102 241 / 0.45);
-  box-shadow: inset 0 0 0 1px rgb(99 102 241 / 0.4);
+  background: rgb(14 165 233 / 0.45);
+  box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.4);
 }
 /* quota exhausted — amber (NOT red/dead), thumb stays left, locked until reset */
 .sw-quota {

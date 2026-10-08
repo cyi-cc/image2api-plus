@@ -96,12 +96,12 @@ onMounted(loadModels)
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-indigo-300/80">图像</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-indigo-300">{{ stats.image }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-sky-300/80">图像</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-sky-300">{{ stats.image }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-fuchsia-300/80">视频</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-fuchsia-300">{{ stats.video }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">视频</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.video }}</div>
       </div>
       <div class="card p-4">
         <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">启用</div>
@@ -187,8 +187,8 @@ onMounted(loadModels)
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                     :class="m.type === 'video'
-                      ? 'bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-400/30'
-                      : 'bg-indigo-500/10 text-indigo-300 ring-indigo-400/30'">
+                      ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
+                      : 'bg-sky-500/10 text-sky-300 ring-sky-400/30'">
                 {{ TYPE_LABEL[m.type] || m.type }}
               </span>
             </td>
@@ -354,12 +354,12 @@ onMounted(loadModels)
   white-space: nowrap;
 }
 .cap-dur {
-  background: rgb(99 102 241 / 0.12);
-  color: rgb(165 180 252);
+  background: rgb(14 165 233 / 0.12);
+  color: rgb(147 197 253);
   box-shadow: inset 0 0 0 1px rgb(129 140 248 / 0.3);
 }
 .cap-frame {
-  background: rgb(236 72 153 / 0.12);
+  background: rgb(251 113 133 / 0.12);
   color: rgb(244 114 182);
   box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.35);
 }

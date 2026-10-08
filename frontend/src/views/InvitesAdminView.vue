@@ -36,8 +36,8 @@ onMounted(load)
         <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ stats.pending }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-fuchsia-300/80">已发奖励</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-fuchsia-300">{{ Number(stats.reward_paid || 0).toLocaleString('en-US') }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">已发奖励</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ Number(stats.reward_paid || 0).toLocaleString('en-US') }}</div>
       </div>
     </div>
 

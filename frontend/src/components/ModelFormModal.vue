@@ -219,8 +219,8 @@ async function save() {
           <div v-if="entry" class="rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] p-3.5 space-y-2.5">
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
-                    :class="isVideo ? 'bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-400/30'
-                                    : 'bg-indigo-500/10 text-indigo-300 ring-indigo-400/30'">
+                    :class="isVideo ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
+                                    : 'bg-sky-500/10 text-sky-300 ring-sky-400/30'">
                 {{ isVideo ? '生视频' : '生图' }}
               </span>
               <span class="text-[11px] text-white/45 capitalize">{{ entry.provider }}</span>

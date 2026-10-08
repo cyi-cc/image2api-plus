@@ -210,7 +210,7 @@ onMounted(load)
   color: white;
   background: rgb(244 63 94 / 0.25);
 }
-.chk { accent-color: rgb(217 70 239); width: 0.9rem; height: 0.9rem; cursor: pointer; }
+.chk { accent-color: rgb(244 63 94); width: 0.9rem; height: 0.9rem; cursor: pointer; }
 .pg { min-width: 1.75rem; padding: 0.3rem 0.55rem; font-size: 0.72rem; font-weight: 500; text-align: center; border-radius: 0.45rem; color: rgb(255 255 255 / 0.7); background: rgb(255 255 255 / 0.04); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); transition: background 0.15s, color 0.15s; }
 .pg:hover:not(.pg-on) { background: rgb(255 255 255 / 0.1); color: white; }
 .pg-on { background: rgb(255 255 255 / 0.92); color: rgb(15 23 42); box-shadow: none; }

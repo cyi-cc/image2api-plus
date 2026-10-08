@@ -310,7 +310,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
             <div @click="pickLogo" @drop="onLogoDrop" @dragover.prevent="logoDragOver = true" @dragleave="logoDragOver = false"
                  title="点击或拖拽图片替换"
                  class="w-16 h-16 rounded-xl grid place-items-center overflow-hidden shrink-0 cursor-pointer transition-all"
-                 :class="logoDragOver ? 'ring-2 ring-indigo-400 bg-indigo-50/40' : ''">
+                 :class="logoDragOver ? 'ring-2 ring-sky-400 bg-sky-50/40' : ''">
               <img v-if="logoPreview" :src="logoPreview" class="w-full h-full object-cover" />
               <Logo v-else :size="64" class="w-full h-full" />
             </div>
@@ -656,7 +656,7 @@ html.dark .hint b { color: rgb(253 164 175); }   /* rose — visible warning, no
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.2);
   transition: transform 0.18s ease;
 }
-.sw:checked { background: #4f46e5; }   /* indigo-600 — matches btn-primary */
+.sw:checked { background: #4f46e5; }   /* sky-600 — matches btn-primary */
 .sw:checked::after { transform: translateX(calc(2.25rem - 1.3rem)); }
 .sw:focus-visible { box-shadow: 0 0 0 3px rgb(236 91 19 / 0.3); }
 .sw:disabled { cursor: not-allowed; opacity: 0.55; }

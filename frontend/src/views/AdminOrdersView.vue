@@ -116,7 +116,7 @@ function goPage(n) {
             <td class="px-3 py-3.5 align-middle text-xs text-white/55 whitespace-nowrap">{{ fmt(o.created_at) }}</td>
             <td class="px-3 py-3.5 align-middle text-xs text-white/55 whitespace-nowrap">{{ fmt(o.paid_at) }}</td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums text-white/85">{{ o.source && o.source !== 'epay' ? '—' : '¥' + o.amount }}</td>
-            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="o.points < 0 ? 'text-rose-300' : 'text-violet-300'">{{ o.points }}</td>
+            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="o.points < 0 ? 'text-rose-300' : 'text-orange-300'">{{ o.points }}</td>
             <td class="px-3 py-3.5 align-middle">
               <span class="chip" :class="chipClass(o.status)">{{ STATUS[o.status] }}<span class="opacity-50 ml-1">· {{ METHOD[o.pay_type] || o.pay_type }}</span></span>
             </td>
@@ -148,7 +148,7 @@ function goPage(n) {
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td { border-bottom: 1px solid rgb(255 255 255 / 0.04); transition: background-color 0.15s ease, box-shadow 0.15s ease; }
 .log-row:hover td { background: rgb(255 255 255 / 0.025); }
-.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(167 139 250 / 0.55); }
+.log-row:hover td:first-child { box-shadow: inset 2px 0 0 rgb(253 186 116 / 0.55); }
 .log-row:last-child td { border-bottom: none; }
 .pg { min-width: 1.75rem; padding: 0.3rem 0.55rem; font-size: 0.72rem; font-weight: 500; text-align: center; border-radius: 0.45rem; color: rgb(255 255 255 / 0.7); background: rgb(255 255 255 / 0.04); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); transition: background 0.15s, color 0.15s; }
 .pg:hover:not(.pg-on) { background: rgb(255 255 255 / 0.1); color: white; }

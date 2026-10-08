@@ -58,12 +58,12 @@ function remove(i) {
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: 9999px;
-  color: rgb(238 224 255);                     /* near-white violet */
-  background: linear-gradient(135deg, rgb(167 139 250 / 0.18), rgb(236 72 153 / 0.14));
-  box-shadow: inset 0 0 0 1px rgb(167 139 250 / 0.3);
+  color: rgb(255 237 213);                     /* near-white orange */
+  background: linear-gradient(135deg, rgb(253 186 116 / 0.18), rgb(251 113 133 / 0.14));
+  box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.3);
   transition: background 0.15s ease;
 }
-.chip:hover { background: linear-gradient(135deg, rgb(167 139 250 / 0.25), rgb(236 72 153 / 0.2)); }
+.chip:hover { background: linear-gradient(135deg, rgb(253 186 116 / 0.25), rgb(251 113 133 / 0.2)); }
 
 .chip-x {
   display: grid;

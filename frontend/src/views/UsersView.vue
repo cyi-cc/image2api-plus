@@ -221,8 +221,8 @@ async function doRecharge() {
         <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.active }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-fuchsia-300/80">管理员</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-fuchsia-300">{{ stats.admins }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">管理员</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.admins }}</div>
       </div>
       <div class="card p-4">
         <div class="text-[11px] uppercase tracking-wider text-amber-300/80">总积分</div>
@@ -234,8 +234,8 @@ async function doRecharge() {
     <div class="card p-3 flex items-center gap-3 flex-wrap">
       <div class="flex items-center gap-1">
         <button @click="setFilter(() => roleFilter = '')" class="fp" :class="roleFilter === '' && 'fp-on'">全部角色</button>
-        <button @click="setFilter(() => roleFilter = 'admin')" class="fp" :class="roleFilter === 'admin' && 'fp-fuchsia'">
-          <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>管理员
+        <button @click="setFilter(() => roleFilter = 'admin')" class="fp" :class="roleFilter === 'admin' && 'fp-orange'">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>管理员
         </button>
         <button @click="setFilter(() => roleFilter = 'agent')" class="fp" :class="roleFilter === 'agent' && 'fp-amber'">
           <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>代理
@@ -340,12 +340,12 @@ async function doRecharge() {
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 whitespace-nowrap"
                     :class="u.role === 'admin'
-                      ? 'bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-400/30'
+                      ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
                       : u.role === 'agent'
                         ? 'bg-amber-500/10 text-amber-300 ring-amber-400/30'
                         : 'bg-white/[0.06] text-white/70 ring-white/15'">
                 <span class="w-1.5 h-1.5 rounded-full"
-                      :class="u.role === 'admin' ? 'bg-fuchsia-400' : u.role === 'agent' ? 'bg-amber-400' : 'bg-slate-400'"></span>
+                      :class="u.role === 'admin' ? 'bg-rose-400' : u.role === 'agent' ? 'bg-amber-400' : 'bg-slate-400'"></span>
                 {{ roleLabel(u.role) }}
               </span>
             </td>
@@ -596,10 +596,10 @@ async function doRecharge() {
   color: rgb(253 164 175);
   box-shadow: inset 0 0 0 1px rgb(253 164 175 / 0.45);
 }
-.fp-fuchsia {
-  background: rgb(217 70 239 / 0.22);
-  color: rgb(245 208 254);
-  box-shadow: inset 0 0 0 1px rgb(245 208 254 / 0.45);
+.fp-orange {
+  background: rgb(249 115 22 / 0.22);
+  color: rgb(253 186 116);
+  box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.45);
 }
 .fp-amber {
   background: rgb(245 158 11 / 0.22);

@@ -155,8 +155,8 @@ const pageNumbers = computed(() => {
         <div class="text-2xl font-semibold mt-1 tabular-nums text-white/60">{{ stats.redeemed }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-fuchsia-300/80">未使用面额</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-fuchsia-300">{{ Number(stats.active_amount || 0).toLocaleString('en-US') }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">未使用面额</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ Number(stats.active_amount || 0).toLocaleString('en-US') }}</div>
       </div>
     </div>
 
@@ -178,12 +178,12 @@ const pageNumbers = computed(() => {
           <label class="block text-xs text-white/55 mb-1.5">类型</label>
           <div class="flex items-center gap-1">
             <button type="button" @click="form.type = 'normal'" class="fp" :class="form.type === 'normal' && 'fp-on'">普通</button>
-            <button type="button" @click="form.type = 'marketing'" class="fp" :class="form.type === 'marketing' && 'fp-fuchsia'">营销</button>
+            <button type="button" @click="form.type = 'marketing'" class="fp" :class="form.type === 'marketing' && 'fp-rose'">营销</button>
           </div>
         </div>
         <button @click="generate" class="btn-primary"><Icon name="plus" class="w-3.5 h-3.5" /> 生成</button>
       </div>
-      <p v-if="form.type === 'marketing'" class="text-[11px] text-fuchsia-300/80 mt-2">营销兑换码:同一批次每个用户只能兑换一次。</p>
+      <p v-if="form.type === 'marketing'" class="text-[11px] text-rose-300/80 mt-2">营销兑换码:同一批次每个用户只能兑换一次。</p>
 
       <!-- last batch -->
       <div v-if="lastBatch.length" class="mt-4 rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-4">
@@ -202,8 +202,8 @@ const pageNumbers = computed(() => {
       <div class="flex items-center gap-1">
         <button @click="setFilter(() => typeFilter = '')" class="fp" :class="typeFilter === '' && 'fp-on'">全部类型</button>
         <button @click="setFilter(() => typeFilter = 'normal')" class="fp" :class="typeFilter === 'normal' && 'fp-on'">普通</button>
-        <button @click="setFilter(() => typeFilter = 'marketing')" class="fp" :class="typeFilter === 'marketing' && 'fp-fuchsia'">
-          <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>营销
+        <button @click="setFilter(() => typeFilter = 'marketing')" class="fp" :class="typeFilter === 'marketing' && 'fp-rose'">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>营销
         </button>
       </div>
       <div class="w-px h-5 bg-white/10"></div>
@@ -266,7 +266,7 @@ const pageNumbers = computed(() => {
             <td class="px-5 py-3.5 align-middle font-mono text-xs text-white/90 truncate" :title="c.code">
               <span class="inline-flex items-center gap-2">
                 <span class="truncate">{{ c.code }}</span>
-                <span v-if="c.type === 'marketing'" class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-sans font-medium bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-fuchsia-400/25">营销</span>
+                <span v-if="c.type === 'marketing'" class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-sans font-medium bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/25">营销</span>
               </span>
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums text-white/85 whitespace-nowrap">
@@ -365,10 +365,10 @@ const pageNumbers = computed(() => {
   color: rgb(110 231 183);
   box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45);
 }
-.fp-fuchsia {
-  background: rgb(217 70 239 / 0.22);
-  color: rgb(245 208 254);
-  box-shadow: inset 0 0 0 1px rgb(245 208 254 / 0.45);
+.fp-rose {
+  background: rgb(244 63 94 / 0.22);
+  color: rgb(254 205 211);
+  box-shadow: inset 0 0 0 1px rgb(254 205 211 / 0.45);
 }
 
 .pg {
