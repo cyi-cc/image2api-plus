@@ -101,6 +101,14 @@ defineExpose({ startEdit, commitNote })
   >
     <!-- 连线出口:拖到目标节点创建连线(舞台接管手势) -->
     <span v-if="node.type !== 'gen'" class="cv-port" data-port="out" />
+    <!-- 右下角缩放手柄 + 悬浮工具条:仅选中时显示,舞台接管 resize 手势 -->
+    <span v-if="selected && node.type !== 'gen'" class="cv-size" data-resize />
+    <div v-if="selected && node.type !== 'gen'" class="cv-tools" @dblclick.stop @pointerdown.stop>
+      <button v-if="node.type === 'image'" title="预览" @click.stop="emit('node-action', { type: 'preview' })">⤢</button>
+      <button title="复制 (Ctrl+D)" @click.stop="emit('node-action', { type: 'duplicate' })">⧉</button>
+      <button title="置顶" @click.stop="emit('node-action', { type: 'front' })">⤒</button>
+      <button class="cv-tools__del" title="删除" @click.stop="emit('node-action', { type: 'delete' })">✕</button>
+    </div>
     <!-- 图片节点 -->
     <template v-if="node.type === 'image'">
       <img
@@ -144,17 +152,19 @@ defineExpose({ startEdit, commitNote })
 <style scoped>
 .cv-node {
   position: absolute;
-  border-radius: 10px;
+  border-radius: 14px;
+  border: 2.5px solid var(--ink);
   overflow: hidden;
   contain: layout style paint;
   user-select: none;
   touch-action: none;
   cursor: grab;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+  background: var(--surface);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: box-shadow 0.15s ease;
 }
 .cv-node.is-selected {
-  outline: 2px solid #7c6cff;
-  outline-offset: 2px;
+  box-shadow: 7px 7px 0 var(--m-orange);
 }
 .cv-node:active {
   cursor: grabbing;
@@ -165,7 +175,7 @@ defineExpose({ startEdit, commitNote })
   height: 100%;
   object-fit: cover;
   display: block;
-  background: #14161d;
+  background: var(--surface-2);
 }
 
 .cv-node__cap {
@@ -173,20 +183,22 @@ defineExpose({ startEdit, commitNote })
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 14px 8px 5px;
+  padding: 5px 9px;
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.35;
-  color: #d6d9e2;
-  background: linear-gradient(transparent, rgb(8 9 13 / 0.92));
+  color: var(--fg);
+  background: var(--surface);
+  border-top: 2.5px solid var(--ink);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
   pointer-events: none;
 }
 
+/* 笔记 = 孟菲斯黄贴纸 */
 .cv-node--note {
-  background: #23262f;
-  border: 1px solid #343947;
+  background: var(--m-yellow);
   cursor: text;
 }
 .cv-node--note:not(.is-editing) {
@@ -197,8 +209,8 @@ defineExpose({ startEdit, commitNote })
   height: 100%;
   padding: 10px 12px;
   font-size: 13px;
-  line-height: 1.5;
-  color: #e8eaf0;
+  line-height: 1.55;
+  color: #1a1a1a;
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
@@ -216,21 +228,23 @@ defineExpose({ startEdit, commitNote })
   gap: 10px;
   align-items: center;
   justify-content: center;
-  background: #1a1d26;
-  border: 1.5px dashed #4a4f61;
-  color: #9aa1b2;
+  background: var(--surface);
+  border-style: dashed;
+  color: var(--fg-2);
   font-size: 13px;
+  font-weight: 600;
 }
 .cv-node--gen.is-failed {
-  border-color: #6b3b44;
-  color: #e58c96;
+  border-color: #e5484d;
+  color: #e5484d;
+  background: #ffe4e6;
 }
 .cv-node__spin {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2.5px solid #3b4152;
-  border-top-color: #7c6cff;
+  border: 3px solid var(--ink-soft);
+  border-top-color: var(--m-orange);
   animation: cv-spin 0.9s linear infinite;
 }
 @keyframes cv-spin {
@@ -246,21 +260,67 @@ defineExpose({ startEdit, commitNote })
 
 .cv-port {
   position: absolute;
-  right: -8px;
+  right: -5px;
   top: 50%;
   transform: translateY(-50%);
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: #7c6cff;
-  border: 2.5px solid #0e1015;
+  background: var(--m-orange);
+  border: 2.5px solid var(--ink);
   opacity: 0;
   transition: opacity 0.12s;
   cursor: crosshair;
-  z-index: 2;
+  z-index: 3;
 }
 .cv-node:hover .cv-port,
 .cv-node.is-selected .cv-port {
   opacity: 1;
+}
+
+/* 右下角缩放方块(节点 contain:paint,只能放内侧) */
+.cv-size {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: var(--m-blue);
+  border: 2.5px solid var(--ink);
+  cursor: nwse-resize;
+  z-index: 3;
+}
+
+/* 选中悬浮工具条:贴节点内上缘(节点 overflow:hidden,外侧会被裁) */
+.cv-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 4;
+}
+.cv-tools button {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 2.5px solid var(--ink);
+  background: var(--m-yellow);
+  color: #1a1a1a;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 2.5px 2.5px 0 var(--shadow-ink);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.cv-tools button:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
+}
+.cv-tools__del {
+  background: #ffb4ab !important;
 }
 </style>

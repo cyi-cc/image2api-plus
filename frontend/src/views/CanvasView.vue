@@ -49,6 +49,9 @@ const selectedNotes = computed(() =>
 const pickerOpen = ref(false)
 const pickerItems = ref([])
 const pickerLoading = ref(false)
+const fileInput = ref(null)
+const uploadBusy = ref(false)
+const dropHover = ref(false)
 
 // ================= 文档加载 / 保存 =================
 
@@ -285,18 +288,21 @@ function redo() {
 // ================= 节点操作 =================
 
 function addNote() {
-  const c = viewportCenterWorld()
+  addNoteAt(viewportCenterWorld())
+}
+
+function addNoteAt(w) {
   const n = {
     id: newId('t'), type: 'note', text: '',
-    x: Math.round(c.x - 130), y: Math.round(c.y - 70), w: 260, h: 140, z: 0,
+    x: Math.round(w.x - 130), y: Math.round(w.y - 70), w: 260, h: 140, z: 0,
   }
   doc.nodes.push(n)
   selectionIds.value = [n.id]
   pushHistory()
 }
 
-function addImageNode(src, prompt = '') {
-  const c = viewportCenterWorld()
+function addImageNode(src, prompt = '', at = null) {
+  const c = at || viewportCenterWorld()
   const n = {
     id: newId('i'), type: 'image', src, prompt,
     x: Math.round(c.x - 256 + cascade()), y: Math.round(c.y - 256 + cascade()),
@@ -320,6 +326,32 @@ function viewportCenterWorld() {
   const h = el ? el.clientHeight : 600
   if (!vp) return { x: 0, y: 0 }
   return screenToWorld(w / 2, h / 2, vp)
+}
+
+// ---- 复制选中节点(带相互连线,偏移落位) ----
+function duplicateSelection() {
+  const sel = doc.nodes.filter((n) => selectionIds.value.includes(n.id) && n.type !== 'gen')
+  if (!sel.length) return
+  const idMap = {}
+  const clones = sel.map((n) => {
+    const c = {
+      ...n,
+      id: newId(n.type === 'note' ? 't' : 'i'),
+      x: n.x + 36,
+      y: n.y + 36,
+    }
+    idMap[n.id] = c.id
+    return c
+  })
+  doc.nodes.push(...clones)
+  for (const e of [...doc.edges]) {
+    if (idMap[e.from] && idMap[e.to]) {
+      doc.edges.push({ id: newId('e'), from: idMap[e.from], to: idMap[e.to] })
+    }
+  }
+  selectionIds.value = clones.map((c) => c.id)
+  stage.value?.selectIds?.(selectionIds.value)
+  pushHistory()
 }
 
 function deleteSelection() {
@@ -401,6 +433,60 @@ async function openPicker() {
     /\.(png|jpe?g|webp|gif)$/i.test(f.name || ''),
   )
   pickerLoading.value = false
+}
+
+// ---- 上传本地图片(按钮/拖拽/粘贴三条路径都汇到这里) ----
+async function uploadImageFile(file, at = null) {
+  if (!file || !file.type?.startsWith('image/')) return
+  uploadBusy.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const r = await api('/my-images', { method: 'POST', body: fd })
+    if (r.ok && r.data?.name) {
+      pickerItems.value.unshift({ name: r.data.name })
+      addImageNode(r.data.name, '', at)
+    } else {
+      genMsg.value = r.data?.detail || `上传失败 (${r.status})`
+    }
+  } catch (e) {
+    genMsg.value = String(e)
+  } finally {
+    uploadBusy.value = false
+  }
+}
+
+function onFilePicked(e) {
+  const files = [...(e.target.files || [])]
+  e.target.value = ''
+  files.forEach((f) => uploadImageFile(f))
+}
+
+// 拖拽本地图片落到画布:落点即拖放位置
+function onDrop(e) {
+  dropHover.value = false
+  const files = [...(e.dataTransfer?.files || [])].filter((f) => f.type?.startsWith('image/'))
+  if (!files.length) return
+  const el = document.querySelector('.cv-stage')
+  const rect = el?.getBoundingClientRect()
+  const vp = stage.value?.vp
+  const at =
+    rect && vp ? screenToWorld(e.clientX - rect.left, e.clientY - rect.top, vp) : null
+  files.forEach((f) => uploadImageFile(f, at))
+}
+
+function onPaste(e) {
+  if (isTyping(e.target)) return
+  for (const it of e.clipboardData?.items || []) {
+    if (it.type?.startsWith('image/')) {
+      const f = it.getAsFile()
+      if (f) {
+        e.preventDefault()
+        uploadImageFile(f)
+        return
+      }
+    }
+  }
 }
 
 // ================= 生成 =================
@@ -540,9 +626,20 @@ function onPanZoom(v) {
   scalePct.value = Math.round(v.scale * 100)
 }
 function onNodeAction({ type, id }) {
-  if (type !== 'preview') return
   const n = doc.nodes.find((x) => x.id === id)
-  if (n?.type === 'image') previewSrc.value = n.src
+  if (!n) return
+  if (type === 'preview') {
+    if (n.type === 'image') previewSrc.value = n.src
+  } else if (type === 'duplicate') {
+    selectionIds.value = [id]
+    duplicateSelection()
+  } else if (type === 'delete') {
+    selectionIds.value = [id]
+    deleteSelection()
+  } else if (type === 'front') {
+    stage.value?.bumpNode?.(id)
+    markDirty()
+  }
 }
 
 // ================= 快捷键 =================
@@ -567,6 +664,9 @@ function onKeydown(e) {
   } else if (mod && e.key.toLowerCase() === 'a') {
     e.preventDefault()
     stage.value?.selectAll()
+  } else if (mod && e.key.toLowerCase() === 'd') {
+    e.preventDefault()
+    duplicateSelection()
   } else if (e.key === 'Delete' || e.key === 'Backspace') {
     e.preventDefault()
     deleteSelection()
@@ -581,6 +681,8 @@ function onKeydown(e) {
     stage.value?.zoomBy(1 / 1.2)
   } else if (e.key === '0') {
     stage.value?.setViewport({ x: 0, y: 0, scale: 1 })
+  } else if (e.key === '1') {
+    stage.value?.fitToContent?.()
   }
 }
 
@@ -592,6 +694,7 @@ function selectAll() {
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('paste', onPaste)
   window.addEventListener('beforeunload', flushSync)
   document.addEventListener('visibilitychange', onVisibility)
   const mm = await api('/managed-models')
@@ -610,6 +713,7 @@ function onVisibility() {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('paste', onPaste)
   window.removeEventListener('beforeunload', flushSync)
   document.removeEventListener('visibilitychange', onVisibility)
   clearTimeout(saveTimer)
@@ -655,17 +759,28 @@ const saveLabel = computed(() => ({
         <button class="cv-btn" title="缩小" @click="stage?.zoomBy(1 / 1.2)">−</button>
         <span class="cv-zoom">{{ scalePct }}%</span>
         <button class="cv-btn" title="放大" @click="stage?.zoomBy(1.2)">＋</button>
-        <button class="cv-btn" title="重置视图" @click="stage?.setViewport({ x: 0, y: 0, scale: 1 })">⌂</button>
+        <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: 1 })">⌂</button>
+        <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
         <span class="cv-sep" />
-        <button class="cv-btn" @click="addNote">＋ 笔记</button>
-        <button class="cv-btn" @click="openPicker">＋ 图片</button>
+        <button class="cv-btn cv-btn--accent" @click="addNote">＋ 笔记</button>
+        <button class="cv-btn cv-btn--accent" @click="openPicker">＋ 图片</button>
+        <button class="cv-btn" :disabled="uploadBusy" title="上传本地图片(也可直接拖入/粘贴)" @click="fileInput?.click()">
+          {{ uploadBusy ? '上传中…' : '⤒ 上传' }}
+        </button>
+        <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFilePicked">
         <span class="cv-save" :data-state="saveState">{{ saveLabel }}</span>
       </div>
     </div>
 
     <!-- 舞台 + 生成面板 -->
     <div class="cv-body">
-      <div class="cv-stagewrap">
+      <div
+        class="cv-stagewrap"
+        @dragover.prevent="dropHover = true"
+        @dragleave="dropHover = false"
+        @drop.prevent="onDrop"
+      >
+        <div v-if="dropHover" class="cv-drop">松开把图片放进画布</div>
         <div v-if="loading" class="cv-loading">加载中…</div>
         <div v-else-if="loadError" class="cv-error">{{ loadError }} <button class="cv-btn" @click="boot">重试</button></div>
         <CanvasStage
@@ -681,6 +796,7 @@ const saveLabel = computed(() => ({
           @viewport-rest="onViewportRest"
           @pan-zoom="onPanZoom"
           @node-action="onNodeAction"
+          @blank-dblclick="addNoteAt"
         />
       </div>
 
@@ -727,8 +843,8 @@ const saveLabel = computed(() => ({
         <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
 
         <div class="cv-tips">
-          拖节点右侧圆点可连线(点击连线选中,Delete 删除);双击笔记编辑;
-          生成结果会自动连线到来源节点;Ctrl+Z 撤销。
+          双击空白建笔记 · 拖右侧圆点连线 · 选中后右下角缩放 · Ctrl+D 复制 ·
+          本地图片直接拖入或 Ctrl+V 粘贴 · 按 1 适应全部内容
         </div>
       </aside>
     </div>
@@ -743,7 +859,10 @@ const saveLabel = computed(() => ({
       <div class="cv-picker__box">
         <div class="cv-picker__head">
           <span>插入图片(点击放置到画布)</span>
-          <button class="cv-btn" @click="pickerOpen = false">✕</button>
+          <div class="cv-picker__acts">
+            <button class="cv-btn cv-btn--accent" @click="fileInput?.click()">⤒ 上传本地</button>
+            <button class="cv-btn" @click="pickerOpen = false">✕</button>
+          </div>
         </div>
         <div v-if="pickerLoading" class="cv-loading">加载中…</div>
         <div v-else-if="!pickerItems.length" class="cv-loading">还没有生成过图片</div>
@@ -764,41 +883,53 @@ const saveLabel = computed(() => ({
 </template>
 
 <style scoped>
+/* ===== 画布:Memphis/neo-brutalism 全屏工作台(随站点明暗主题走变量) ===== */
 .cv-btn {
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  background: rgb(255 255 255 / 0.04);
-  color: #c6cbd8;
+  padding: 5px 11px;
+  border-radius: 9px;
+  border: 2.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--fg);
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 .cv-btn:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.09);
-  color: #fff;
+  background: var(--m-yellow);
+}
+.cv-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--shadow-ink);
 }
 .cv-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 .cv-btn--danger:hover:not(:disabled) {
-  border-color: #6b3b44;
-  color: #e58c96;
+  background: #ffb4ab;
+}
+.cv-btn--accent {
+  background: var(--m-blue);
+}
+.cv-btn--accent:hover:not(:disabled) {
+  background: var(--m-mint);
 }
 .cv-select,
 .cv-input {
-  padding: 6px 9px;
-  border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  background: #0e1015;
-  color: #e8eaf0;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 2.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--fg);
   font-size: 13px;
   outline: none;
 }
 .cv-select:focus,
 .cv-input:focus {
-  border-color: #7c6cff;
+  box-shadow: 3px 3px 0 var(--m-orange);
 }
 
 .cv-page {
@@ -808,50 +939,62 @@ const saveLabel = computed(() => ({
   z-index: 50;
   display: flex;
   flex-direction: column;
-  background: #0e1015;
+  background: var(--app-bg);
 }
 .cv-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
-  background: #12141b;
+  padding: 9px 14px;
+  border-bottom: 3px solid var(--ink);
+  background: var(--surface);
   flex-wrap: wrap;
 }
 .cv-top__left,
 .cv-top__right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 .cv-select {
   max-width: 220px;
 }
 .cv-sep {
-  width: 1px;
-  height: 18px;
-  background: rgb(255 255 255 / 0.12);
+  width: 2.5px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--ink);
+  opacity: 0.25;
   margin: 0 4px;
 }
 .cv-zoom {
   font-size: 12px;
-  color: #9aa1b2;
-  min-width: 44px;
+  font-weight: 700;
+  color: var(--fg);
+  min-width: 46px;
   text-align: center;
+  background: var(--m-yellow);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 .cv-save {
   font-size: 11px;
-  color: #7f8798;
+  font-weight: 700;
+  color: var(--fg-3);
   margin-left: 8px;
 }
-.cv-save[data-state='error'] {
-  color: #e58c96;
-}
 .cv-save[data-state='saved'] {
-  color: #6fae8c;
+  color: #15803d;
+}
+.cv-save[data-state='dirty'],
+.cv-save[data-state='saving'] {
+  color: var(--m-orange);
+}
+.cv-save[data-state='error'] {
+  color: #dc2626;
 }
 
 .cv-body {
@@ -864,6 +1007,21 @@ const saveLabel = computed(() => ({
   flex: 1;
   min-width: 0;
 }
+.cv-drop {
+  position: absolute;
+  inset: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--fg);
+  border: 3px dashed var(--ink);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--m-blue) 55%, transparent);
+  pointer-events: none;
+}
 .cv-loading,
 .cv-error {
   position: absolute;
@@ -872,33 +1030,40 @@ const saveLabel = computed(() => ({
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #9aa1b2;
-  background: #0e1015;
+  color: var(--fg-2);
+  font-weight: 600;
+  background: var(--app-bg);
   z-index: 5;
 }
 .cv-error {
-  color: #e58c96;
+  color: #dc2626;
 }
 
+/* 右侧生成面板 = 白纸卡片 */
 .cv-panel {
-  width: 260px;
+  width: 264px;
   flex-shrink: 0;
-  border-left: 1px solid rgb(255 255 255 / 0.08);
-  background: #12141b;
-  padding: 14px;
+  border-left: 3px solid var(--ink);
+  background: var(--surface);
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   overflow-y: auto;
 }
 .cv-panel__title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e8eaf0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--fg);
+  display: inline-block;
+  background: linear-gradient(transparent 55%, var(--m-yellow) 55%);
+  align-self: flex-start;
+  padding: 0 2px;
 }
 .cv-label {
   font-size: 11px;
-  color: #7f8798;
+  font-weight: 700;
+  color: var(--fg-3);
   margin-top: 4px;
 }
 .cv-input {
@@ -914,35 +1079,49 @@ const saveLabel = computed(() => ({
   flex-wrap: wrap;
 }
 .cv-chip {
-  padding: 3px 10px;
+  padding: 3px 11px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  background: transparent;
-  color: #b6bccb;
+  border: 2.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--fg);
   font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
 }
+.cv-chip:hover {
+  background: var(--m-blue);
+}
 .cv-chip.is-on {
-  border-color: #7c6cff;
-  color: #a99dff;
-  background: rgb(124 108 255 / 0.12);
+  background: var(--m-yellow);
+  box-shadow: 2.5px 2.5px 0 var(--shadow-ink);
 }
 .cv-refs {
   font-size: 11px;
-  color: #7f8798;
-  border: 1px dashed rgb(255 255 255 / 0.14);
-  border-radius: 8px;
+  font-weight: 600;
+  color: var(--fg-2);
+  border: 2px dashed var(--ink-soft);
+  border-radius: 9px;
   padding: 8px 10px;
 }
 .cv-gen {
-  padding: 9px;
-  border-radius: 9px;
-  border: none;
-  background: linear-gradient(135deg, #7c6cff, #5d8bff);
+  padding: 10px;
+  border-radius: 11px;
+  border: 2.5px solid var(--ink);
+  background: var(--m-orange);
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 800;
   cursor: pointer;
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.cv-gen:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+}
+.cv-gen:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--shadow-ink);
 }
 .cv-gen:disabled {
   opacity: 0.5;
@@ -950,28 +1129,30 @@ const saveLabel = computed(() => ({
 }
 .cv-genmsg {
   font-size: 11px;
-  color: #9aa1b2;
+  color: var(--fg-2);
   word-break: break-all;
 }
 .cv-nomodels {
   font-size: 11px;
-  color: #d8a657;
+  font-weight: 600;
+  color: #92400e;
   line-height: 1.6;
-  border: 1px dashed rgb(216 166 87 / 0.4);
-  border-radius: 8px;
+  border: 2px dashed #f59e0b;
+  border-radius: 9px;
+  background: var(--m-yellow);
   padding: 8px 10px;
 }
 .cv-tips {
   font-size: 11px;
-  color: #5f6675;
-  line-height: 1.6;
+  color: var(--fg-faint);
+  line-height: 1.7;
   margin-top: auto;
 }
 
 .cv-lightbox {
   position: fixed;
   inset: 0;
-  background: rgb(4 5 8 / 0.9);
+  background: rgb(17 17 17 / 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -981,13 +1162,15 @@ const saveLabel = computed(() => ({
 .cv-lightbox img {
   max-width: 92vw;
   max-height: 92vh;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 3px solid #fff;
+  box-shadow: 10px 10px 0 var(--m-orange);
 }
 
 .cv-picker {
   position: fixed;
   inset: 0;
-  background: rgb(4 5 8 / 0.6);
+  background: rgb(17 17 17 / 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -996,36 +1179,46 @@ const saveLabel = computed(() => ({
 .cv-picker__box {
   width: min(720px, 92vw);
   max-height: 80vh;
-  background: #161922;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--surface);
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 8px 8px 0 var(--shadow-ink);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .cv-picker__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
-  color: #e8eaf0;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--fg);
+}
+.cv-picker__acts {
+  display: flex;
+  gap: 8px;
 }
 .cv-picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
 }
 .cv-picker__grid img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 2.5px solid var(--ink);
   cursor: pointer;
-  background: #0e1015;
+  background: var(--surface-2);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .cv-picker__grid img:hover {
-  outline: 2px solid #7c6cff;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--m-orange);
 }
 </style>

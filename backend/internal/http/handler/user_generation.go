@@ -1,7 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -9,6 +15,7 @@ import (
 
 	"backend/internal/service"
 	"github.com/gin-gonic/gin"
+	_ "golang.org/x/image/webp"
 )
 
 type UserGenerationHandler struct {
@@ -89,6 +96,45 @@ func (h *UserGenerationHandler) MyImages(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// UploadMyImage stores one user-supplied image (multipart field "file") under
+// the caller's owner directory, so it can be placed on the infinite canvas and
+// shows up in the 我的图片 picker alongside generated outputs. Returns the
+// storage key ("owner/name") the frontend feeds to generatedUrl/thumbUrl.
+func (h *UserGenerationHandler) UploadMyImage(c *gin.Context) {
+	user := currentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "未登录或会话已过期"})
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 20<<20)
+	f, _, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "请选择图片文件"})
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 15<<20+1))
+	if err != nil || len(data) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "读取文件失败"})
+		return
+	}
+	if len(data) > 15<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "图片不能超过 15MB"})
+		return
+	}
+	_, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "不是有效的图片文件(支持 png/jpg/webp/gif)"})
+		return
+	}
+	key, err := h.admin.SaveOwnedImage(c.Request.Context(), service.OwnerDir(user), format, data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"name": key})
 }
 
 // DeleteMyFile removes ONE of the caller's own generated files (plus its
@@ -430,13 +476,13 @@ func (h *UserGenerationHandler) VideoPresets(c *gin.Context) {
 				"reference_mode":       "frame",
 			},
 			{
-				"key":                  "gemini-veo3.1",
-				"label":                "Veo 3.1",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"4s", "6s", "8s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p", "1080p"},
+				"key":         "gemini-veo3.1",
+				"label":       "Veo 3.1",
+				"type":        "video",
+				"provider":    "adobe",
+				"durations":   []string{"4s", "6s", "8s"},
+				"ratios":      []string{"16:9", "9:16"},
+				"resolutions": []string{"720p", "1080p"},
 			},
 			{
 				"key":                  "adobe-seedance-2.0-fast",
@@ -461,13 +507,13 @@ func (h *UserGenerationHandler) VideoPresets(c *gin.Context) {
 				"reference_mode":       "style",
 			},
 			{
-				"key":                  "seedance-2.0-fast",
-				"label":                "Seedance 2.0 Fast (Creative Fabrica)",
-				"type":                 "video",
-				"provider":             "creativefabrica",
-				"durations":            []string{"14s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p"},
+				"key":         "seedance-2.0-fast",
+				"label":       "Seedance 2.0 Fast (Creative Fabrica)",
+				"type":        "video",
+				"provider":    "creativefabrica",
+				"durations":   []string{"14s"},
+				"ratios":      []string{"16:9", "9:16"},
+				"resolutions": []string{"720p"},
 				// Creative Fabrica 上游只有普通参考图(VIDEO_FRAME_TYPE_REFERENCE),
 				// 没有首尾帧,也不收视频/音频参考。
 				"max_reference_images": 9,
@@ -476,13 +522,13 @@ func (h *UserGenerationHandler) VideoPresets(c *gin.Context) {
 				"max_audios":           0,
 			},
 			{
-				"key":                  "seedance-2.0",
-				"label":                "Seedance 2.0 (Creative Fabrica)",
-				"type":                 "video",
-				"provider":             "creativefabrica",
-				"durations":            []string{"10s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p"},
+				"key":         "seedance-2.0",
+				"label":       "Seedance 2.0 (Creative Fabrica)",
+				"type":        "video",
+				"provider":    "creativefabrica",
+				"durations":   []string{"10s"},
+				"ratios":      []string{"16:9", "9:16"},
+				"resolutions": []string{"720p"},
 				// Creative Fabrica 上游只有普通参考图(VIDEO_FRAME_TYPE_REFERENCE),
 				// 没有首尾帧,也不收视频/音频参考。
 				"max_reference_images": 9,
@@ -729,26 +775,26 @@ func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) 
 			"description":          "Seedance 2.0",
 		},
 		{
-			"id":                   "seedance-2.0-fast",
-			"provider":             "creativefabrica",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p"},
+			"id":          "seedance-2.0-fast",
+			"provider":    "creativefabrica",
+			"type":        "video",
+			"ratios":      []string{"16:9", "9:16"},
+			"resolutions": []string{"720p"},
 			// 一次性账号：积分刚好够一次生成，时长固定 14 秒。
-			"durations":            []string{"14s"},
+			"durations": []string{"14s"},
 			// Creative Fabrica 上游只有普通参考图,没有首尾帧,也不收视频/音频参考。
 			"max_reference_images": 9,
 			"reference_mode":       "asset",
 			"description":          "Seedance 2.0 Fast (Creative Fabrica)",
 		},
 		{
-			"id":                   "seedance-2.0",
-			"provider":             "creativefabrica",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p"},
+			"id":          "seedance-2.0",
+			"provider":    "creativefabrica",
+			"type":        "video",
+			"ratios":      []string{"16:9", "9:16"},
+			"resolutions": []string{"720p"},
 			// 一次性账号：积分刚好够一次生成，时长固定 10 秒。
-			"durations":            []string{"10s"},
+			"durations": []string{"10s"},
 			// Creative Fabrica 上游只有普通参考图,没有首尾帧,也不收视频/音频参考。
 			"max_reference_images": 9,
 			"reference_mode":       "asset",
@@ -766,11 +812,11 @@ func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) 
 			"description":          "Runway Gen-4 Turbo video (图生视频)",
 		},
 		{
-			"id":                   "grok-video",
-			"provider":             "grok",
-			"type":                 "video",
-			"ratios":               []string{"2:3", "3:2", "1:1", "9:16", "16:9"},
-			"resolutions":          []string{"720p"},
+			"id":          "grok-video",
+			"provider":    "grok",
+			"type":        "video",
+			"ratios":      []string{"2:3", "3:2", "1:1", "9:16", "16:9"},
+			"resolutions": []string{"720p"},
 			// Console 视频吃 1–15 秒的整数时长，所以按秒计价（同 seedance）；
 			// 参考图只有 1 张首帧（上游只有 image 字段，没有尾帧）。
 			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
@@ -801,13 +847,13 @@ func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) 
 			"description":          "Leonardo Seedream 4.5 (生图 / 图生图)",
 		},
 		{
-			"id":                   "seedance-2.0-不卡人脸",
-			"provider":             "leonardo",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p"},
-			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
+			"id":          "seedance-2.0-不卡人脸",
+			"provider":    "leonardo",
+			"type":        "video",
+			"ratios":      []string{"16:9", "9:16"},
+			"resolutions": []string{"720p"},
+			"durations":   []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
+			"per_second":  true,
 			// 参考资产总上限 8 = 4 图 + 1 音频 + 3 视频（分类上限在服务端校验）。
 			"max_reference_images": 8,
 			"reference_mode":       "style",
@@ -826,14 +872,14 @@ func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) 
 			"description":          "Leonardo Seedance 2.0 Fast (私有生成 / 图音视频参考)",
 		},
 		{
-			"id":                   "minimax-h3",
-			"provider":             "leonardo",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"1440p"},
+			"id":          "minimax-h3",
+			"provider":    "leonardo",
+			"type":        "video",
+			"ratios":      []string{"16:9", "9:16"},
+			"resolutions": []string{"1440p"},
 			// 上游吃 5–15 秒整数时长，所以按秒计价（后台只填一个 /s 价）。
-			"durations":            []string{"5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
+			"durations":  []string{"5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
+			"per_second": true,
 			// 参考资产总上限 8 = 5 图 + 3 音频（分类上限在服务端校验）。
 			"max_reference_images": 8,
 			"reference_mode":       "style",

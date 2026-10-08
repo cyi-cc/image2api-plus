@@ -27,6 +27,7 @@ const emit = defineEmits([
   'img-size',        // 图片真实尺寸校正 -> { id, w, h }
   'viewport-rest',   // 视口静止 700ms -> viewport
   'pan-zoom',        // 视口变化(用于百分比显示,高频)
+  'blank-dblclick',  // 双击空白 -> { x, y } 世界坐标(父级建笔记)
 ])
 
 const stageEl = ref(null)
@@ -186,6 +187,25 @@ function onPointerDown(e) {
   // 文本编辑中完全放行
   if (e.target.closest?.('.cv-node--note.is-editing')) return
 
+  // 0) 缩放手柄:右下角墨边方块,拖动能改节点尺寸
+  const sizeGrip = e.target.closest?.('[data-resize]')
+  if (sizeGrip && e.button === 0) {
+    const node = hitNode(e)
+    if (node) {
+      clearEdgeSel()
+      setSelection(new Set([node.id]))
+      const start = screenToWorld(localXY(e).x, localXY(e).y, vp)
+      act = {
+        mode: 'resize', node,
+        startX: start.x, startY: start.y,
+        w0: node.w, h0: node.h,
+        aspect: node.h > 0 ? node.w / node.h : 1,
+      }
+      try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
+      return
+    }
+  }
+
   // 1) 连线出口:拖到目标节点建边
   const port = e.target.closest?.('[data-port]')
   if (port && e.button === 0) {
@@ -292,6 +312,20 @@ function applyMove(e) {
     }
     return
   }
+  if (act.mode === 'resize') {
+    const cur = screenToWorld(p.x, p.y, vp)
+    const n = act.node
+    if (n.type === 'note') {
+      n.w = Math.max(140, Math.round(act.w0 + cur.x - act.startX))
+      n.h = Math.max(90, Math.round(act.h0 + cur.y - act.startY))
+    } else {
+      // 图片锁长宽比:以宽度为准推导高度
+      const w = Math.max(96, act.w0 + cur.x - act.startX)
+      n.w = Math.round(w)
+      n.h = Math.round(w / act.aspect)
+    }
+    return
+  }
   if (act.mode === 'link' && linkLine.value) {
     const cur = screenToWorld(p.x, p.y, vp)
     linkLine.value.x2 = cur.x
@@ -320,6 +354,7 @@ function onPointerUp(e) {
   panning.value = false
   try { stageEl.value.releasePointerCapture(e.pointerId) } catch { /* 已释放 */ }
   if (a.mode === 'drag' && a.moved) emit('move-end')
+  if (a.mode === 'resize') emit('move-end') // 尺寸进了快照,可撤销
   if (a.mode === 'link') {
     const target = hitNode(e)
     if (target && target.id !== a.fromId) emit('link-create', { from: a.fromId, to: target.id })
@@ -328,6 +363,7 @@ function onPointerUp(e) {
 }
 function onPointerCancel() {
   if (act?.mode === 'drag' && act.moved) emit('move-end')
+  if (act?.mode === 'resize') emit('move-end')
   act = null
   marquee.value = null
   linkLine.value = null
@@ -390,6 +426,14 @@ function setSelection(s) {
   selection.value = s
   emit('selection', [...s])
 }
+// 父级复制/成组操作后同步舞台内部选择集
+function selectIds(ids) {
+  setSelection(new Set(ids))
+}
+function bumpNode(id) {
+  const n = nodeById.value.get(id)
+  if (n) bumpZ(n)
+}
 
 // ---- 对外 API ----
 function setViewport(v) {
@@ -412,6 +456,37 @@ function centerOn(x, y) {
 function clearSelection() {
   if (selection.value.size) setSelection(new Set())
 }
+// 双击空白:交给父级在落点建笔记
+function onDblClick(e) {
+  if (e.target.closest?.('[data-node-id]') || e.target.closest?.('.cv-edge-hit')) return
+  const p = localXY(e)
+  const w = screenToWorld(p.x, p.y, vp)
+  emit('blank-dblclick', { x: w.x, y: w.y })
+}
+// 适应内容:把所有节点缩放进视口(留 80px 边距,最大放到 1.2x)
+function fitToContent() {
+  const r = stageEl.value?.getBoundingClientRect()
+  const sw = r ? r.width : 800
+  const sh = r ? r.height : 600
+  const nodes = props.nodes
+  if (!nodes.length) {
+    setViewport({ x: 0, y: 0, scale: 1 })
+    return
+  }
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
+  for (const n of nodes) {
+    x1 = Math.min(x1, n.x); y1 = Math.min(y1, n.y)
+    x2 = Math.max(x2, n.x + n.w); y2 = Math.max(y2, n.y + n.h)
+  }
+  const pad = 80
+  const bw = Math.max(1, x2 - x1 + pad * 2)
+  const bh = Math.max(1, y2 - y1 + pad * 2)
+  const s = Math.min(sw / bw, sh / bh, 1.2)
+  vp.scale = s
+  vp.x = sw / 2 - (x1 - pad + bw / 2) * s
+  vp.y = sh / 2 - (y1 - pad + bh / 2) * s
+  notifyViewport()
+}
 function selectedIds() {
   return [...selection.value]
 }
@@ -430,7 +505,7 @@ function screenRectToWorld(r) {
 }
 defineExpose({
   setViewport, zoomBy, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
-  cancelLink, consumeSelectedEdges, hasSelectedEdges,
+  cancelLink, consumeSelectedEdges, hasSelectedEdges, fitToContent, selectIds, bumpNode,
 })
 </script>
 
@@ -444,6 +519,7 @@ defineExpose({
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerCancel"
+    @dblclick="onDblClick"
     @contextmenu.prevent
   >
     <div class="cv-world" :style="worldStyle">
@@ -484,8 +560,12 @@ defineExpose({
   inset: 0;
   overflow: hidden;
   touch-action: none;
-  background-color: #0e1015;
-  background-image: radial-gradient(circle, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-color: var(--app-bg);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ink) 18%, transparent) 1.3px,
+    transparent 1.3px
+  );
 }
 .cv-stage.is-panning {
   cursor: grab;
@@ -509,17 +589,17 @@ defineExpose({
 }
 .cv-edge {
   fill: none;
-  stroke: rgb(140 146 165 / 0.5);
-  stroke-width: 1.5;
-}
-.cv-edge--hot {
-  stroke: #7c6cff;
+  stroke: var(--ink-soft);
   stroke-width: 2;
 }
-.cv-edge--sel {
-  stroke: #ff7b8f;
+.cv-edge--hot {
+  stroke: var(--m-orange);
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 3px rgb(255 123 143 / 0.6));
+}
+.cv-edge--sel {
+  stroke: var(--m-orange);
+  stroke-width: 3.5;
+  stroke-dasharray: 10 6;
 }
 .cv-edge-hit {
   fill: none;
@@ -530,17 +610,17 @@ defineExpose({
 }
 .cv-linkline {
   fill: none;
-  stroke: #a99dff;
-  stroke-width: 2;
-  stroke-dasharray: 7 6;
+  stroke: var(--m-orange);
+  stroke-width: 2.5;
+  stroke-dasharray: 8 6;
   pointer-events: none;
 }
 .cv-marquee {
   position: absolute;
-  border: 1px solid #7c6cff;
-  background: rgb(124 108 255 / 0.12);
+  border: 2px dashed var(--ink);
+  background: color-mix(in srgb, var(--m-yellow) 35%, transparent);
   pointer-events: none;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .cv-hint {
   position: absolute;
@@ -548,8 +628,17 @@ defineExpose({
   bottom: 10px;
   transform: translateX(-50%);
   font-size: 11px;
-  color: rgb(255 255 255 / 0.28);
+  font-weight: 600;
+  color: var(--fg-2);
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 3px 14px;
+  box-shadow: 3px 3px 0 var(--shadow-ink);
   pointer-events: none;
   white-space: nowrap;
+  max-width: 92%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

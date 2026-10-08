@@ -105,6 +105,7 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		userAuthed.POST("/test", handlers.UserGen.Test)
 		userAuthed.GET("/jobs/mine", handlers.UserGen.MyJobs)
 		userAuthed.GET("/my-images", handlers.UserGen.MyImages)
+		userAuthed.POST("/my-images", handlers.UserGen.UploadMyImage)
 		userAuthed.DELETE("/my-files", handlers.UserGen.DeleteMyFile)
 		userAuthed.GET("/announcement", handlers.Announcement.Get)
 		userAuthed.POST("/announcement/seen", handlers.Announcement.MarkSeen)
