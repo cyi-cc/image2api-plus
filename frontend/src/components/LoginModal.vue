@@ -164,9 +164,9 @@ async function submit() {
       <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="closeLogin"></div>
 
       <div class="card relative z-10 w-full max-w-[26rem]">
-        <!-- ambient brand glow -->
-        <div class="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-fuchsia-500/20 blur-3xl"></div>
-        <div class="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-violet-500/20 blur-3xl"></div>
+        <!-- ambient memphis crayon washes -->
+        <div class="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#fef08a]/60 blur-3xl"></div>
+        <div class="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-[#ffc1cc]/50 blur-3xl"></div>
 
         <div class="relative p-7">
           <button class="absolute top-4 right-4 grid h-7 w-7 place-items-center rounded-lg text-[color:var(--fg-3)] hover:text-[color:var(--fg)] hover:bg-[var(--hover)] transition-colors"
@@ -195,7 +195,7 @@ async function submit() {
           <transition name="swap" mode="out-in">
             <p v-if="mode === 'register' && auth.pendingInvite" class="invite-banner">
               <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-              <span>已应用邀请码 <span class="font-mono font-semibold text-emerald-200">{{ auth.pendingInvite }}</span>,完成首次生图后邀请人得 3 积分</span>
+              <span>已应用邀请码 <span class="font-mono font-bold text-emerald-800 dark:text-emerald-200">{{ auth.pendingInvite }}</span>,完成首次生图后邀请人得 3 积分</span>
             </p>
           </transition>
 
@@ -262,44 +262,44 @@ async function submit() {
 
 <style scoped>
 .card {
-  border-radius: 1.25rem;
-  background: linear-gradient(165deg, #ffffff 0%, #f6f6fb 100%);
+  border-radius: 1.1rem;
+  background: var(--surface);
   color: var(--fg);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 30px 70px -22px rgb(15 23 42 / 0.25);
+  border: 3px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--shadow-ink);
   overflow: hidden;
 }
 html.dark .card {
-  background: linear-gradient(165deg, #14161f 0%, #0d0f15 100%);
+  background: #1c1d24;
   color: rgb(255 255 255 / 0.9);
-  border: none;
-  box-shadow: 0 30px 70px -20px rgb(0 0 0 / 0.7);
 }
 
 .logo-halo {
   position: relative;
-  filter: drop-shadow(0 8px 18px rgb(168 85 247 / 0.45));
+  filter: drop-shadow(0 6px 0 rgb(236 91 19 / 0.35));
 }
 
 /* segmented tab control */
 .tabs {
-  display: flex; gap: 0.25rem; padding: 0.25rem;
-  border-radius: 0.75rem;
+  display: flex; gap: 0.3rem; padding: 0.3rem;
+  border-radius: 0.7rem;
   background: var(--surface-2);
-  border: 1px solid var(--hairline);
+  border: 2px solid var(--ink);
 }
 .tab {
-  flex: 1; padding: 0.45rem 0; border-radius: 0.55rem;
-  font-size: 0.8125rem; color: var(--fg-3);
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  flex: 1; padding: 0.45rem 0; border-radius: 0.5rem;
+  font-size: 0.8125rem; font-weight: 700; color: var(--fg-3);
+  border: 2px solid transparent;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
-.tab:hover { color: var(--fg-2); }
+.tab:hover { color: var(--fg); }
 .tab-on {
-  color: rgb(124 58 237);
-  background: linear-gradient(135deg, rgb(167 139 250 / 0.22), rgb(236 72 153 / 0.18));
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.08) inset, 0 4px 12px -4px rgb(168 85 247 / 0.5);
+  color: #111;
+  background: var(--m-yellow);
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
-html.dark .tab-on { color: white; }
+html.dark .tab-on { color: #fff; background: var(--m-orange); }
 
 /* icon-prefixed input */
 .lm-field { position: relative; }
@@ -308,21 +308,18 @@ html.dark .tab-on { color: white; }
   width: 1.05rem; height: 1.05rem; color: var(--fg-3);
   pointer-events: none; transition: color 0.18s;
 }
-.lm-field:focus-within .ic { color: rgb(124 58 237 / 0.95); }
-html.dark .lm-field:focus-within .ic { color: rgb(196 181 253 / 0.95); }
+.lm-field:focus-within .ic { color: var(--m-orange); }
 .fld {
-  width: 100%; padding: 0.7rem 0.85rem 0.7rem 2.4rem; border-radius: 0.7rem;
-  background: rgb(15 23 42 / 0.03); border: 1px solid var(--hairline);
+  width: 100%; padding: 0.7rem 0.85rem 0.7rem 2.4rem; border-radius: 0.6rem;
+  background: var(--surface); border: 2px solid var(--ink-soft);
   color: var(--fg); font-size: 0.875rem; outline: none;
-  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
-html.dark .fld { background: rgb(255 255 255 / 0.04); }
+html.dark .fld { background: rgb(255 255 255 / 0.05); }
 .fld:focus {
-  border-color: rgb(167 139 250 / 0.65);
-  background: rgb(124 58 237 / 0.04);
-  box-shadow: 0 0 0 3px rgb(167 139 250 / 0.18);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--m-orange);
 }
-html.dark .fld:focus { background: rgb(255 255 255 / 0.06); }
 .fld::placeholder { color: var(--fg-faint); }
 /* Keep autofill on-theme in dark (otherwise it paints white/yellow). */
 html.dark .fld:-webkit-autofill,
@@ -343,16 +340,18 @@ html.dark .fld:-webkit-autofill:focus {
 .eye:hover { color: var(--fg); background: var(--hover); }
 
 .code-btn {
-  flex-shrink: 0; height: 2.7rem; padding: 0 0.85rem; border-radius: 0.7rem;
+  flex-shrink: 0; height: 2.7rem; padding: 0 0.85rem; border-radius: 0.6rem;
   min-width: 5.5rem; /* keep width stable between text / spinner */
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; white-space: nowrap;
-  color: rgb(124 58 237); /* violet-600 — readable on the light card */
-  background: rgb(167 139 250 / 0.12); border: 1px solid rgb(167 139 250 / 0.4);
-  transition: background 0.15s, opacity 0.15s;
+  font-size: 0.75rem; font-weight: 800; white-space: nowrap;
+  color: #111;
+  background: var(--m-yellow); border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
 }
-html.dark .code-btn { color: rgb(196 181 253 / 0.95); background: rgb(167 139 250 / 0.1); border-color: rgb(167 139 250 / 0.3); }
-.code-btn:hover:not(:disabled) { background: rgb(167 139 250 / 0.2); }
+html.dark .code-btn { color: #111; }
+.code-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--shadow-ink); }
+.code-btn:active:not(:disabled) { transform: scale(0.96) translateY(1px); box-shadow: none; }
 /* Disabled (sending / countdown): just dim — keep the theme text color so it
    never washes out to invisible white on the light card. */
 .code-btn:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -361,14 +360,15 @@ html.dark .code-btn { color: rgb(196 181 253 / 0.95); background: rgb(167 139 25
 
 .btn-primary {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  padding: 0.72rem 0; border-radius: 0.7rem; font-size: 0.9rem; font-weight: 600;
+  padding: 0.72rem 0; border-radius: 0.65rem; font-size: 0.9rem; font-weight: 800;
   letter-spacing: 0.02em; color: white; margin-top: 0.35rem;
-  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #ec4899 100%);
-  box-shadow: 0 10px 24px -8px rgb(168 85 247 / 0.6);
-  transition: transform 0.12s, box-shadow 0.18s, filter 0.18s;
+  background: var(--m-orange);
+  border: 2.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  transition: transform 0.13s, box-shadow 0.13s, filter 0.15s;
 }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 12px 28px -8px rgb(168 85 247 / 0.75); }
-.btn-primary:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow-ink); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .spinner {
@@ -380,18 +380,22 @@ html.dark .code-btn { color: rgb(196 181 253 / 0.95); background: rgb(167 139 25
 
 .invite-banner {
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem;
-  padding: 0.6rem 0.75rem; border-radius: 0.7rem; font-size: 0.75rem; line-height: 1.4;
-  color: rgb(167 243 208);
-  background: rgb(16 185 129 / 0.1); border: 1px solid rgb(16 185 129 / 0.25);
+  padding: 0.6rem 0.75rem; border-radius: 0.6rem; font-size: 0.75rem; line-height: 1.4;
+  color: #065f46; font-weight: 600;
+  background: var(--m-mint); border: 2px solid var(--ink);
 }
-.invite-banner svg { color: rgb(110 231 183); }
+html.dark .invite-banner { color: rgb(167 243 208); background: rgb(16 185 129 / 0.15); }
+.invite-banner svg { color: rgb(5 150 105); }
+html.dark .invite-banner svg { color: rgb(110 231 183); }
 
 .msg {
   display: flex; align-items: center; gap: 0.4rem; margin-top: 0.85rem;
-  font-size: 0.78rem; line-height: 1.4;
+  font-size: 0.78rem; font-weight: 600; line-height: 1.4;
 }
-.msg-err { color: rgb(253 164 175); }
-.msg-ok { color: rgb(110 231 183); }
+.msg-err { color: rgb(220 38 38); }
+html.dark .msg-err { color: rgb(253 164 175); }
+.msg-ok { color: rgb(5 150 105); }
+html.dark .msg-ok { color: rgb(110 231 183); }
 
 /* modal in/out */
 .modal-enter-active { transition: opacity 0.2s ease; }

@@ -658,29 +658,27 @@ html.dark .hint b { color: rgb(253 164 175); }   /* rose — visible warning, no
 }
 .sw:checked { background: #4f46e5; }   /* indigo-600 — matches btn-primary */
 .sw:checked::after { transform: translateX(calc(2.25rem - 1.3rem)); }
-.sw:focus-visible { box-shadow: 0 0 0 3px rgb(99 102 241 / 0.25); }
+.sw:focus-visible { box-shadow: 0 0 0 3px rgb(236 91 19 / 0.3); }
 .sw:disabled { cursor: not-allowed; opacity: 0.55; }
-/* All three input variants now share the same dark-glass surface as the rest
-   of the admin shell. Background + border use white-alpha so they read
-   against the card; placeholders are tuned for legibility, not noise. */
+/* All three input variants now share the same surface as the rest of the
+   admin shell. Background + border use ink-alpha so they read against the
+   card; placeholders are tuned for legibility, not noise. */
 .num, .txt, .field {
   background: rgb(15 23 42 / 0.03);
-  border: 1px solid var(--hairline);
+  border: 2px solid var(--ink-soft);
   color: var(--fg);
   border-radius: 0.55rem;
   outline: none;
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 html.dark .num, html.dark .txt, html.dark .field {
   background: rgb(255 255 255 / 0.04);
-  border-color: rgb(255 255 255 / 0.1);
   color: white;
 }
 .num::placeholder, .txt::placeholder, .field::placeholder { color: var(--fg-faint); }
 .num:focus, .txt:focus, .field:focus {
-  border-color: rgb(167 139 250 / 0.65);
-  background: rgb(255 255 255 / 0.06);
-  box-shadow: 0 0 0 3px rgb(167 139 250 / 0.15);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--m-orange);
 }
 .num:disabled, .txt:disabled, .field:disabled { opacity: 0.45; cursor: not-allowed; }
 .num { width: 6rem; padding: 0.4rem 0.55rem; font-size: 0.8rem; text-align: right; -moz-appearance: textfield; appearance: textfield; }
@@ -688,23 +686,24 @@ html.dark .num, html.dark .txt, html.dark .field {
 .txt { width: 16rem; max-width: 60%; padding: 0.4rem 0.65rem; font-size: 0.8rem; }
 .field { width: 100%; padding: 0.55rem 0.75rem; font-size: 0.85rem; }
 
-/* Section save buttons — solid violet to match brand. The global .btn-primary
-   under .public-dark goes to white; we override here so the save action stays
-   visually distinct as the primary action on a form. */
+/* Section save buttons — solid memphis orange with a hard offset shadow.
+   The global .btn-primary under .public-dark already uses this palette; we
+   re-assert it here so the save action stays visually distinct. */
 .btn-primary {
   padding: 0.55rem 1.15rem; border-radius: 0.6rem;
-  font-size: 0.8rem; font-weight: 600; color: white;
-  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #ec4899 100%);
-  box-shadow: 0 8px 20px -8px rgb(168 85 247 / 0.55);
-  transition: filter 0.15s, transform 0.12s, box-shadow 0.18s, opacity 0.15s;
+  font-size: 0.8rem; font-weight: 800; color: white;
+  background: var(--m-orange);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  transition: filter 0.15s, transform 0.12s, box-shadow 0.15s, opacity 0.15s;
 }
-/* Re-assert the gradient on hover for ALL states: the global
-   `.public-dark .btn-primary:hover` in style.css repaints the background white
-   with no `:not(:disabled)` guard, so even disabled save buttons (注册与登录 /
-   邮件服务 default to disabled) flashed white on hover. Keep this rule
-   unconditional; only the brightness/lift below is gated on :not(:disabled). */
-.btn-primary:hover { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #ec4899 100%); }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 10px 24px -8px rgb(168 85 247 / 0.7); }
-.btn-primary:active:not(:disabled) { transform: translateY(1px); }
+/* Re-assert the flat orange on hover for ALL states — the global
+   `.public-dark .btn-primary:hover` in style.css repaints the background,
+   so even disabled save buttons (注册与登录 / 邮件服务 default to disabled)
+   would flash on hover. Keep this rule unconditional; only the
+   brightness/lift below is gated on :not(:disabled). */
+.btn-primary:hover { background: #f97316; }
+.btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow-ink); }
+.btn-primary:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 </style>

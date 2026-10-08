@@ -359,7 +359,7 @@ function useExample(ex) {
     </section>
 
     <!-- ============ CTA ============ -->
-    <section class="mt-24 cta-band relative overflow-hidden rounded-[2rem] ring-1 ring-[color:var(--hairline)] p-10 md:p-16">
+    <section class="mt-24 cta-band relative overflow-hidden rounded-[1.4rem] p-10 md:p-16">
       <div class="relative max-w-xl">
         <h3 class="text-[clamp(1.7rem,3.4vw,2.8rem)] font-extrabold tracking-tight leading-[1.2] text-[color:var(--fg)]">
           与其继续想，<br />不如现在写一句。
@@ -368,15 +368,15 @@ function useExample(ex) {
           注册即可开始，图像与视频都能试；不满意就换个模型，额度按次计费。
         </p>
         <button type="button" @click="go('/user')"
-                class="mt-7 group inline-flex items-center gap-3 rounded-full bg-[var(--btn-solid-bg)] text-[color:var(--btn-solid-fg)] hover:bg-[var(--btn-solid-bg-h)] pl-6 pr-3 py-3 text-sm font-semibold transition-all">
+                class="mt-7 group inline-flex items-center gap-3 rounded-xl bg-[var(--m-orange)] text-white border-[3px] border-[color:var(--ink)] shadow-[5px_5px_0_var(--shadow-ink)] hover:shadow-[7px_7px_0_var(--shadow-ink)] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none pl-6 pr-3 py-3 text-sm font-extrabold transition-all">
           免费开始
-          <span class="w-8 h-8 rounded-full bg-[var(--btn-solid-fg)] text-[color:var(--btn-solid-bg)] grid place-items-center group-hover:translate-x-1 transition-transform">→</span>
+          <span class="w-8 h-8 rounded-lg bg-white text-[#111] border-2 border-[#111] grid place-items-center font-black group-hover:translate-x-1 transition-transform">→</span>
         </button>
       </div>
     </section>
 
     <!-- thin footer line -->
-    <footer class="mt-16 pt-10 border-t border-[color:var(--hairline)] flex flex-wrap items-center justify-between gap-4 text-xs text-[color:var(--fg-3)]">
+    <footer class="mt-16 pt-10 border-t-[3px] border-t-[color:var(--ink)] flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-[color:var(--fg-3)]">
       <div class="flex items-center gap-3">
         <span class="font-semibold text-[color:var(--fg-2)]">{{ site.title }}</span>
         <span>·</span>
@@ -398,13 +398,15 @@ function useExample(ex) {
   gap: 0.5rem;
   max-width: 36rem;
   padding: 0.5rem;
-  border-radius: 1.25rem;
+  border-radius: 1rem;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline), 0 20px 50px -22px rgb(139 92 246 / 0.3);
-  transition: box-shadow 0.25s ease;
+  border: 3px solid var(--ink);
+  box-shadow: 7px 7px 0 var(--shadow-ink);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .composer:focus-within {
-  box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.55), 0 20px 60px -20px rgb(139 92 246 / 0.45);
+  transform: translate(-2px, -2px);
+  box-shadow: 10px 10px 0 var(--m-orange);
 }
 .composer-input {
   flex: 1;
@@ -414,45 +416,54 @@ function useExample(ex) {
   outline: none;
   color: var(--fg);
   font-size: 15px;
+  font-weight: 500;
   padding: 0.7rem 0.85rem;
 }
 .composer-input::placeholder { color: var(--fg-faint); }
 .composer-go {
   flex: none;
-  border: none;
+  border: 2.5px solid var(--ink);
   cursor: pointer;
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
-  padding: 0.7rem 1.25rem;
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, #e879f9, #8b5cf6);
-  transition: transform 0.15s ease, filter 0.15s ease;
+  font-weight: 800;
+  padding: 0.65rem 1.2rem;
+  border-radius: 0.7rem;
+  background: var(--m-orange);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.composer-go:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.composer-go:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow-ink); filter: brightness(1.06); }
+.composer-go:active { transform: scale(0.96) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
 
 .chip {
   font-size: 12.5px;
+  font-weight: 600;
   color: var(--fg-2);
   cursor: pointer;
-  border: none;
-  padding: 0.42rem 0.8rem;
-  border-radius: 999px;
+  border: 2px solid var(--ink);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.6rem;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: color 0.15s ease, box-shadow 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.chip:hover { color: var(--fg); box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.5); }
+.chip:hover {
+  color: #111;
+  background: var(--m-yellow);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  transform: translate(-1px, -1px);
+}
+html.dark .chip:hover { color: #111; }
 
 /* ---------- hero cards (kind=hero) ---------- */
 .fcard {
   position: absolute;
-  border: none;
+  border: 3px solid var(--ink);
   padding: 0;
   cursor: pointer;
-  border-radius: 1.4rem;
+  border-radius: 1rem;
   overflow: hidden;
-  box-shadow: 0 30px 70px -24px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  box-shadow: 7px 7px 0 var(--shadow-ink);
   transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
   animation: fcardIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
@@ -497,23 +508,25 @@ function useExample(ex) {
   overflow: hidden;
   text-align: left;
   cursor: pointer;
-  border: none;
+  border: 2.5px solid var(--ink);
   padding: 1.35rem;
-  border-radius: 1.25rem;
+  border-radius: 1rem;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 .cap-card:hover {
-  transform: translateY(-4px);
-  box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.45), 0 20px 40px -24px rgb(139 92 246 / 0.45);
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 var(--m-orange);
 }
+html.dark .cap-card { background: rgb(255 255 255 / 0.05); }
 .cap-arrow { position: absolute; top: 1.1rem; right: 1.1rem; color: var(--fg-3); transition: color 0.15s ease; }
-.cap-card:hover .cap-arrow { color: var(--fg); }
+.cap-card:hover .cap-arrow { color: var(--m-orange); }
 .cap-icon {
   width: 2.6rem;
   height: 2.6rem;
-  border-radius: 0.85rem;
+  border-radius: 0.7rem;
+  border: 2px solid var(--ink);
   display: grid;
   place-items: center;
   margin-bottom: 0.9rem;
@@ -522,9 +535,11 @@ function useExample(ex) {
 .cap-meta {
   font-style: normal;
   font-size: 10px;
+  font-weight: 700;
   color: var(--fg-2);
   padding: 0.18rem 0.5rem;
   border-radius: 0.4rem;
+  border: 1.5px solid var(--ink-soft);
   background: var(--surface-2);
 }
 
@@ -532,14 +547,14 @@ function useExample(ex) {
 .tile {
   position: relative;
   overflow: hidden;
-  border: none;
+  border: 2.5px solid var(--ink);
   padding: 0;
   cursor: pointer;
-  border-radius: 1.25rem;
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: transform 0.35s ease;
+  border-radius: 1rem;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.tile:hover { transform: translateY(-3px); }
+.tile:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--m-blue); }
 .tile-veil {
   position: absolute;
   inset: 0;
@@ -566,12 +581,14 @@ function useExample(ex) {
   display: block;
   width: 100%;
   overflow: hidden;
-  border: none;
+  border: 2.5px solid var(--ink);
   padding: 0;
   cursor: pointer;
-  border-radius: 1.1rem;
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  border-radius: 1rem;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.work:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--m-pink); }
 .work-img { display: block; width: 100%; aspect-ratio: 4 / 5; transition: transform 0.5s ease; }
 .work:hover .work-img { transform: scale(1.04); }
 .work-overlay {
@@ -606,10 +623,11 @@ function useExample(ex) {
   margin-top: 0.7rem;
   font-style: normal;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 800;
   color: rgb(11 13 19);
-  background: #fff;
-  border-radius: 999px;
+  background: var(--m-yellow);
+  border: 2px solid #111;
+  border-radius: 0.5rem;
   padding: 0.4rem 0.8rem;
 }
 
@@ -622,12 +640,14 @@ function useExample(ex) {
   width: 14.5rem;
   overflow: hidden;
   padding: 1.25rem;
-  border-radius: 1.25rem;
+  border-radius: 1rem;
+  border: 2.5px solid var(--ink);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: box-shadow 0.2s ease;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
-.model-card:hover { box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.42); }
+.model-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--m-mint); }
+html.dark .model-card { background: rgb(255 255 255 / 0.05); }
 .model-glow {
   position: absolute;
   top: -2.5rem;
@@ -638,9 +658,15 @@ function useExample(ex) {
   filter: blur(40px);
   opacity: 0.3;
 }
-.model-tag { font-size: 10.5px; padding: 0.18rem 0.55rem; border-radius: 0.4rem; }
-.model-tag.is-image { background: rgb(52 211 153 / 0.14); color: rgb(52 211 153); }
-.model-tag.is-video { background: rgb(125 211 252 / 0.14); color: rgb(56 189 248); }
+.model-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 0.18rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1.5px solid var(--ink);
+}
+.model-tag.is-image { background: var(--m-mint); color: #065f46; }
+.model-tag.is-video { background: var(--m-blue); color: #075985; }
 
 /* ---------- hero band + mascot aura ---------- */
 .hero-band {
@@ -654,7 +680,7 @@ function useExample(ex) {
   height: 260px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgb(217 70 239 / 0.35), rgb(56 189 248 / 0.12) 55%, transparent 72%);
+  background: radial-gradient(circle, rgb(254 240 138 / 0.9), rgb(236 91 19 / 0.2) 55%, transparent 72%);
   filter: blur(14px);
   animation: auraPulse 5s ease-in-out infinite;
   pointer-events: none;
@@ -683,18 +709,18 @@ function useExample(ex) {
   width: 15rem;
   height: 10rem;
   overflow: hidden;
-  border: none;
+  border: 2.5px solid var(--ink);
   padding: 0;
   cursor: pointer;
-  border-radius: 1.4rem;
+  border-radius: 1rem;
   background-size: cover;
   background-position: center;
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .gcard:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.5), 0 22px 44px -26px rgb(168 85 247 / 0.6);
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--m-orange);
 }
 @media (prefers-reduced-motion: reduce) {
   .marquee { animation: none; }

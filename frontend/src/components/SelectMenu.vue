@@ -90,17 +90,17 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 -translate-y-1">
       <div v-if="open" ref="panel"
-           class="absolute z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border border-[color:var(--hairline)]
-                  bg-[var(--menu-bg)] backdrop-blur-xl p-1.5 shadow-2xl shadow-black/20 ring-1 ring-[color:var(--hairline)]">
+           class="absolute z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border-[2.5px] border-[color:var(--ink)]
+                  bg-[var(--menu-bg)] p-1.5 shadow-[5px_5px_0_var(--shadow-ink)]">
         <button v-for="(o, i) in options" :key="o.value" type="button"
                 :data-idx="i" @click="pick(o)" @mouseenter="active = i"
-                class="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors"
+                class="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors"
                 :class="[
                   mono ? 'font-mono' : '',
-                  i === active ? 'bg-[var(--hover)] text-[color:var(--fg)]' : 'text-[color:var(--fg-2)]',
+                  i === active ? 'bg-[var(--m-yellow)] text-[#111]' : 'text-[color:var(--fg-2)]',
                 ]">
           <span class="truncate">{{ o.label }}</span>
-          <Icon v-if="o.value === modelValue" name="check" class="w-4 h-4 shrink-0 text-violet-400" />
+          <Icon v-if="o.value === modelValue" name="check" class="w-4 h-4 shrink-0 text-[var(--m-orange)]" />
         </button>
         <div v-if="!options.length" class="px-3 py-2 text-xs text-[color:var(--fg-3)]">无选项</div>
       </div>

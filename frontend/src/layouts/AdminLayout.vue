@@ -49,13 +49,13 @@ watch(() => route.path, () => {
 <template>
   <div class="theme-x h-screen flex bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-violet-400/30 overflow-hidden">
     <!-- ===== Sidebar ===== -->
-    <aside class="w-60 shrink-0 border-r border-[color:var(--hairline)] bg-[var(--surface)] backdrop-blur-md flex flex-col">
-      <router-link to="/" class="h-16 flex items-center gap-2.5 px-5 border-b border-[color:var(--hairline)] group">
-        <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 rounded-[10px] object-contain shadow-lg shadow-violet-500/20 ring-1 ring-white/10" />
+    <aside class="w-60 shrink-0 border-r-[3px] border-r-[color:var(--ink)] bg-[var(--surface)] backdrop-blur-md flex flex-col">
+      <router-link to="/" class="h-16 flex items-center gap-2.5 px-5 border-b-[3px] border-b-[color:var(--ink)] group">
+        <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 rounded-[10px] object-contain ring-2 ring-[color:var(--ink)]" />
         <Logo v-else :size="32" />
         <div class="leading-tight min-w-0">
-          <div class="text-sm font-semibold truncate tracking-tight text-[color:var(--fg)]">{{ site.title }}</div>
-          <div class="text-[11px] text-[color:var(--fg-3)] truncate">Admin</div>
+          <div class="text-sm font-extrabold truncate tracking-tight text-[color:var(--fg)]">{{ site.title }}</div>
+          <div class="text-[11px] font-bold uppercase tracking-widest text-[color:var(--m-orange)] truncate">Admin</div>
         </div>
       </router-link>
 
@@ -64,16 +64,16 @@ watch(() => route.path, () => {
           <router-link v-if="!t.children" :to="t.to"
             class="admin-link group"
             active-class="active">
-            <span class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full opacity-0 transition-opacity"
-                  style="background: linear-gradient(180deg, #f0abfc, #a78bfa)"></span>
+            <span class="absolute left-1 top-1/2 -translate-y-1/2 w-[6px] h-6 rounded-sm opacity-0 transition-opacity"
+                  style="background: var(--m-orange)"></span>
             <Icon :name="t.icon" class="w-4 h-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
             <span class="text-sm">{{ t.label }}</span>
           </router-link>
           <div v-else>
             <button type="button" @click="toggleGroup(t.label)"
                     class="admin-link group w-full text-left" :class="groupActive(t) && 'active'">
-              <span class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full opacity-0 transition-opacity"
-                    style="background: linear-gradient(180deg, #f0abfc, #a78bfa)"></span>
+              <span class="absolute left-1 top-1/2 -translate-y-1/2 w-[6px] h-6 rounded-sm opacity-0 transition-opacity"
+                    style="background: var(--m-orange)"></span>
               <Icon :name="t.icon" class="w-4 h-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
               <span class="text-sm">{{ t.label }}</span>
               <svg class="w-3 h-3 ml-auto transition-transform" :class="openGroups.has(t.label) && 'rotate-90'"
@@ -89,7 +89,7 @@ watch(() => route.path, () => {
         </template>
       </nav>
 
-      <div class="p-3 border-t border-[color:var(--hairline)] space-y-1">
+      <div class="p-3 border-t-[3px] border-t-[color:var(--ink)] space-y-1">
         <button type="button" @click="toggleTheme"
                 class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-[color:var(--fg-2)] hover:bg-[var(--hover)] hover:text-[color:var(--fg)] transition-colors">
           <svg v-if="isDark" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -106,18 +106,19 @@ watch(() => route.path, () => {
 
     <!-- ===== Main ===== -->
     <div class="flex-1 min-w-0 flex flex-col relative">
-      <!-- soft background mesh, mirrors the public shell -->
+      <!-- memphis backdrop: polka dots + flat crayon washes -->
       <div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
-        <div class="absolute -top-32 left-1/3 w-[40rem] h-[40rem] rounded-full opacity-[0.12]"
-             style="background: radial-gradient(circle, #a855f7, transparent 60%); filter: blur(110px)"></div>
-        <div class="absolute top-1/2 -right-40 w-[36rem] h-[36rem] rounded-full opacity-[0.10]"
-             style="background: radial-gradient(circle, #06b6d4, transparent 60%); filter: blur(110px)"></div>
-        <div class="absolute bottom-0 left-0 w-[32rem] h-[32rem] rounded-full opacity-[0.08]"
-             style="background: radial-gradient(circle, #f43f5e, transparent 60%); filter: blur(110px)"></div>
+        <div class="memphis-dots absolute inset-0 opacity-50"></div>
+        <div class="absolute -top-32 left-1/3 w-[40rem] h-[40rem] rounded-full opacity-[0.16]"
+             style="background: radial-gradient(circle, #fef08a, transparent 60%); filter: blur(100px)"></div>
+        <div class="absolute top-1/2 -right-40 w-[36rem] h-[36rem] rounded-full opacity-[0.14]"
+             style="background: radial-gradient(circle, #bae6fd, transparent 60%); filter: blur(100px)"></div>
+        <div class="absolute bottom-0 left-0 w-[32rem] h-[32rem] rounded-full opacity-[0.12]"
+             style="background: radial-gradient(circle, #ffc1cc, transparent 60%); filter: blur(100px)"></div>
       </div>
 
-      <header class="relative z-10 h-14 shrink-0 border-b border-[color:var(--hairline)] bg-[var(--app-bg)]/70 backdrop-blur-md flex items-center px-8">
-        <div class="text-[10px] uppercase tracking-[0.25em] text-[color:var(--fg-3)] font-medium mr-3">Admin</div>
+      <header class="relative z-10 h-14 shrink-0 border-b-[3px] border-b-[color:var(--ink)] bg-[var(--app-bg)]/70 backdrop-blur-md flex items-center px-8">
+        <div class="text-[10px] uppercase tracking-[0.25em] text-[color:var(--m-orange)] font-extrabold mr-3">Admin</div>
         <div class="text-[color:var(--fg-faint)] mr-3">/</div>
         <h1 class="text-sm font-semibold tracking-tight text-[color:var(--fg)]">{{ currentLabel }}</h1>
       </header>
@@ -143,12 +144,20 @@ watch(() => route.path, () => {
   gap: 0.75rem;
   padding: 0.55rem 0.875rem;
   border-radius: 0.625rem;
+  border: 2px solid transparent;
   color: var(--fg-2);
-  font-weight: 500;
-  transition: background 0.15s ease, color 0.15s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.admin-link:hover { background: var(--hover); color: var(--fg); }
-.admin-link.active { color: var(--fg); background: var(--hover); }
+.admin-link:hover { background: rgb(254 240 138 / 0.5); color: var(--fg); border-color: var(--ink); }
+.admin-link.active {
+  color: var(--fg);
+  background: var(--m-yellow);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+}
+html.dark .admin-link:hover { background: rgb(236 91 19 / 0.18); }
+html.dark .admin-link.active { color: #fff; background: var(--m-orange); }
 .admin-link.active > span:first-child { opacity: 1; }
 
 .admin-sublink {
@@ -156,12 +165,15 @@ watch(() => route.path, () => {
   align-items: center;
   padding: 0.45rem 0.875rem 0.45rem 2.6rem;
   border-radius: 0.625rem;
+  border: 2px solid transparent;
   color: var(--fg-2);
-  font-weight: 500;
-  transition: background 0.15s ease, color 0.15s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.admin-sublink:hover { background: var(--hover); color: var(--fg); }
-.admin-sublink.active { color: var(--fg); background: var(--hover); }
+.admin-sublink:hover { background: rgb(254 240 138 / 0.5); color: var(--fg); border-color: var(--ink); }
+.admin-sublink.active { color: var(--fg); background: var(--m-yellow); border-color: var(--ink); }
+html.dark .admin-sublink:hover { background: rgb(236 91 19 / 0.18); }
+html.dark .admin-sublink.active { color: #fff; background: var(--m-orange); }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .fade-enter-from { opacity: 0; transform: translateY(4px); }

@@ -9,59 +9,72 @@ video {
 
 :root {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --tw-ring-color: rgb(15 23 42 / 0.08);
+  --tw-ring-color: rgb(17 17 17 / 0.12);
 
-  /* ===== Theme palette — LIGHT (default) =====
+  /* ===== Theme palette — LIGHT (default): Memphis / neo-brutalism =====
      Drives the app chrome (rails/header) and the public marketing pages.
      The `.dark` class on <html> flips these to the dark values below.
      Text over generated images keeps a literal text-white (handled in markup). */
-  --app-bg: rgb(250 250 251);          /* page background */
-  --fg: rgb(15 23 42);                  /* primary heading/text */
-  --fg-2: rgb(15 23 42 / 0.62);         /* body / secondary */
-  --fg-3: rgb(15 23 42 / 0.45);         /* muted */
-  --fg-faint: rgb(15 23 42 / 0.3);      /* labels / hints */
-  --surface: rgb(255 255 255 / 0.7);    /* raised card on page bg */
-  --surface-2: rgb(15 23 42 / 0.035);   /* subtle inset panel (counter cells) */
-  --hairline: rgb(15 23 42 / 0.08);     /* borders / rings */
-  --hover: rgb(15 23 42 / 0.05);        /* hover wash */
+  --app-bg: #f8f6f2;                    /* warm paper */
+  --fg: #1a1a1a;                        /* primary heading/text */
+  --fg-2: rgb(26 26 26 / 0.64);         /* body / secondary */
+  --fg-3: rgb(26 26 26 / 0.48);         /* muted */
+  --fg-faint: rgb(26 26 26 / 0.34);     /* labels / hints */
+  --surface: #ffffff;                   /* raised card on page bg */
+  --surface-2: rgb(26 26 26 / 0.045);   /* subtle inset panel (counter cells) */
+  --hairline: rgb(26 26 26 / 0.12);     /* faint borders / separators */
+  --hover: rgb(254 240 138 / 0.55);     /* hover wash — memphis yellow tint */
+  /* ink = the heavy outline color; shadow-ink = the offset "chunky" shadow */
+  --ink: #111111;
+  --ink-soft: rgb(17 17 17 / 0.45);
+  --shadow-ink: #111111;
+  /* memphis accent crayons */
+  --m-orange: #ec5b13;
+  --m-yellow: #fef08a;
+  --m-pink: #ffc1cc;
+  --m-blue: #bae6fd;
+  --m-mint: #a7f3d0;
   /* solid CTA button that sits on the page bg — inverts per theme */
-  --btn-solid-bg: rgb(15 23 42);
-  --btn-solid-bg-h: rgb(30 41 59);
+  --btn-solid-bg: #1a1a1a;
+  --btn-solid-bg-h: #000000;
   --btn-solid-fg: #fff;
   --menu-bg: #ffffff;          /* dropdown / popover panel */
 }
 
 html.dark {
-  --app-bg: #08090d;
+  --app-bg: #131318;
   --fg: rgb(255 255 255 / 0.92);
   --fg-2: rgb(255 255 255 / 0.55);
   --fg-3: rgb(255 255 255 / 0.4);
   --fg-faint: rgb(255 255 255 / 0.3);
-  --surface: rgb(255 255 255 / 0.03);
-  --surface-2: rgb(255 255 255 / 0.04);
-  --hairline: rgb(255 255 255 / 0.06);
-  --hover: rgb(255 255 255 / 0.06);
-  --btn-solid-bg: #fff;
-  --btn-solid-bg-h: rgb(255 255 255 / 0.9);
-  --btn-solid-fg: rgb(2 6 23);
-  --menu-bg: #15171f;
+  --surface: rgb(255 255 255 / 0.05);
+  --surface-2: rgb(255 255 255 / 0.05);
+  --hairline: rgb(255 255 255 / 0.1);
+  --hover: rgb(236 91 19 / 0.2);
+  --ink: rgb(244 244 245 / 0.85);
+  --ink-soft: rgb(244 244 245 / 0.4);
+  --shadow-ink: rgb(244 244 245 / 0.22);
+  --btn-solid-bg: #ec5b13;
+  --btn-solid-bg-h: #f97316;
+  --btn-solid-fg: #fff;
+  --menu-bg: #1d1e26;
 }
 
 /* Smooth the flip so toggling doesn't hard-cut. */
 body, .theme-x { transition: background-color 0.25s ease, color 0.25s ease; }
 
-/* Footer CTA band — soft tinted panel that flips with the theme. */
+/* Footer CTA band — flat memphis-yellow panel with a heavy ink outline. */
 .cta-band {
   background:
-    radial-gradient(at 30% 20%, rgb(168 85 247 / 0.16) 0%, transparent 50%),
-    radial-gradient(at 80% 70%, rgb(244 114 182 / 0.14) 0%, transparent 55%),
-    linear-gradient(180deg, rgb(255 255 255), rgb(246 244 251));
+    radial-gradient(circle, rgb(17 17 17 / 0.1) 1.3px, transparent 1.3px) 0 0 / 20px 20px,
+    var(--m-yellow);
+  border: 3px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--shadow-ink);
 }
 html.dark .cta-band {
   background:
-    radial-gradient(at 30% 20%, rgb(168 85 247 / 0.35) 0%, transparent 50%),
-    radial-gradient(at 80% 70%, rgb(244 114 182 / 0.3) 0%, transparent 55%),
-    linear-gradient(180deg, #0f1117, #080a10);
+    radial-gradient(circle, rgb(255 255 255 / 0.1) 1.3px, transparent 1.3px) 0 0 / 20px 20px,
+    rgb(236 91 19 / 0.16);
 }
 
 /* ===== Light-mode rescue for hardcoded-dark pages =====
@@ -107,7 +120,7 @@ html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset
 html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x):hover {
   color: var(--fg); background: var(--hover);
 }
-html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) { background: rgb(15 23 42); color: #fff; box-shadow: none; }
+html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) { background: var(--fg); color: #fff; box-shadow: 2px 2px 0 var(--m-orange); }
 /* Tag chips (TagInput) — near-white violet text is unreadable on white; keep
    the violet tint but switch the label to dark ink. */
 html:not(.dark) .theme-text .chip { color: rgb(15 23 42 / 0.9); }
@@ -117,7 +130,7 @@ html:not(.dark) .theme-text .chip .chip-x:hover { color: #fff; background: rgb(2
    `.filter-pill`/`.kind-btn` (not the `-on` class above). Without this, the
    neutral `.filter-pill`/`.kind-btn` rescue paints selected == unselected and
    the highlight vanishes on a white page. Equal-or-higher specificity, later. */
-html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on { background: rgb(15 23 42); color: #fff; box-shadow: none; }
+html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on { background: var(--fg); color: #fff; box-shadow: 2px 2px 0 var(--m-orange); }
 /* Selected COLORED filter pills — their scoped (dark) selected colors get
    overridden by the neutral `.fp` rescue above, so re-state a light-mode
    variant (tinted bg + dark-enough text + colored ring) with equal specificity
@@ -151,10 +164,12 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   vertical-align: middle;
   transition: background 0.15s, border-color 0.15s;
 }
-.chk:hover:not(:checked) { border-color: rgb(217 70 239 / 0.7); }
+.chk { border-color: var(--ink-soft); }
+.chk:hover:not(:checked) { border-color: var(--m-orange); }
 .chk:checked {
-  background: rgb(217 70 239);
-  border-color: rgb(217 70 239);
+  background: var(--m-orange);
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 .chk:checked::after {
   content: "";
@@ -165,7 +180,7 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   transform: rotate(45deg);
   margin-top: -0.12rem;
 }
-.chk:focus-visible { outline: 2px solid rgb(217 70 239 / 0.45); outline-offset: 1px; }
+.chk:focus-visible { outline: 2px solid rgb(236 91 19 / 0.5); outline-offset: 1px; }
 /* Account identity tags (AccountsView: 子号 / 母号 / 普号 / 限额). The colors live
    here rather than as inline dark-palette utilities, which were invisible on the
    light theme: light values first, html.dark override after. */
@@ -270,7 +285,7 @@ body {
   /* Subtle ambient gradient + grain (used by PublicLayout via .ambient-bg) */
 }
 
-::selection { background: rgb(99 102 241 / 0.22); color: rgb(15 23 42); }
+::selection { background: var(--m-yellow); color: #111; }
 
 /* Tailwind v4 / preflight leaves <button> on the default arrow cursor, so
    admins miss the affordance on icon-only actions (复制 / 删除 / 生成 等).
@@ -285,31 +300,37 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
    own utility so vertical clipping / rounded corners are preserved. */
 .card:has(> table) { overflow-x: auto; }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgb(203 213 225); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgb(148 163 184); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: rgb(26 26 26 / 0.28); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgb(26 26 26 / 0.45); background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+html.dark ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.22); background-clip: content-box; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.35); background-clip: content-box; }
 
 /* ===== Ambient background — used by the public shell ===== */
 .ambient-bg {
-  background:
-    radial-gradient(at 15% 10%, rgb(238 242 255) 0%, transparent 45%),
-    radial-gradient(at 85% 25%, rgb(253 244 255) 0%, transparent 50%),
-    radial-gradient(at 50% 90%, rgb(236 254 255) 0%, transparent 50%),
-    rgb(250 250 251);
+  background-color: var(--app-bg);
+  background-image: radial-gradient(circle, rgb(17 17 17 / 0.07) 1.3px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+html.dark .ambient-bg {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.06) 1.3px, transparent 1.3px);
 }
 
-/* ===== 二次元 (anime) design kit =====
-   Soft pink/violet/sky gradients, rounded bubbly surfaces, sparkle overlays and
-   sticker labels. Reusable across the workbench + user subpages + public pages
-   so the whole front-end shares one cute, neon-tinged look. */
+/* ===== Memphis / neo-brutalist design kit =====
+   Heavy ink outlines, hard offset shadows, flat crayon accents (orange / yellow
+   / pink / blue / mint), rotated stickers and squishy press feedback. Reusable
+   across the workbench + user subpages + public pages so the whole front-end
+   shares one punchy, print-like look. */
 
-/* Gradient text used for eyebrows / accents. */
+/* Highlighter text — black words "marked" with a yellow swipe. */
 .anime-grad-text {
-  background: linear-gradient(100deg, #f472b6, #a855f7 46%, #38bdf8);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  background: linear-gradient(transparent 55%, var(--m-yellow) 55%);
+  padding: 0 0.1em;
+  color: inherit;
+}
+html.dark .anime-grad-text {
+  background: linear-gradient(transparent 55%, rgb(236 91 19 / 0.55) 55%);
 }
 
 /* Section eyebrow — tiny uppercase kicker with a leading star. */
@@ -318,71 +339,74 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
   align-items: center;
   gap: 0.4rem;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 .anime-eyebrow::before { content: '✦'; font-size: 0.85em; }
 
-/* Sticker / kawaii pill label. */
+/* Sticker label — rotated yellow chip with a hard shadow. */
 .sticker {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 0.55rem;
   font-size: 12px;
-  font-weight: 700;
-  color: #a21caf;
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.16), rgb(129 140 248 / 0.16));
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.28);
-}
-html.dark .sticker {
-  color: #f5d0fe;
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.2), rgb(129 140 248 / 0.2));
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.35), 0 0 18px -6px rgb(217 70 239 / 0.5);
+  font-weight: 800;
+  color: #111;
+  background: var(--m-yellow);
+  border: 2.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  transform: rotate(-1.5deg);
 }
 
-/* Bubbly gradient CTA — pill button with a squishy hover. */
+/* Chunky CTA — flat orange with an offset ink shadow and a press feel. */
 .bubble-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.7rem 1.4rem;
-  border-radius: 999px;
+  border-radius: 0.8rem;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: #fff;
-  border: none;
+  border: 2.5px solid var(--ink);
   cursor: pointer;
-  background: linear-gradient(135deg, #f472b6, #a855f7 55%, #38bdf8);
-  box-shadow: 0 14px 30px -12px rgb(168 85 247 / 0.7);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  background: var(--m-orange);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.bubble-btn:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.06); }
-.bubble-btn:active { transform: translateY(0) scale(0.99); }
+.bubble-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--shadow-ink); filter: brightness(1.05); }
+.bubble-btn:active { transform: scale(0.97) translateY(2px); box-shadow: 1px 1px 0 var(--shadow-ink); }
 
-/* Rounded anime card surface with a soft pastel wash + neon ring in dark. */
+/* Memphis card — flat surface, heavy ink outline, hard offset shadow. */
 .anime-card {
   position: relative;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2.5px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 .anime-card:hover {
-  transform: translateY(-3px);
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.4), 0 22px 44px -26px rgb(168 85 247 / 0.5);
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--shadow-ink);
 }
-html.dark .anime-card:hover {
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.5), 0 0 30px -10px rgb(217 70 239 / 0.45);
+html.dark .anime-card {
+  background: rgb(255 255 255 / 0.05);
 }
 
-/* Selected pill — replaces the old bg-slate-900 look with a candy gradient. */
+/* Selected pill — solid ink with an orange offset shadow. */
 .chip-on {
   color: #fff !important;
-  background: linear-gradient(135deg, #e879f9, #8b5cf6) !important;
-  box-shadow: 0 8px 20px -10px rgb(168 85 247 / 0.7) !important;
+  background: #1a1a1a !important;
+  border: 2px solid var(--ink) !important;
+  box-shadow: 3px 3px 0 var(--m-orange) !important;
+}
+html.dark .chip-on {
+  background: var(--m-orange) !important;
+  box-shadow: 3px 3px 0 var(--shadow-ink) !important;
 }
 
 /* Twinkling star field — drop into any relatively-positioned decorative layer.
@@ -392,9 +416,9 @@ html.dark .anime-card:hover {
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(1.5px 1.5px at 12% 22%, rgb(217 70 239 / 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 12% 22%, rgb(236 91 19 / 0.7), transparent),
     radial-gradient(1.5px 1.5px at 78% 12%, rgb(56 189 248 / 0.7), transparent),
-    radial-gradient(1px 1px at 42% 62%, rgb(168 85 247 / 0.65), transparent),
+    radial-gradient(1px 1px at 42% 62%, rgb(236 91 19 / 0.6), transparent),
     radial-gradient(1.5px 1.5px at 88% 72%, rgb(244 114 182 / 0.6), transparent),
     radial-gradient(1px 1px at 24% 84%, rgb(56 189 248 / 0.55), transparent),
     radial-gradient(1px 1px at 62% 34%, rgb(250 204 21 / 0.55), transparent);
@@ -422,46 +446,83 @@ html.dark .anime-card:hover {
   z-index: 0;
 }
 
+/* ===== Memphis utilities ===== */
+/* Polka-dot texture layer (drop on a decorative absolutely-positioned div). */
+.memphis-dots {
+  background-image: radial-gradient(circle, rgb(17 17 17 / 0.14) 1.4px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+html.dark .memphis-dots {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.1) 1.4px, transparent 1.4px);
+}
+/* Heavy outline + hard offset shadow helpers for one-off markup. */
+.ink-card {
+  background: var(--surface);
+  border: 2.5px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--shadow-ink);
+}
+.ink-card-sm {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+}
+/* Lift on hover — the signature memphis card interaction. */
+.chunky-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.chunky-hover:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--shadow-ink); }
+/* Squishy press for buttons (mirrors the reference site's .memphis-press). */
+.memphis-press { transition: transform 0.15s ease; }
+.memphis-press:active { transform: scale(0.97) translateY(2px); }
+
+@keyframes memphis-wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes memphis-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(1.5deg); } }
+@keyframes memphis-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.animate-memphis-wiggle { animation: memphis-wiggle 2s ease-in-out infinite; }
+.animate-memphis-float { animation: memphis-float 6s ease-in-out infinite; }
+.animate-memphis-bounce { animation: memphis-bounce 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-memphis-wiggle, .animate-memphis-float, .animate-memphis-bounce { animation: none; }
+}
+
 /* ===== Dark public-shell theme overrides =====
    Apply by adding `.public-dark` to a wrapper element. Views can keep their
    existing Tailwind classes (text-slate-*, .card, .field) — these rules
    remap them to the dark palette. */
 .public-dark { color: rgb(255 255 255 / 0.9); }
 .public-dark .card {
-  background: rgb(255 255 255 / 0.03);
-  border-color: rgb(255 255 255 / 0.07);
+  background: rgb(255 255 255 / 0.035);
+  border-color: var(--ink);
   color: rgb(255 255 255 / 0.92);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px rgb(0 0 0 / 0.25);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
 }
 .public-dark .field {
   background: rgb(255 255 255 / 0.04);
-  border-color: rgb(255 255 255 / 0.1);
+  border-color: var(--ink-soft);
   color: rgb(255 255 255 / 0.95);
   transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
 }
 .public-dark .field::placeholder { color: rgb(255 255 255 / 0.3); }
 /* Single focus treatment shared by every <.field> across the admin shell —
-   matches the per-component overrides in ConfigView/LoginModal so all
-   inputs glow with the same violet ring on focus. */
+   an orange offset shadow, matching the light theme's focus affordance. */
 .public-dark .field:focus,
 .public-dark .field:focus-visible {
-  border-color: rgb(167 139 250 / 0.65);
+  border-color: var(--ink);
   background: rgb(255 255 255 / 0.06);
-  box-shadow: 0 0 0 3px rgb(167 139 250 / 0.15);
+  box-shadow: 3px 3px 0 rgb(236 91 19 / 0.6);
   outline: none;
 }
 .public-dark .btn-soft {
   background: rgb(255 255 255 / 0.06);
+  border-color: var(--ink-soft);
   color: rgb(255 255 255 / 0.85);
 }
-.public-dark .btn-soft:hover { background: rgb(255 255 255 / 0.12); color: white; }
-.public-dark .btn-ghost { color: rgb(255 255 255 / 0.65); }
-.public-dark .btn-ghost:hover { background: rgb(255 255 255 / 0.06); color: white; }
+.public-dark .btn-soft:hover { background: rgb(236 91 19 / 0.25); color: white; }
+.public-dark .btn-ghost { color: rgb(255 255 255 / 0.65); border-color: transparent; }
+.public-dark .btn-ghost:hover { background: rgb(236 91 19 / 0.18); color: white; }
 .public-dark .btn-primary {
-  background: white; color: rgb(2 6 23); box-shadow: 0 1px 0 rgb(0 0 0 / 0.1);
+  background: var(--m-orange); color: #fff; box-shadow: 3px 3px 0 var(--shadow-ink);
 }
-.public-dark .btn-primary:hover { background: rgb(255 255 255 / 0.92); }
-.public-dark .pill { background: rgb(255 255 255 / 0.06); color: rgb(255 255 255 / 0.85); }
+.public-dark .btn-primary:hover { background: #f97316; }
+.public-dark .pill { background: rgb(255 255 255 / 0.06); color: rgb(255 255 255 / 0.85); border-color: var(--ink-soft); }
 
 /* Remap slate text tokens */
 .public-dark .text-slate-900,
@@ -511,34 +572,68 @@ html.dark .anime-card:hover {
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
 
 @layer components {
-  /* surfaces */
-  .card { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
+  /* surfaces — flat white card with the memphis ink outline + offset shadow */
+  .card {
+    @apply bg-white rounded-xl;
+    border: 2.5px solid var(--ink);
+    box-shadow: 5px 5px 0 var(--shadow-ink);
+  }
 
   /* buttons — each variant is self-contained (Tailwind v4 can't @apply a custom class) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-           bg-slate-900 text-white hover:bg-slate-700 px-3.5 py-2;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-bold
+           disabled:opacity-50 disabled:cursor-not-allowed px-3.5 py-2;
+    color: #fff;
+    background: var(--m-orange);
+    border: 2.5px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
+    transition: transform 0.13s ease, box-shadow 0.13s ease, filter 0.13s ease;
   }
+  .btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow-ink); filter: brightness(1.05); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.97) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
   .btn-soft {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-           bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold
+           disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
+    color: var(--fg-2);
+    background: var(--surface);
+    border: 2px solid var(--ink-soft);
+    transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.15s ease, color 0.15s ease;
   }
+  .btn-soft:hover:not(:disabled) {
+    color: var(--fg);
+    background: var(--m-yellow);
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
+  }
+  .btn-soft:active:not(:disabled) { transform: scale(0.97) translateY(2px); box-shadow: none; }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-           text-slate-600 hover:bg-slate-100 hover:text-slate-900 px-3 py-1.5;
+           disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
+    color: var(--fg-2);
+    border: 2px solid transparent;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--fg);
+    background: var(--m-yellow);
+    border-color: var(--ink);
   }
 
   /* text link / quiet action */
-  .link { @apply text-slate-500 hover:text-slate-900 transition-colors cursor-pointer; }
+  .link { @apply hover:text-slate-900 transition-colors cursor-pointer; color: var(--fg-3); }
+  .link:hover { color: var(--m-orange); }
 
-  /* form controls */
+  /* form controls — heavy outline, orange offset shadow on focus */
   .field {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800
-           outline-none transition-colors placeholder:text-slate-400
-           focus:border-slate-400 focus:ring-2;
+    @apply w-full rounded-lg bg-white px-3 py-2 text-sm
+           outline-none placeholder:text-slate-400;
+    color: var(--fg);
+    border: 2px solid var(--ink-soft);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field:focus, .field:focus-visible {
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--m-orange);
   }
 
   /* Native <select> using .field: drop the OS arrow for a custom chevron that
@@ -565,13 +660,17 @@ html.dark .anime-card:hover {
   }
 
   /* status pill */
-  .pill { @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium; }
+  .pill {
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
+    border: 1.5px solid var(--ink-soft);
+  }
 
   /* table primitives */
-  .th { @apply text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400; }
+  .th { @apply text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider; color: var(--fg-faint); }
   .td { @apply px-4 py-3.5 align-middle; }
-  .row { @apply border-t border-slate-100 transition-colors hover:bg-slate-50; }
+  .row { @apply border-t transition-colors; border-color: var(--hairline); }
+  .row:hover { background: rgb(254 240 138 / 0.35); }
 
   /* avatar chip for identity columns */
-  .avatar { @apply w-8 h-8 rounded-full grid place-items-center text-xs font-semibold shrink-0 ring-1 ring-black/5; }
+  .avatar { @apply w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0; border: 2px solid var(--ink); }
 }

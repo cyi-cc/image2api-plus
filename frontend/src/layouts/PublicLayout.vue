@@ -69,7 +69,7 @@ async function onLogout() {
 <template>
   <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-violet-400/30">
     <!-- ===== Top bar ===== -->
-    <header class="fixed top-0 inset-x-0 z-40 border-b border-transparent backdrop-blur-xl top-bar">
+    <header class="fixed top-0 inset-x-0 z-40 backdrop-blur-xl top-bar">
       <div class="mx-auto max-w-[1400px] px-4 md:px-8 h-[58px] flex items-center gap-3">
         <!-- brand -->
         <router-link to="/" class="flex items-center gap-2.5 shrink-0 transition-transform hover:scale-[1.03]">
@@ -142,7 +142,7 @@ async function onLogout() {
       </div>
 
       <!-- mobile panel -->
-      <div v-if="mobileOpen" class="md:hidden border-t border-[color:var(--hairline)] px-3 py-3 bg-[var(--menu-bg)]">
+      <div v-if="mobileOpen" class="md:hidden border-t-2 border-[color:var(--ink)] px-3 py-3 bg-[var(--menu-bg)]">
         <router-link v-for="n in nav" :key="n.to" :to="n.to"
                      :exact-active-class="n.to === '/' ? 'm-on' : ''"
                      :active-class="n.to === '/' ? '' : 'm-on'"
@@ -164,14 +164,15 @@ async function onLogout() {
 
     <!-- ===== Main column ===== -->
     <div class="relative">
-      <!-- soft background mesh -->
+      <!-- memphis backdrop: polka dots + flat crayon washes -->
       <div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
-        <div class="absolute -top-32 left-1/3 w-[40rem] h-[40rem] rounded-full opacity-[0.16]"
-             style="background: radial-gradient(circle, #a855f7, transparent 60%); filter: blur(100px)"></div>
-        <div class="absolute top-1/2 -right-40 w-[36rem] h-[36rem] rounded-full opacity-[0.14]"
-             style="background: radial-gradient(circle, #06b6d4, transparent 60%); filter: blur(100px)"></div>
-        <div class="absolute bottom-0 left-0 w-[32rem] h-[32rem] rounded-full opacity-[0.10]"
-             style="background: radial-gradient(circle, #f43f5e, transparent 60%); filter: blur(100px)"></div>
+        <div class="memphis-dots absolute inset-0 opacity-60"></div>
+        <div class="absolute -top-32 left-1/3 w-[40rem] h-[40rem] rounded-full opacity-[0.22]"
+             style="background: radial-gradient(circle, #fef08a, transparent 60%); filter: blur(90px)"></div>
+        <div class="absolute top-1/2 -right-40 w-[36rem] h-[36rem] rounded-full opacity-[0.18]"
+             style="background: radial-gradient(circle, #bae6fd, transparent 60%); filter: blur(90px)"></div>
+        <div class="absolute bottom-0 left-0 w-[32rem] h-[32rem] rounded-full opacity-[0.16]"
+             style="background: radial-gradient(circle, #ffc1cc, transparent 60%); filter: blur(90px)"></div>
         <div class="anime-stars"></div>
       </div>
 
@@ -195,42 +196,39 @@ async function onLogout() {
 
 <style scoped>
 .top-bar {
-  background: color-mix(in srgb, var(--app-bg) 72%, transparent);
+  background: color-mix(in srgb, var(--app-bg) 82%, transparent);
+  border-bottom: 2.5px solid var(--ink);
   transition: border-color 0.2s ease;
 }
-.top-bar:hover { border-bottom-color: var(--hairline); }
 
 .top-link {
   padding: 0.45rem 0.8rem;
-  border-radius: 999px;
+  border-radius: 0.6rem;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--fg-2);
   background: transparent;
-  border: none;
+  border: 2px solid transparent;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.top-link:hover { color: var(--fg); background: var(--hover); }
+.top-link:hover { color: var(--fg); background: var(--m-yellow); border-color: var(--ink); }
 .top-link.on {
-  color: #a21caf;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.16), rgb(129 140 248 / 0.16));
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.3);
+  color: #111;
+  font-weight: 800;
+  background: var(--m-yellow);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 html.dark .top-link.on {
-  color: #f5d0fe;
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.2), rgb(129 140 248 / 0.2));
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.35), 0 0 16px -6px rgb(217 70 239 / 0.55);
+  color: #fff;
+  background: var(--m-orange);
 }
 
 .brand-spark {
   font-size: 12px;
   line-height: 1;
-  background: linear-gradient(135deg, #f472b6, #38bdf8);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--m-orange);
   animation: brandSpark 3.5s ease-in-out infinite;
 }
 @keyframes brandSpark {
@@ -242,34 +240,38 @@ html.dark .top-link.on {
 .m-link {
   display: block;
   padding: 0.6rem 0.75rem;
-  border-radius: 0.85rem;
+  border-radius: 0.6rem;
   font-size: 14px;
+  font-weight: 600;
   color: var(--fg-2);
   background: transparent;
-  border: none;
+  border: 2px solid transparent;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.m-link:hover { color: var(--fg); background: var(--hover); }
+.m-link:hover { color: var(--fg); background: var(--m-yellow); border-color: var(--ink); }
 .m-link.m-on {
-  color: #a21caf;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.16), rgb(129 140 248 / 0.16));
+  color: #111;
+  font-weight: 800;
+  background: var(--m-yellow);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
-html.dark .m-link.m-on { color: #f5d0fe; background: linear-gradient(135deg, rgb(244 114 182 / 0.2), rgb(129 140 248 / 0.2)); }
+html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
 
 .round-btn {
   width: 2.125rem;
   height: 2.125rem;
-  border-radius: 999px;
+  border-radius: 0.6rem;
   display: grid;
   place-items: center;
   color: var(--fg-3);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: color 0.15s ease, background 0.15s ease;
+  border: 2px solid var(--ink);
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.round-btn:hover { color: var(--fg); background: var(--hover); }
+.round-btn:hover { color: #111; background: var(--m-yellow); box-shadow: 3px 3px 0 var(--shadow-ink); transform: translate(-1px, -1px); }
+.round-btn:active { transform: scale(0.95) translateY(1px); box-shadow: none; }
 
 /* mobile-only: .round-btn's display:grid outranks Tailwind's md:hidden, so
    the breakpoint lives here instead */
@@ -280,17 +282,18 @@ html.dark .m-link.m-on { color: #f5d0fe; background: linear-gradient(135deg, rgb
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1.1rem;
-  border-radius: 999px;
+  border-radius: 0.65rem;
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 800;
   color: #fff;
-  background: linear-gradient(135deg, #f472b6, #a855f7 55%, #38bdf8);
-  border: none;
+  background: var(--m-orange);
+  border: 2.5px solid var(--ink);
   cursor: pointer;
-  box-shadow: 0 12px 26px -14px rgb(168 85 247 / 0.75);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
   transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
-.solid-btn:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 16px 30px -14px rgb(168 85 247 / 0.85); }
+.solid-btn:hover { filter: brightness(1.06); transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow-ink); }
+.solid-btn:active { transform: scale(0.97) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
 
 .name-btn {
   display: inline-flex;
@@ -299,19 +302,19 @@ html.dark .m-link.m-on { color: #f5d0fe; background: linear-gradient(135deg, rgb
   max-width: 10rem;
   height: 2.125rem;
   padding: 0 0.7rem 0 0.85rem;
-  border-radius: 999px;
-  border: none;
+  border-radius: 0.6rem;
+  border: 2px solid var(--ink);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--fg);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .name-btn:hover {
-  background: linear-gradient(135deg, rgb(244 114 182 / 0.14), rgb(129 140 248 / 0.14));
-  box-shadow: inset 0 0 0 1px rgb(217 70 239 / 0.3);
+  background: var(--m-yellow);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  transform: translate(-1px, -1px);
 }
 .name-txt {
   overflow: hidden;
@@ -325,23 +328,25 @@ html.dark .m-link.m-on { color: #f5d0fe; background: linear-gradient(135deg, rgb
   top: 2.75rem;
   width: 11.5rem;
   padding: 0.4rem;
-  border-radius: 0.9rem;
+  border-radius: 0.75rem;
   background: var(--menu-bg);
-  box-shadow: inset 0 0 0 1px var(--hairline), 0 20px 44px rgb(0 0 0 / 0.24);
+  border: 2.5px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--shadow-ink);
   z-index: 50;
 }
 .menu-item {
   display: block;
   padding: 0.5rem 0.65rem;
-  border-radius: 0.55rem;
+  border-radius: 0.5rem;
   font-size: 13px;
+  font-weight: 600;
   color: var(--fg-2);
   background: transparent;
   border: none;
   cursor: pointer;
 }
-.menu-item:hover { background: var(--hover); color: var(--fg); }
-.menu-sep { height: 1px; background: var(--hairline); margin: 0.35rem 0.25rem; }
+.menu-item:hover { background: var(--m-yellow); color: #111; }
+.menu-sep { height: 2px; background: var(--ink); opacity: 0.15; margin: 0.35rem 0.25rem; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-enter-from { opacity: 0; transform: translateY(8px); }

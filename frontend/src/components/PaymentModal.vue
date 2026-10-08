@@ -103,15 +103,15 @@ onUnmounted(clearTimers)
   <transition name="pay-fade">
     <div v-if="payment.show" class="fixed inset-0 z-[85] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
          @click.self="!paid && finish()">
-      <div class="w-full max-w-sm rounded-2xl bg-white text-slate-800 shadow-2xl overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div class="w-full max-w-sm rounded-xl bg-white text-slate-800 border-[3px] border-[#111] shadow-[8px_8px_0_#111] overflow-hidden">
+        <div class="px-5 py-4 border-b-[2.5px] border-b-[#111] flex items-center justify-between">
           <h2 class="text-base font-semibold">{{ paid ? '支付成功' : dead ? '支付超时' : (isJump ? '支付监控中' : '扫码支付') }}</h2>
           <button v-if="!paid" @click="finish" class="text-slate-400 hover:text-slate-700"><Icon name="close" class="w-5 h-5" /></button>
         </div>
 
         <!-- paid -->
         <div v-if="paid" class="px-6 py-10 text-center">
-          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mb-4">
+          <div class="w-16 h-16 mx-auto rounded-full bg-[#a7f3d0] text-emerald-700 border-[2.5px] border-[#111] shadow-[4px_4px_0_#111] grid place-items-center mb-4">
             <Icon name="spark" class="w-8 h-8" />
           </div>
           <p class="text-lg font-semibold text-slate-800">充值成功</p>
@@ -127,7 +127,7 @@ onUnmounted(clearTimers)
           <p class="text-lg font-semibold text-slate-700">支付超时</p>
           <p class="text-sm text-slate-500 mt-1">二维码已失效,订单已取消</p>
           <p class="text-xs text-slate-400 mt-1">如需充值请重新下单</p>
-          <button @click="finish" class="mt-5 rounded-lg bg-slate-900 text-white hover:bg-slate-700 px-5 py-2 text-sm font-medium transition-colors">关闭</button>
+          <button @click="finish" class="mt-5 rounded-lg bg-[#ec5b13] text-white border-[2.5px] border-[#111] shadow-[3px_3px_0_#111] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none px-5 py-2 text-sm font-extrabold transition-all">关闭</button>
         </div>
 
         <!-- pending -->
@@ -135,7 +135,7 @@ onUnmounted(clearTimers)
           <!-- qrcode: scan to pay -->
           <template v-if="!isJump">
             <div class="flex justify-center mb-3">
-              <div class="w-[228px] h-[228px] rounded-2xl ring-1 ring-slate-200 shadow-sm grid place-items-center overflow-hidden bg-white p-3.5">
+              <div class="w-[228px] h-[228px] rounded-xl border-[2.5px] border-[#111] shadow-[4px_4px_0_#111] grid place-items-center overflow-hidden bg-white p-3.5">
                 <img v-if="qrUrl" :src="qrUrl" alt="支付二维码" class="w-full h-full rounded-lg" />
                 <span v-else class="text-xs text-slate-400">二维码生成中…</span>
               </div>
@@ -145,7 +145,7 @@ onUnmounted(clearTimers)
           <!-- jump (no qrcode): the cashier opened in a new tab — just monitor -->
           <template v-else>
             <div class="flex flex-col items-center justify-center py-7 mb-2">
-              <div class="w-12 h-12 rounded-full border-2 border-violet-200 border-t-violet-500 animate-spin mb-3"></div>
+              <div class="w-12 h-12 rounded-full border-[3px] border-[#fecaca] border-t-[#ec5b13] animate-spin mb-3"></div>
               <p class="text-sm font-medium text-slate-700">支付监控中…</p>
               <p class="text-xs text-slate-400 mt-1">已打开支付页面,完成后自动到账</p>
             </div>
@@ -155,7 +155,7 @@ onUnmounted(clearTimers)
             <div class="flex justify-between"><dt class="text-slate-400">订单号</dt><dd class="font-mono text-xs text-slate-700">{{ order.id }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-400">状态</dt><dd class="text-amber-600 font-medium">{{ statusLabel }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-400">金额</dt><dd class="font-semibold text-slate-800">¥{{ order.amount }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">充值积分</dt><dd class="text-violet-600 font-semibold">{{ order.points }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-400">充值积分</dt><dd class="text-[#ec5b13] font-semibold">{{ order.points }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-400">下单时间</dt><dd class="text-xs text-slate-600">{{ fmtTime(order.created_at) }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-400">支付倒计时</dt><dd class="tabular-nums font-medium" :class="remaining > 0 ? 'text-slate-700' : 'text-rose-500'">{{ remaining > 0 ? mmss : '已超时' }}</dd></div>
           </dl>
