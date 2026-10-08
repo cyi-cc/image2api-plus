@@ -7,7 +7,6 @@ import { auth, refreshMe } from '../auth'
 import { api } from '../api'
 import { fmtIso } from '../utils/format'
 import Icon from '../components/Icon.vue'
-import Mascot from '../components/Mascot.vue'
 
 // Reward per completed invite — comes from the backend (credits.invite_reward),
 // falling back to 3 until the response lands.
@@ -86,34 +85,34 @@ function toast(m) {
       <p class="text-white/45 mt-2">好友用你的链接注册,并完成首次生图后,你得 {{ INVITE_REWARD }} 积分。</p>
     </header>
 
-    <section class="relative rounded-3xl ring-1 ring-white/[0.08] p-7 md:p-8 overflow-hidden"
-             style="background: radial-gradient(at 70% 30%,rgba(251,191,36,0.16) 0%, transparent 55%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))">
-      <div class="inline-grid w-10 h-10 rounded-xl bg-amber-500/15 ring-1 ring-amber-400/30 grid place-items-center text-amber-300">
-        <Icon name="accounts" class="w-4 h-4" />
+    <section class="relative rounded-2xl p-7 md:p-8 overflow-hidden ink-card">
+      <div class="memphis-dots absolute inset-0 opacity-30 pointer-events-none"></div>
+      <div class="relative inline-grid w-11 h-11 rounded-xl bg-[var(--m-yellow)] border-2 border-[color:var(--ink)] shadow-[3px_3px_0_var(--shadow-ink)] grid place-items-center text-[#111]">
+        <Icon name="accounts" class="w-5 h-5" />
       </div>
 
       <!-- summary -->
-      <div class="mt-6 grid grid-cols-2 gap-3">
-        <div class="rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06] px-4 py-3">
-          <div class="text-2xl font-bold tabular-nums">{{ inviteCount }}</div>
-          <div class="text-[10px] text-white/40 mt-1 uppercase tracking-widest">已邀请</div>
+      <div class="relative mt-6 grid grid-cols-2 gap-3">
+        <div class="rounded-xl px-4 py-3 border-2 border-[color:var(--ink)] bg-[var(--m-mint)] shadow-[3px_3px_0_var(--shadow-ink)]">
+          <div class="text-2xl font-black tabular-nums text-[#111]">{{ inviteCount }}</div>
+          <div class="text-[10px] text-[#111]/55 mt-1 uppercase tracking-widest font-bold">已邀请</div>
         </div>
-        <div class="rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06] px-4 py-3">
-          <div class="text-2xl font-bold tabular-nums">{{ inviteEarned.toLocaleString('en-US') }}</div>
-          <div class="text-[10px] text-white/40 mt-1 uppercase tracking-widest">累计积分</div>
+        <div class="rounded-xl px-4 py-3 border-2 border-[color:var(--ink)] bg-[var(--m-blue)] shadow-[3px_3px_0_var(--shadow-ink)]">
+          <div class="text-2xl font-black tabular-nums text-[#111]">{{ inviteEarned.toLocaleString('en-US') }}</div>
+          <div class="text-[10px] text-[#111]/55 mt-1 uppercase tracking-widest font-bold">累计积分</div>
         </div>
       </div>
 
       <!-- code -->
-      <div class="mt-6">
-        <label class="block text-xs text-white/50 mb-2">邀请码</label>
+      <div class="relative mt-6">
+        <label class="block text-xs font-bold text-white/50 mb-2">邀请码</label>
         <div class="flex gap-2">
           <button @click="copyCode"
-                  class="flex-1 rounded-xl bg-white/[0.05] ring-1 ring-white/10 hover:ring-white/30 hover:bg-white/[0.08] px-4 py-3 text-sm font-mono text-left transition-all">
+                  class="flex-1 rounded-xl border-2 border-[color:var(--ink)] bg-[var(--surface)] px-4 py-3 text-sm font-mono text-left shadow-[3px_3px_0_var(--shadow-ink)] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--shadow-ink)] transition-all">
             {{ inviteCode || '—' }}
           </button>
           <button @click="copyInvite"
-                  class="rounded-xl bg-white text-black hover:bg-white/90 px-5 py-3 text-sm font-semibold transition-colors">
+                  class="rounded-xl border-[2.5px] border-[color:var(--ink)] bg-[var(--m-orange)] text-white px-5 py-3 text-sm font-extrabold shadow-[3px_3px_0_var(--shadow-ink)] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--shadow-ink)] active:translate-y-0.5 active:shadow-none transition-all">
             复制链接
           </button>
         </div>
@@ -134,7 +133,7 @@ function toast(m) {
         <div v-if="loading && !records.length" class="text-center text-sm text-white/40 py-16">加载中…</div>
         <div v-else-if="!records.length" class="relative overflow-hidden flex flex-col items-center gap-3 text-white/40 py-14">
           <div class="anime-stars"></div>
-          <Mascot :size="110" />
+          <span class="empty-badge">✦</span>
           <span class="text-sm">还没有人通过你的链接注册～快去分享吧</span>
         </div>
 

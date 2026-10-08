@@ -7,7 +7,6 @@ import { copyText } from '../utils/clipboard'
 import { zipSync } from 'fflate'
 import Icon from '../components/Icon.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
-import Mascot from '../components/Mascot.vue'
 
 const router = useRouter()
 
@@ -277,7 +276,7 @@ onUnmounted(() => {
     <div v-else-if="!filtered.length"
          class="anime-card relative overflow-hidden flex flex-col items-center gap-3 text-[color:var(--fg-3)] py-20">
       <div class="anime-stars"></div>
-      <Mascot :size="120" />
+      <span class="empty-badge">✦</span>
       <span class="text-sm">还没有创作记录，画一张试试吧～</span>
       <button @click="router.push('/user')" class="bubble-btn mt-1">开始第一张 ✦</button>
     </div>

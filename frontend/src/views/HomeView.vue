@@ -4,8 +4,6 @@ import { useRouter } from 'vue-router'
 import { api, generatedUrl } from '../api'
 import { site } from '../site'
 import { isAuthed, openLogin } from '../auth'
-import Mascot from '../components/Mascot.vue'
-
 const router = useRouter()
 
 // Navigate to a signed-in page, or pop the login modal (remembering the
@@ -123,32 +121,32 @@ const caps = computed(() => {
     {
       key: 't2i', title: '文字生图', model: imageModels.value[0]?.id,
       desc: '一句话出图，画幅与分辨率按所选模型的可用范围给出。',
-      tint: 'rgb(52 211 153 / 0.14)', color: 'rgb(52 211 153)',
+      tint: '#a7f3d0', color: '#065f46',
       metas: [resRange.value, `${imageModels.value.length} 个模型`].filter(Boolean),
     },
     {
       key: 'i2i', title: '参考图生图', model: i2iModels[0]?.id,
       desc: '上传参考图换风格、改构图、做变体，支持多张参考。',
-      tint: 'rgb(217 70 239 / 0.14)', color: 'rgb(232 121 249)',
+      tint: '#ffc1cc', color: '#9f1239',
       metas: ['多图参考', `${i2iModels.length} 个模型`],
     },
     {
       key: 't2v', title: '文字生视频', model: videoModels.value[0]?.id,
       desc: '一段描述生成短片，时长与分辨率按模型能力可选。',
-      tint: 'rgb(14 165 233 / 0.14)', color: 'rgb(56 189 248)',
+      tint: '#bae6fd', color: '#075985',
       metas: [durationRange.value, videoRes.value, `${videoModels.value.length} 个模型`].filter(Boolean),
     },
     {
       key: 'i2v', title: '图生视频', model: i2vModels[0]?.id,
       desc: '给参考图或首帧，让静态画面动起来。',
-      tint: 'rgb(245 158 11 / 0.14)', color: 'rgb(251 191 36)',
+      tint: '#fef08a', color: '#92400e',
       metas: ['参考图', `${i2vModels.length} 个模型`],
     },
   ].filter((c) => c.model)
 })
 
 // ---- model cards: the admin-set alias wins, so no upstream naming leaks ----
-const MODEL_TINT = ['#a78bfa', '#f0abfc', '#fb7185', '#fbbf24', '#38bdf8', '#34d399', '#94a3b8']
+const MODEL_TINT = ['#ec5b13', '#ffc1cc', '#bae6fd', '#a7f3d0', '#fef08a', '#f472b6', '#94a3b8']
 const modelCards = computed(() => managed.value.map((m, i) => {
   const bits = []
   if (m.resolutions?.length) bits.push(m.resolutions.join(' / '))
@@ -199,38 +197,43 @@ function useExample(ex) {
 
 <template>
   <div class="px-4 md:px-8">
-    <!-- ============ HERO (centered, mascot-forward) ============ -->
-    <section class="hero-band relative overflow-hidden pt-16 md:pt-24 pb-10">
+    <!-- ============ HERO (centered, memphis deco) ============ -->
+    <section class="hero-band relative overflow-hidden pt-14 md:pt-20 pb-12">
       <div class="anime-stars"></div>
-      <div class="relative flex flex-col items-center text-center">
-        <!-- mascot centerpiece with soft aura -->
-        <div class="relative mb-6">
-          <span class="mascot-aura"></span>
-          <Mascot :size="184" class="relative" />
-        </div>
 
+      <!-- floating memphis shapes (desktop only) -->
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 hidden lg:block">
+        <span class="deco deco-a">🎨</span>
+        <span class="deco deco-b">⚡</span>
+        <span class="deco deco-c">4K</span>
+        <span class="deco deco-d">🎬</span>
+        <span class="deco deco-star">✦</span>
+        <span class="deco deco-star deco-star-2">✦</span>
+      </div>
+
+      <div class="relative flex flex-col items-center text-center">
         <span class="sticker">
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]"></span>
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 border border-[#111]"></span>
           {{ modelCount }} 个模型在线 · 图像与视频一站生成
         </span>
 
-        <h1 class="mt-5 font-extrabold tracking-tight leading-[1.05] text-[clamp(2.6rem,6vw,4.6rem)] text-[color:var(--fg)]">
+        <h1 class="mt-5 font-black tracking-tight leading-[1.05] text-[clamp(2.6rem,6vw,4.6rem)] text-[color:var(--fg)]">
           把想象 <span class="anime-grad-text">说给 AI 听</span>
         </h1>
 
-        <p class="mt-5 text-[15px] md:text-base text-[color:var(--fg-2)] max-w-xl leading-relaxed">
+        <p class="mt-5 text-[15px] md:text-base font-medium text-[color:var(--fg-2)] max-w-xl leading-relaxed">
           写一句话，剩下的交给我们：自动选模型、自动排队，图像与视频都在同一个工作台里出片。
         </p>
 
         <!-- prompt composer — the shortest path into the workbench -->
-        <form class="composer mt-8 !max-w-2xl w-full" @submit.prevent="submitPrompt">
+        <form class="composer mt-9 !max-w-2xl w-full" @submit.prevent="submitPrompt">
           <input v-model="prompt" class="composer-input" type="text"
                  placeholder="描述你想要的画面，比如：雨夜的东京小巷，霓虹倒映在湿滑路面…" />
           <button type="submit" class="composer-go">✦ 生成</button>
         </form>
 
         <!-- quick starters come from the curated bento set -->
-        <div v-if="bento.length" class="mt-4 flex flex-wrap justify-center gap-2 max-w-2xl">
+        <div v-if="bento.length" class="mt-5 flex flex-wrap justify-center gap-2 max-w-2xl">
           <button v-for="ex in bento.slice(0, 5)" :key="ex.id" type="button" class="chip"
                   @click="useExample(ex)">{{ ex.title }}</button>
         </div>
@@ -238,7 +241,7 @@ function useExample(ex) {
     </section>
 
     <!-- ============ GALLERY MARQUEE (hero + bento imagery) ============ -->
-    <section v-if="gallery.length" class="mt-2 -mx-4 md:-mx-8 overflow-hidden marquee-mask">
+    <section v-if="gallery.length" class="mt-6 -mx-4 md:-mx-8 overflow-hidden marquee-mask border-y-[3px] border-y-[color:var(--ink)] bg-[var(--surface)] py-4">
       <div class="marquee flex gap-4 px-4 md:px-8 w-max">
         <button v-for="(card, i) in [...gallery, ...gallery]" :key="card.id + '-' + i" type="button"
                 class="gcard" :style="cardBg(card)" :aria-label="card.title" @click="useExample(card)">
@@ -254,23 +257,23 @@ function useExample(ex) {
     <!-- ============ KPI STRIP ============ -->
     <section class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3">
       <div v-for="k in [
-              { v: modelCount, l: '在线模型', e: '🧩' },
-              { v: caps.length, l: '创作方式', e: '🎨' },
-              { v: resRange, l: '输出分辨率', e: '🖼️' },
-              { v: avgLabel, l: '平均出片 · 近 24h', e: '⚡' },
+              { v: modelCount, l: '在线模型', e: '🧩', bg: 'var(--m-yellow)' },
+              { v: caps.length, l: '创作方式', e: '🎨', bg: 'var(--m-pink)' },
+              { v: resRange, l: '输出分辨率', e: '🖼️', bg: 'var(--m-blue)' },
+              { v: avgLabel, l: '平均出片 · 近 24h', e: '⚡', bg: 'var(--m-mint)' },
             ]" :key="k.l"
-           class="anime-card px-5 py-4">
+           class="kpi-card px-5 py-4" :style="{ background: k.bg }">
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ k.e }}</span>
-          <span class="text-[26px] font-bold tabular-nums text-[color:var(--fg)]">{{ k.v }}</span>
+          <span class="text-[26px] font-black tabular-nums text-[#111]">{{ k.v }}</span>
         </div>
-        <div class="mt-1.5 text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-3)]">{{ k.l }}</div>
+        <div class="mt-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#111]/60">{{ k.l }}</div>
       </div>
     </section>
 
     <!-- ============ CAPABILITIES ============ -->
     <section class="mt-24">
-      <div class="anime-eyebrow text-violet-500 dark:text-violet-300/80">能力</div>
+      <div class="anime-eyebrow text-[var(--m-orange)]">能力</div>
       <h2 class="mt-3 text-[clamp(1.65rem,3vw,2.3rem)] font-extrabold tracking-tight text-[color:var(--fg)]">
         {{ caps.length }} 种方式开始创作
       </h2>
@@ -299,7 +302,7 @@ function useExample(ex) {
 
     <!-- ============ INSPIRATION (kind=bento) ============ -->
     <section v-if="bento.length" id="bento" class="mt-24">
-      <div class="anime-eyebrow text-fuchsia-500 dark:text-fuchsia-300/80">灵感</div>
+      <div class="anime-eyebrow text-rose-500">灵感</div>
       <h2 class="mt-3 text-[clamp(1.65rem,3vw,2.3rem)] font-extrabold tracking-tight text-[color:var(--fg)]">点一下，套用同款提示词</h2>
       <p class="mt-2.5 text-[13.5px] text-[color:var(--fg-3)] max-w-lg leading-relaxed">
         任选一张，自动进入画图工作台并预填提示词。
@@ -320,7 +323,7 @@ function useExample(ex) {
 
     <!-- ============ WORKS (kind=work) ============ -->
     <section v-if="works.length" class="mt-24">
-      <div class="anime-eyebrow text-sky-500 dark:text-sky-300/80">作品</div>
+      <div class="anime-eyebrow text-sky-600">作品</div>
       <h2 class="mt-3 text-[clamp(1.65rem,3vw,2.3rem)] font-extrabold tracking-tight text-[color:var(--fg)]">大家都在生成什么</h2>
       <p class="mt-2.5 text-[13.5px] text-[color:var(--fg-3)] max-w-lg leading-relaxed">
         精选公开作品，点开即用同一条提示词继续创作。
@@ -340,7 +343,7 @@ function useExample(ex) {
 
     <!-- ============ MODELS ============ -->
     <section v-if="modelCards.length" class="mt-24">
-      <div class="anime-eyebrow text-emerald-500 dark:text-emerald-300/80">模型</div>
+      <div class="anime-eyebrow text-emerald-600">模型</div>
       <h2 class="mt-3 text-[clamp(1.65rem,3vw,2.3rem)] font-extrabold tracking-tight text-[color:var(--fg)]">在线模型</h2>
       <p class="mt-2.5 text-[13.5px] text-[color:var(--fg-3)] max-w-lg leading-relaxed">
         每个模型的分辨率、时长与参考图能力都写在卡片上，选之前就知道能做什么。
@@ -668,27 +671,82 @@ html.dark .model-card { background: rgb(255 255 255 / 0.05); }
 .model-tag.is-image { background: var(--m-mint); color: #065f46; }
 .model-tag.is-video { background: var(--m-blue); color: #075985; }
 
-/* ---------- hero band + mascot aura ---------- */
+/* ---------- hero band + memphis deco ---------- */
 .hero-band {
   border-radius: 2rem;
 }
-.mascot-aura {
+/* Floating crayon chips scattered around the headline — each is a small
+   ink-outlined tile with a hard shadow and its own idle animation. */
+.deco {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 260px;
-  height: 260px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgb(254 240 138 / 0.9), rgb(236 91 19 / 0.2) 55%, transparent 72%);
-  filter: blur(14px);
-  animation: auraPulse 5s ease-in-out infinite;
-  pointer-events: none;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  font-weight: 900;
+  color: #111;
 }
-@keyframes auraPulse {
-  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+.deco-a {
+  left: 7%; top: 22%;
+  width: 3.6rem; height: 3.6rem;
+  border-radius: 0.9rem;
+  background: var(--m-yellow);
+  font-size: 1.5rem;
+  transform: rotate(-8deg);
+  animation: memphis-float 6s ease-in-out infinite;
 }
+.deco-b {
+  right: 8%; top: 16%;
+  width: 3rem; height: 3rem;
+  border-radius: 999px;
+  background: var(--m-pink);
+  font-size: 1.2rem;
+  transform: rotate(6deg);
+  animation: memphis-wiggle 3.5s ease-in-out infinite;
+}
+.deco-c {
+  left: 13%; bottom: 16%;
+  width: 3.2rem; height: 2.4rem;
+  border-radius: 0.6rem;
+  background: var(--m-blue);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  transform: rotate(9deg);
+  animation: memphis-float 7s ease-in-out infinite reverse;
+}
+.deco-d {
+  right: 13%; bottom: 20%;
+  width: 3.4rem; height: 2.6rem;
+  border-radius: 0.7rem;
+  background: var(--m-mint);
+  font-size: 1.15rem;
+  transform: rotate(-7deg);
+  animation: memphis-bounce 4s ease-in-out infinite;
+}
+.deco-star {
+  left: 22%; top: 10%;
+  border: none;
+  box-shadow: none;
+  font-size: 1.7rem;
+  color: var(--m-orange);
+  animation: memphis-wiggle 4s ease-in-out infinite;
+}
+.deco-star-2 {
+  left: auto; right: 22%; top: auto; bottom: 10%;
+  font-size: 1.3rem;
+  color: var(--m-pink);
+  animation: memphis-wiggle 5s ease-in-out infinite reverse;
+}
+@media (prefers-reduced-motion: reduce) { .deco { animation: none; } }
+
+/* KPI tiles — flat crayon fills, dark ink type (readable in both themes). */
+.kpi-card {
+  border: 2.5px solid var(--ink);
+  border-radius: 1rem;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.kpi-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--shadow-ink); }
 
 /* ---------- gallery marquee ---------- */
 .marquee-mask {
@@ -724,6 +782,5 @@ html.dark .model-card { background: rgb(255 255 255 / 0.05); }
 }
 @media (prefers-reduced-motion: reduce) {
   .marquee { animation: none; }
-  .mascot-aura { animation: none; }
 }
 </style>

@@ -473,6 +473,25 @@ html.dark .memphis-dots {
 .memphis-press { transition: transform 0.15s ease; }
 .memphis-press:active { transform: scale(0.97) translateY(2px); }
 
+/* Empty-state badge — a rotated crayon tile with a star, replaces the old
+   mascot illustration in empty lists. */
+.empty-badge {
+  width: 4.5rem;
+  height: 4.5rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #111;
+  background: var(--m-yellow);
+  border: 3px solid var(--ink);
+  border-radius: 1rem;
+  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transform: rotate(-6deg);
+  animation: memphis-float 6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .empty-badge { animation: none; } }
+
 @keyframes memphis-wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes memphis-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(1.5deg); } }
 @keyframes memphis-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }

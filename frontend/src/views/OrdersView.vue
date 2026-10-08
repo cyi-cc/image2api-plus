@@ -8,7 +8,6 @@ import { api, jsonBody } from '../api'
 import { openPayment } from '../payment'
 import { refreshMe } from '../auth'
 import Icon from '../components/Icon.vue'
-import Mascot from '../components/Mascot.vue'
 
 const router = useRouter()
 const items = ref([])
@@ -118,7 +117,7 @@ async function cont(o) {
     <div v-if="loading && !items.length" class="card text-center text-sm text-slate-400 py-24">加载中…</div>
     <div v-else-if="!total" class="anime-card relative overflow-hidden flex flex-col items-center gap-3 text-[color:var(--fg-3)] py-20">
       <div class="anime-stars"></div>
-      <Mascot :size="120" />
+      <span class="empty-badge">✦</span>
       <span class="text-sm">还没有充值订单～</span>
     </div>
 
