@@ -7,17 +7,21 @@ let idSeq = 0
 
 /** 世界→屏幕 */
 export function worldToScreen(x, y, vp) {
-  return { x: x * vp.scale + vp.x, y: y * vp.scale + vp.y }
+  const s = vp.scale * BASE_SCALE
+  return { x: x * s + vp.x, y: y * s + vp.y }
 }
 
 /** 屏幕→世界 */
 export function screenToWorld(sx, sy, vp) {
-  return { x: (sx - vp.x) / vp.scale, y: (sy - vp.y) / vp.scale }
+  const s = vp.scale * BASE_SCALE
+  return { x: (sx - vp.x) / s, y: (sy - vp.y) / s }
 }
 
 export const MIN_SCALE = 0.05
 export const MAX_SCALE = 4
-export const DEFAULT_SCALE = 0.6 // 新画布/重置视图的默认缩放
+export const DEFAULT_SCALE = 1 // 新画布/重置视图的逻辑缩放(BASE_SCALE 已整体缩小)
+// 视觉基准:显示 100% 时实际渲染 0.6×,全部屏幕换算统一走它
+export const BASE_SCALE = 0.6
 
 /** 以屏幕点 m 为锚缩放到 newScale,返回新 viewport(平移量按锚点保持不动) */
 export function zoomAt(vp, mx, my, newScale) {
@@ -41,11 +45,12 @@ export function pointInRect(px, py, r) {
 
 /** 视口剔除:返回与可见世界矩形(含 margin)相交的节点。纯几何,千级节点也是微秒。 */
 export function nodesInViewport(nodes, vp, stageW, stageH, margin = 240) {
+  const s = vp.scale * BASE_SCALE
   const vis = {
-    x: -vp.x / vp.scale - margin,
-    y: -vp.y / vp.scale - margin,
-    w: stageW / vp.scale + margin * 2,
-    h: stageH / vp.scale + margin * 2,
+    x: -vp.x / s - margin,
+    y: -vp.y / s - margin,
+    w: stageW / s + margin * 2,
+    h: stageH / s + margin * 2,
   }
   return nodes.filter((n) => rectsIntersect(nodeRect(n), vis))
 }

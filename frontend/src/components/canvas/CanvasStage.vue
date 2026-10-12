@@ -11,6 +11,9 @@ import {
   zoomAt,
   rectsIntersect,
   nodeRect,
+  BASE_SCALE,
+  MIN_SCALE,
+  MAX_SCALE,
 } from '../../utils/canvas'
 import CanvasNodeView from './CanvasNodeView.vue'
 
@@ -216,11 +219,11 @@ const edgePaths = computed(() => {
 })
 
 const worldStyle = computed(() => ({
-  transform: `translate3d(${vp.x}px, ${vp.y}px, 0) scale(${vp.scale})`,
+  transform: `translate3d(${vp.x}px, ${vp.y}px, 0) scale(${vp.scale * BASE_SCALE})`,
 }))
 
 const gridStyle = computed(() => {
-  const cell = Math.max(14, 24 * vp.scale)
+  const cell = Math.max(14, 24 * vp.scale * BASE_SCALE)
   return {
     backgroundSize: `${cell}px ${cell}px`,
     backgroundPosition: `${vp.x}px ${vp.y}px`,
@@ -645,8 +648,9 @@ function zoomTo(scale) {
 }
 function centerOn(x, y) {
   const r = stageEl.value?.getBoundingClientRect()
-  vp.x = (r ? r.width / 2 : 400) - x * vp.scale
-  vp.y = (r ? r.height / 2 : 300) - y * vp.scale
+  const s = vp.scale * BASE_SCALE
+  vp.x = (r ? r.width / 2 : 400) - x * s
+  vp.y = (r ? r.height / 2 : 300) - y * s
   notifyViewport()
 }
 function clearSelection() {
@@ -677,8 +681,8 @@ function fitToContent() {
   const pad = 80
   const bw = Math.max(1, x2 - x1 + pad * 2)
   const bh = Math.max(1, y2 - y1 + pad * 2)
-  const s = Math.min(sw / bw, sh / bh, 1.2)
-  vp.scale = s
+  const s = Math.min(sw / bw, sh / bh, 1.2) // 期望的有效缩放
+  vp.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s / BASE_SCALE))
   vp.x = sw / 2 - (x1 - pad + bw / 2) * s
   vp.y = sh / 2 - (y1 - pad + bh / 2) * s
   notifyViewport()
