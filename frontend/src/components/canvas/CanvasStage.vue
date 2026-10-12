@@ -373,6 +373,11 @@ function onPointerDown(e) {
   const wantPan =
     e.button === 1 || e.button === 2 || spaceHeld.value || (!node && !e.shiftKey && e.button === 0)
   if (wantPan) {
+    // 空白左键点击 = 平移画布,同时清空节点/连线选中(点别处失焦)
+    if (!node && e.button === 0 && !spaceHeld.value) {
+      clearSelection()
+      clearEdgeSel()
+    }
     panning.value = true
     act = { mode: 'pan', px: p.x, py: p.y, vx: vp.x, vy: vp.y }
     try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
