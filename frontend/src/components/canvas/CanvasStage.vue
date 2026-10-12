@@ -68,6 +68,106 @@ function portDirection(side, fallback) {
   }[side] || fallback
 }
 
+const EDGE_PAD = 30
+
+function shifted(p, v, d) {
+  return { x: p.x + v.x * d, y: p.y + v.y * d }
+}
+function cubicPoint(p0, c1, c2, p1, t) {
+  const u = 1 - t
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p1.x,
+    y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p1.y,
+  }
+}
+function expandedNode(n) {
+  return { x: n.x - EDGE_PAD, y: n.y - EDGE_PAD, w: n.w + EDGE_PAD * 2, h: n.h + EDGE_PAD * 2 }
+}
+function segmentHitsRect(a, b, r) {
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20
+    const x = a.x + (b.x - a.x) * t
+    const y = a.y + (b.y - a.y) * t
+    if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return true
+  }
+  return false
+}
+function polylineHits(points, obstacles) {
+  for (let i = 0; i < points.length - 1; i++) {
+    for (const r of obstacles) if (segmentHitsRect(points[i], points[i + 1], r)) return true
+  }
+  return false
+}
+function cubicHits(p0, c1, c2, p1, obstacles) {
+  for (let i = 1; i < 28; i++) {
+    const p = cubicPoint(p0, c1, c2, p1, i / 28)
+    for (const r of obstacles) {
+      if (p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h) return true
+    }
+  }
+  return false
+}
+function polylineLength(points) {
+  let n = 0
+  for (let i = 0; i < points.length - 1; i++) n += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y)
+  return n
+}
+function routePolyline(a, b, obstacles) {
+  const mx = (a.x + b.x) / 2
+  const my = (a.y + b.y) / 2
+  const candidates = [
+    [a, b],
+    [a, { x: b.x, y: a.y }, b],
+    [a, { x: a.x, y: b.y }, b],
+    [a, { x: mx, y: a.y }, { x: mx, y: b.y }, b],
+    [a, { x: a.x, y: my }, { x: b.x, y: my }, b],
+  ]
+  if (obstacles.length) {
+    const box = obstacles.reduce((o, r) => ({
+      x: Math.min(o.x, r.x), y: Math.min(o.y, r.y),
+      x2: Math.max(o.x2, r.x + r.w), y2: Math.max(o.y2, r.y + r.h),
+    }), { x: Infinity, y: Infinity, x2: -Infinity, y2: -Infinity })
+    for (const y of [box.y - EDGE_PAD, box.y2 + EDGE_PAD]) {
+      candidates.push([a, { x: a.x, y }, { x: b.x, y }, b])
+    }
+    for (const x of [box.x - EDGE_PAD, box.x2 + EDGE_PAD]) {
+      candidates.push([a, { x, y: a.y }, { x, y: b.y }, b])
+    }
+  }
+  let best = null
+  let bestScore = Infinity
+  for (const c of candidates) {
+    if (polylineHits(c, obstacles)) continue
+    const score = polylineLength(c) + (c.length - 2) * 80
+    if (score < bestScore) {
+      best = c
+      bestScore = score
+    }
+  }
+  return best || [a, b]
+}
+function roundedPath(points) {
+  const pts = points.filter((p, i) => !i || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.5)
+  if (pts.length < 2) return ''
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const prev = pts[i - 1]
+    const cur = pts[i]
+    const next = pts[i + 1]
+    const d1 = Math.hypot(cur.x - prev.x, cur.y - prev.y)
+    const d2 = Math.hypot(next.x - cur.x, next.y - cur.y)
+    const r = Math.min(20, d1 / 2, d2 / 2)
+    if (r < 1) continue
+    const inX = cur.x - ((cur.x - prev.x) / d1) * r
+    const inY = cur.y - ((cur.y - prev.y) / d1) * r
+    const outX = cur.x + ((next.x - cur.x) / d2) * r
+    const outY = cur.y + ((next.y - cur.y) / d2) * r
+    d += ` L ${inX} ${inY} Q ${cur.x} ${cur.y} ${outX} ${outY}`
+  }
+  const last = pts[pts.length - 1]
+  return `${d} L ${last.x} ${last.y}`
+}
+
 const edgePaths = computed(() => {
   const out = []
   for (const e of props.edges) {
@@ -76,13 +176,34 @@ const edgePaths = computed(() => {
     if (!a || !b) continue
     const p1 = portPoint(a, e.fromSide)
     const p2 = portPoint(b, e.toSide)
-    const d = Math.max(60, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.45)
     const v1 = portDirection(e.fromSide, { x: 1, y: 0 })
     const v2 = portDirection(e.toSide, { x: -1, y: 0 })
+    const manualBend = Number.isFinite(e.bendX) && Number.isFinite(e.bendY)
+      ? { x: (p1.x + p2.x) / 2 + e.bendX, y: (p1.y + p2.y) / 2 + e.bendY }
+      : null
+    const d = Math.max(60, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.45)
+    const c1 = shifted(p1, v1, d)
+    const c2 = shifted(p2, v2, d)
+    let path
+    if (manualBend) {
+      path = roundedPath([p1, shifted(p1, v1, 30), manualBend, shifted(p2, v2, 30), p2])
+    } else {
+      path = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`
+      const obstacles = props.nodes
+        .filter((n) => n.id !== a.id && n.id !== b.id)
+        .map(expandedNode)
+      if (obstacles.length && cubicHits(p1, c1, c2, p2, obstacles)) {
+        const start = shifted(p1, v1, EDGE_PAD)
+        const end = shifted(p2, v2, EDGE_PAD)
+        path = roundedPath([p1, ...routePolyline(start, end, obstacles), p2])
+      }
+    }
     out.push({
       id: e.id,
       to: e.to,
-      d: `M ${p1.x} ${p1.y} C ${p1.x + v1.x * d} ${p1.y + v1.y * d}, ${p2.x + v2.x * d} ${p2.y + v2.y * d}, ${p2.x} ${p2.y}`,
+      d: path,
+      bend: manualBend,
+      handle: manualBend || { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
     })
   }
   return out
@@ -213,16 +334,26 @@ function onPointerDown(e) {
     }
   }
 
-  // 2) 点击连线:切换选中(不再落入平移)
+  // 2) 点住连线:轻点切换选中,拖动则添加/移动弯折点
   const edgeHit = e.target.closest?.('.cv-edge-hit')
   if (edgeHit && e.button === 0) {
-    linkSource.value = null
-    const id = edgeHit.dataset.edgeId
-    const s = new Set(edgeSel.value)
-    if (s.has(id)) s.delete(id)
-    else s.add(id)
-    edgeSel.value = s
-    if (s.size) clearSelection()
+    const edge = props.edges.find((x) => x.id === edgeHit.dataset.edgeId)
+    if (edge) {
+      linkSource.value = null
+      const p = localXY(e)
+      const w = screenToWorld(p.x, p.y, vp)
+      act = {
+        mode: 'edge', edge,
+        id: edge.id,
+        wasSelected: edgeSel.value.has(edge.id),
+        start: w,
+        bendX: Number.isFinite(edge.bendX) ? edge.bendX : 0,
+        bendY: Number.isFinite(edge.bendY) ? edge.bendY : 0,
+        moved: false,
+        px: p.x, py: p.y,
+      }
+      try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
+    }
     return
   }
 
@@ -302,6 +433,18 @@ function applyMove(e) {
     }
     return
   }
+  if (act.mode === 'edge') {
+    if (!act.moved) {
+      if (Math.hypot(p.x - act.px, p.y - act.py) < 4) return
+      act.moved = true
+      edgeSel.value = new Set([act.id])
+      clearSelection()
+    }
+    const cur = screenToWorld(p.x, p.y, vp)
+    act.edge.bendX = Math.round(act.bendX + cur.x - act.start.x)
+    act.edge.bendY = Math.round(act.bendY + cur.y - act.start.y)
+    return
+  }
   if (act.mode === 'resize') {
     const cur = screenToWorld(p.x, p.y, vp)
     const n = act.node
@@ -339,10 +482,22 @@ function onPointerUp(e) {
   try { stageEl.value.releasePointerCapture(e.pointerId) } catch { /* 已释放 */ }
   if (a.mode === 'drag' && a.moved) emit('move-end')
   if (a.mode === 'resize') emit('move-end') // 尺寸进了快照,可撤销
+  if (a.mode === 'edge') {
+    if (a.moved) {
+      emit('move-end')
+    } else {
+      const s = new Set(edgeSel.value)
+      if (a.wasSelected) s.delete(a.id)
+      else s.add(a.id)
+      edgeSel.value = s
+      if (s.size) clearSelection()
+    }
+  }
 }
 function onPointerCancel() {
   if (act?.mode === 'drag' && act.moved) emit('move-end')
   if (act?.mode === 'resize') emit('move-end')
+  if (act?.mode === 'edge' && act.moved) emit('move-end')
   act = null
   marquee.value = null
   panning.value = false
@@ -555,6 +710,13 @@ defineExpose({
             :class="{ 'cv-edge--hot': selection.has(p.to), 'cv-edge--sel': edgeSel.has(p.id) }"
             :d="p.d"
           />
+          <circle
+            v-if="edgeSel.has(p.id) || p.bend"
+            class="cv-edge-bend"
+            :cx="p.handle.x"
+            :cy="p.handle.y"
+            r="5"
+          />
         </g>
       </svg>
       <CanvasNodeView
@@ -571,7 +733,7 @@ defineExpose({
     </div>
 
     <div v-if="marquee" class="cv-marquee" :style="marquee" />
-    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击两个连接点连线（再点起点/空白/Esc 取消） · 双击笔记编辑</div>
+    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击连接点连线（拖线调弧度） · 双击笔记编辑</div>
   </div>
 </template>
 
@@ -628,9 +790,19 @@ defineExpose({
 .cv-edge-hit {
   fill: none;
   stroke: transparent;
-  stroke-width: 16;
+  stroke-width: 18;
   pointer-events: stroke;
-  cursor: pointer;
+  cursor: grab;
+}
+.cv-edge-hit:active {
+  cursor: grabbing;
+}
+.cv-edge-bend {
+  fill: var(--surface-solid);
+  stroke: var(--m-orange);
+  stroke-width: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 .cv-marquee {
   position: absolute;

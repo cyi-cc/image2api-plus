@@ -130,6 +130,10 @@ export function normalizeDoc(raw) {
       const edge = { id: e.id, from: e.from, to: e.to }
       if (['top', 'right', 'bottom', 'left'].includes(e.fromSide)) edge.fromSide = e.fromSide
       if (['top', 'right', 'bottom', 'left'].includes(e.toSide)) edge.toSide = e.toSide
+      if (Number.isFinite(e.bendX) && Number.isFinite(e.bendY)) {
+        edge.bendX = Math.max(-10000, Math.min(10000, e.bendX))
+        edge.bendY = Math.max(-10000, Math.min(10000, e.bendY))
+      }
       doc.edges.push(edge)
     }
   }
