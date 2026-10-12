@@ -1,7 +1,7 @@
 <script setup>
 // 无限画布页面:文档管理(多画布/自动保存)、生成面板、撤销重做、快捷键。
 // 交互细节全部在 CanvasStage;这里只做数据编排。
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { api, generatedUrl, jsonBody, thumbUrl } from '../api'
 import { auth } from '../auth'
@@ -40,11 +40,6 @@ const resolutions = computed(() => model.value?.resolutions?.length
 const maxRefs = computed(() => Math.min(4, Math.max(
   Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
 )))
-const selectedImages = computed(() =>
-  selectionIds.value
-    .map((id) => doc.nodes.find((n) => n.id === id))
-    .filter((n) => n && n.type === 'image'),
-)
 const selectedNotes = computed(() =>
   selectionIds.value
     .map((id) => doc.nodes.find((n) => n.id === id))
@@ -498,18 +493,42 @@ function onPaste(e) {
 
 // ================= 生成 =================
 
-async function refToBase64(name) {
-  const res = await fetch(generatedUrl(name))
-  if (!res.ok) throw new Error(`参考图加载失败 (${res.status})，请重新选择图片`)
-  const blob = await res.blob()
-  const dataUrl = await new Promise((resolve, reject) => {
+// ---- 参考图上传(与画图台一致:直接传文件,不再用选中节点) ----
+const refImages = ref([]) // { name, dataUrl }
+const refInput = ref(null)
+const MAX_REF_BYTES = 15 * 1024 * 1024
+
+function fileToDataUrl(f) {
+  return new Promise((resolve, reject) => {
     const fr = new FileReader()
     fr.onload = () => resolve(fr.result)
     fr.onerror = reject
-    fr.readAsDataURL(blob)
+    fr.readAsDataURL(f)
   })
-  return dataUrl.replace(/^data:[^,]*,/, '')
 }
+async function addRefFile(f) {
+  if (!f?.type?.startsWith('image/')) return
+  if (refImages.value.length >= maxRefs.value) {
+    genMsg.value = `参考图最多 ${maxRefs.value} 张`
+    return
+  }
+  if (f.size > MAX_REF_BYTES) {
+    genMsg.value = '单张参考图不能超过 15MB'
+    return
+  }
+  refImages.value.push({ name: f.name, dataUrl: await fileToDataUrl(f) })
+}
+function onRefPicked(e) {
+  const files = [...(e.target.files || [])]
+  e.target.value = ''
+  files.forEach(addRefFile)
+}
+function removeRef(i) {
+  refImages.value.splice(i, 1)
+}
+watch(maxRefs, (n) => {
+  if (refImages.value.length > n) refImages.value = refImages.value.slice(0, n)
+})
 
 async function generate() {
   if (genBusy.value || !model.value) return
@@ -518,19 +537,15 @@ async function generate() {
     genMsg.value = '请输入提示词,或选中一个有内容的笔记节点'
     return
   }
-  const images = selectedImages.value.slice(0, maxRefs.value)
-  if (selectedImages.value.length && !maxRefs.value) {
-    genMsg.value = '当前模型不支持参考图，请取消图片选择或切换模型'
+  if (refImages.value.length && !maxRefs.value) {
+    genMsg.value = '当前模型不支持参考图，请切换模型'
     return
   }
   genBusy.value = true
   genMsg.value = ''
 
   const size = ratioToSize(gen.ratio || ratios.value[0])
-  const sources = [
-    ...selectedNotes.value,
-    ...images,
-  ]
+  const sources = [...selectedNotes.value]
   // 落点:参与源节点的包围盒右侧;无源则视口中心
   let x
   let y
@@ -566,9 +581,8 @@ async function generate() {
       model: gen.modelId, prompt, ratio: gen.ratio || ratios.value[0],
       resolution: resolutions.value[0] || '1K',
     }
-    if (images.length) {
-      const refs = await Promise.all(images.map((n) => refToBase64(n.src)))
-      payload.reference_images = refs
+    if (refImages.value.length) {
+      payload.reference_images = refImages.value.map((r) => r.dataUrl.replace(/^data:[^,]*,/, ''))
     }
     const opts = jsonBody('POST', payload)
     opts.headers['Idempotency-Key'] = node.id
@@ -813,55 +827,65 @@ const saveLabel = computed(() => ({
           @node-action="onNodeAction"
           @blank-dblclick="addNoteAt"
         />
+
+        <!-- 底部居中的生成输入框(参考 vividai.run 的大输入框) -->
+        <div class="cv-dock">
+          <div class="cv-composer">
+            <div v-if="maxRefs > 0" class="cv-composer__refs">
+              <div v-for="(r, i) in refImages" :key="i" class="cv-refthumb">
+                <img :src="r.dataUrl" :alt="r.name">
+                <button type="button" class="cv-refthumb__x" title="移除" @click="removeRef(i)">✕</button>
+              </div>
+              <button
+                v-if="refImages.length < maxRefs"
+                type="button"
+                class="cv-refadd"
+                title="上传参考图"
+                @click="refInput?.click()"
+              >
+                <span class="cv-refadd__icon">＋</span>
+                <span>参考图</span>
+                <span class="cv-refadd__n">{{ refImages.length }}/{{ maxRefs }}</span>
+              </button>
+              <input ref="refInput" type="file" accept="image/*" multiple hidden @change="onRefPicked">
+            </div>
+            <textarea
+              v-model="gen.prompt"
+              class="cv-composer__ta"
+              rows="3"
+              placeholder="描述你要生成的画面…(留空则使用选中的笔记)"
+            />
+            <div class="cv-composer__bar">
+              <select
+                v-if="imageModels.length"
+                v-model="gen.modelId"
+                class="cv-composer__sel"
+                title="生成模型"
+                @change="gen.ratio = ratios[0]"
+              >
+                <option v-for="m in imageModels" :key="m.id" :value="m.id">
+                  {{ m.alias || m.name || m.id }}
+                </option>
+              </select>
+              <div v-else class="cv-nomodels">⚠ 还没有可用的图像模型,请到管理后台添加</div>
+              <div class="cv-ratios">
+                <button
+                  v-for="r in ratios"
+                  :key="r"
+                  type="button"
+                  class="cv-chip"
+                  :class="{ 'is-on': gen.ratio === r }"
+                  @click="gen.ratio = r"
+                >{{ r }}</button>
+              </div>
+              <button class="cv-gen" :disabled="genBusy || !model" @click="generate">
+                {{ genBusy ? '生成中…' : '生成' }}
+              </button>
+            </div>
+          </div>
+          <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
+        </div>
       </div>
-
-      <!-- 生成面板 -->
-      <aside class="cv-panel">
-        <div class="cv-panel__title">生成到画布</div>
-        <label class="cv-label">模型</label>
-        <select v-if="imageModels.length" v-model="gen.modelId" class="cv-input" @change="gen.ratio = ratios[0]">
-          <option v-for="m in imageModels" :key="m.id" :value="m.id">
-            {{ m.alias || m.name || m.id }}
-          </option>
-        </select>
-        <div v-else class="cv-nomodels">
-          ⚠ 站点还没有可用的图像模型。请管理员到「管理后台 → 模型管理」添加并启用模型后,这里就能选择了。
-        </div>
-
-        <label class="cv-label">比例</label>
-        <div class="cv-ratios">
-          <button
-            v-for="r in ratios"
-            :key="r"
-            type="button"
-            class="cv-chip"
-            :class="{ 'is-on': gen.ratio === r }"
-            @click="gen.ratio = r"
-          >{{ r }}</button>
-        </div>
-
-        <label class="cv-label">提示词(留空则使用选中的笔记)</label>
-        <textarea
-          v-model="gen.prompt"
-          class="cv-input cv-textarea"
-          rows="4"
-          placeholder="描述你要生成的画面…"
-        />
-
-        <div class="cv-refs">
-          参考图:选中画布上的图片节点({{ selectedImages.length }}/{{ maxRefs }})
-        </div>
-
-        <button class="cv-gen" :disabled="genBusy || !model" @click="generate">
-          {{ genBusy ? '生成中…' : '生成' }}
-        </button>
-        <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
-
-        <div class="cv-tips">
-          双击空白建笔记 · 依次点击两个连接点连线,再点起点/空白/Esc 取消 ·
-          选中后右下角缩放 · Ctrl+D 复制 · 本地图片直接拖入或 Ctrl+V 粘贴 · 按 1 适应全部内容
-        </div>
-      </aside>
     </div>
 
     <!-- 图片预览 -->
@@ -1061,41 +1085,17 @@ const saveLabel = computed(() => ({
   color: #dc2626;
 }
 
-/* 右侧生成面板 = 玻璃侧栏 */
-.cv-panel {
-  width: 264px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--ink-soft);
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  padding: 16px 14px;
+/* 底部居中的生成输入框 —— 悬浮在画布上 */
+.cv-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 28px));
+  z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  overflow-y: auto;
-}
-.cv-panel__title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--fg);
-  display: inline-block;
-  background: linear-gradient(transparent 55%, var(--m-yellow) 55%);
-  align-self: flex-start;
-  padding: 0 2px;
-}
-.cv-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--fg-3);
-  margin-top: 4px;
-}
-.cv-input {
-  width: 100%;
-}
-.cv-textarea {
-  resize: vertical;
-  min-height: 72px;
+  gap: 6px;
 }
 .cv-ratios {
   display: flex;
@@ -1123,13 +1123,134 @@ const saveLabel = computed(() => ({
   border-color: transparent;
   box-shadow: 0 4px 14px var(--accent-glow);
 }
-.cv-refs {
-  font-size: 11px;
+/* 生成输入框:参考图缩略图在上,文本框居中,控制条在下 */
+.cv-composer {
+  width: 100%;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--glass-shadow-lg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+}
+.cv-composer:focus-within {
+  border-color: rgb(124 92 252 / 0.6);
+  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(124 92 252 / 0.18);
+}
+.cv-composer__refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+.cv-composer__refs:empty,
+.cv-composer__refs:not(:has(> *)) {
+  padding-top: 0;
+}
+.cv-refthumb {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--ink-soft);
+  background: var(--surface-2);
+}
+.cv-refthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cv-refthumb__x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  color: #fff;
+  background: rgb(24 21 36 / 0.65);
+  cursor: pointer;
+}
+.cv-refthumb__x:hover {
+  background: #ef4444;
+}
+.cv-refadd {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  border: 2px dashed rgb(124 92 252 / 0.45);
+  background: transparent;
+  color: var(--m-orange);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.13s ease;
+}
+.cv-refadd:hover {
+  border-color: var(--m-orange);
+  background: rgb(124 92 252 / 0.08);
+  transform: translateY(-1px);
+}
+.cv-refadd__icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.cv-refadd__n {
+  font-size: 9px;
   font-weight: 600;
-  color: var(--fg-2);
-  border: 2px dashed var(--ink-soft);
+  color: var(--fg-3);
+}
+.cv-composer__ta {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.55;
+  resize: none;
+  outline: none;
+  display: block;
+}
+.cv-composer__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-top: 1px solid var(--ink-soft);
+}
+.cv-composer__sel {
+  padding: 5px 9px;
   border-radius: 9px;
-  padding: 8px 10px;
+  border: 1px solid var(--ink-soft);
+  background: transparent;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  max-width: 200px;
+}
+.cv-composer__sel:focus {
+  border-color: rgb(124 92 252 / 0.6);
+}
+.cv-composer__bar .cv-gen {
+  margin-left: auto;
+  padding: 7px 24px;
 }
 .cv-gen {
   padding: 10px;
@@ -1160,6 +1281,14 @@ const saveLabel = computed(() => ({
   font-size: 11px;
   color: var(--fg-2);
   word-break: break-all;
+  text-align: center;
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  padding: 3px 14px;
+  align-self: center;
+  box-shadow: var(--glass-shadow);
 }
 .cv-nomodels {
   font-size: 11px;
@@ -1171,11 +1300,8 @@ const saveLabel = computed(() => ({
   background: rgb(245 158 11 / 0.12);
   padding: 8px 10px;
 }
-.cv-tips {
-  font-size: 11px;
-  color: var(--fg-faint);
-  line-height: 1.7;
-  margin-top: auto;
+.cv-dock .cv-nomodels {
+  flex: 1;
 }
 
 .cv-lightbox {

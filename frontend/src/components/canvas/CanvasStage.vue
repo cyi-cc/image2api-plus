@@ -824,9 +824,8 @@ defineExpose({
 }
 .cv-hint {
   position: absolute;
-  left: 50%;
+  left: 10px;
   bottom: 10px;
-  transform: translateX(-50%);
   font-size: 11px;
   font-weight: 600;
   color: var(--fg-2);
