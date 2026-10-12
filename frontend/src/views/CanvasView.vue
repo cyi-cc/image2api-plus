@@ -26,8 +26,9 @@ const previewSrc = ref('')
 
 // ---- 生成面板 ----
 const allModels = ref([])
-const gen = reactive({ modelId: '', prompt: '', ratio: '' })
-const genBusy = ref(false)
+const gen = reactive({ modelId: '', prompt: '', ratio: '', resolution: '', count: 1 })
+const runningGens = ref(0)
+const genBusy = computed(() => runningGens.value > 0)
 const genMsg = ref('')
 const imageModels = computed(() =>
   (allModels.value || []).filter((m) => m.enabled !== false && m.type === 'image'),
@@ -37,9 +38,16 @@ const ratios = computed(() => model.value?.ratios?.length ? model.value.ratios :
 const resolutions = computed(() => model.value?.resolutions?.length
   ? model.value.resolutions
   : Object.keys(model.value?.prices || {}))
-const maxRefs = computed(() => Math.min(4, Math.max(
+const maxRefs = computed(() => Math.min(8, Math.max(
   Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
 )))
+// 换模型时重置参数默认值(和画图台一致)
+watch(model, (m) => {
+  if (!m) return
+  gen.ratio = m.ratios?.[0] || '1:1'
+  const res = m.resolutions?.length ? m.resolutions : Object.keys(m.prices || {})
+  gen.resolution = res[0] || '1K'
+})
 const selectedNotes = computed(() =>
   selectionIds.value
     .map((id) => doc.nodes.find((n) => n.id === id))
@@ -531,7 +539,7 @@ watch(maxRefs, (n) => {
 })
 
 async function generate() {
-  if (genBusy.value || !model.value) return
+  if (!model.value) return
   const prompt = (gen.prompt || '').trim() || selectedNotes.value.map((n) => n.text.trim()).join('\n')
   if (!prompt) {
     genMsg.value = '请输入提示词,或选中一个有内容的笔记节点'
@@ -541,12 +549,12 @@ async function generate() {
     genMsg.value = '当前模型不支持参考图，请切换模型'
     return
   }
-  genBusy.value = true
   genMsg.value = ''
 
+  const n = Math.max(1, Math.min(4, Number(gen.count) || 1))
   const size = ratioToSize(gen.ratio || ratios.value[0])
   const sources = [...selectedNotes.value]
-  // 落点:参与源节点的包围盒右侧;无源则视口中心
+  // 落点:参与源节点的包围盒右侧;无源则视口中心。多张时横向排开。
   let x
   let y
   if (sources.length) {
@@ -560,26 +568,36 @@ async function generate() {
     y = minY
   } else {
     const c = viewportCenterWorld()
-    x = c.x - size.w / 2
+    const totalW = n * size.w + (n - 1) * 48
+    x = c.x - totalW / 2
     y = c.y - size.h / 2
   }
 
-  const node = reactive({
-    id: newId('g'), type: 'gen', status: 'running',
-    x: Math.round(x), y: Math.round(y), w: size.w, h: size.h, z: 0,
-  })
-  doc.nodes.push(node)
-  for (const s of sources) {
-    doc.edges.push({ id: newId('e'), from: s.id, to: node.id })
+  const created = []
+  for (let i = 0; i < n; i++) {
+    const node = reactive({
+      id: newId('g'), type: 'gen', status: 'running',
+      x: Math.round(x + i * (size.w + 48)), y: Math.round(y), w: size.w, h: size.h, z: 0,
+    })
+    doc.nodes.push(node)
+    for (const s of sources) {
+      doc.edges.push({ id: newId('e'), from: s.id, to: node.id })
+    }
+    created.push(node)
+    runGeneration(node, prompt)
   }
-  selectionIds.value = [node.id]
-  stage.value?.selectIds([node.id])
+  selectionIds.value = created.map((c) => c.id)
+  stage.value?.selectIds(selectionIds.value)
   pushHistory()
+}
 
+// 单个生成任务(并发执行,各自更新自己的节点)
+async function runGeneration(node, prompt) {
+  runningGens.value++
   try {
     const payload = {
       model: gen.modelId, prompt, ratio: gen.ratio || ratios.value[0],
-      resolution: resolutions.value[0] || '1K',
+      resolution: gen.resolution || resolutions.value[0] || '1K',
     }
     if (refImages.value.length) {
       payload.reference_images = refImages.value.map((r) => r.dataUrl.replace(/^data:[^,]*,/, ''))
@@ -591,7 +609,7 @@ async function generate() {
       node.type = 'image'
       node.src = r.data.url.replace(/^\/images\//, '')
       node.prompt = prompt
-      node.model = model.value.alias || model.value.name || model.value.id
+      node.model = model.value?.alias || model.value?.name || model.value?.id
       delete node.status
       delete node.error
       if (auth.user && r.data.credits != null) auth.user.credits = r.data.credits
@@ -612,7 +630,7 @@ async function generate() {
     genMsg.value = String(e)
     pushHistory()
   } finally {
-    genBusy.value = false
+    runningGens.value--
   }
 }
 
@@ -861,14 +879,21 @@ const saveLabel = computed(() => ({
                 v-model="gen.modelId"
                 class="cv-composer__sel"
                 title="生成模型"
-                @change="gen.ratio = ratios[0]"
               >
                 <option v-for="m in imageModels" :key="m.id" :value="m.id">
                   {{ m.alias || m.name || m.id }}
                 </option>
               </select>
+              <select
+                v-if="resolutions.length > 1"
+                v-model="gen.resolution"
+                class="cv-composer__sel"
+                title="画质"
+              >
+                <option v-for="r in resolutions" :key="r" :value="r">{{ r }}</option>
+              </select>
               <div v-else class="cv-nomodels">⚠ 还没有可用的图像模型,请到管理后台添加</div>
-              <div class="cv-ratios">
+              <div class="cv-ratios" title="比例">
                 <button
                   v-for="r in ratios"
                   :key="r"
@@ -877,6 +902,16 @@ const saveLabel = computed(() => ({
                   :class="{ 'is-on': gen.ratio === r }"
                   @click="gen.ratio = r"
                 >{{ r }}</button>
+              </div>
+              <div class="cv-ratios" title="生成张数">
+                <button
+                  v-for="n in [1, 2, 3, 4]"
+                  :key="n"
+                  type="button"
+                  class="cv-chip"
+                  :class="{ 'is-on': gen.count === n }"
+                  @click="gen.count = n"
+                >{{ n }}张</button>
               </div>
               <button class="cv-gen" :disabled="genBusy || !model" @click="generate">
                 {{ genBusy ? '生成中…' : '生成' }}
