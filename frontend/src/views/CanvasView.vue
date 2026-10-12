@@ -1045,6 +1045,8 @@ const saveLabel = computed(() => ({
   background: var(--app-bg);
 }
 .cv-top {
+  position: relative;
+  z-index: 20; /* 下拉面板不能被舞台盖住 */
   display: flex;
   align-items: center;
   justify-content: space-between;
