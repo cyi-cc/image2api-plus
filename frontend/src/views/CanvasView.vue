@@ -892,7 +892,7 @@ const saveLabel = computed(() => ({
               >
                 <option v-for="r in resolutions" :key="r" :value="r">{{ r }}</option>
               </select>
-              <div v-else class="cv-nomodels">⚠ 还没有可用的图像模型,请到管理后台添加</div>
+              <div v-if="!imageModels.length" class="cv-nomodels">⚠ 还没有可用的图像模型,请到管理后台添加</div>
               <div class="cv-ratios" title="比例">
                 <button
                   v-for="r in ratios"
