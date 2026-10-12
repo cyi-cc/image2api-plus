@@ -273,8 +273,8 @@ defineExpose({ startEdit, commitNote })
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 30px 12px 9px;
-  font-size: 13.5px;
+  padding: 36px 14px 12px;
+  font-size: 32px;
   font-weight: 600;
   line-height: 1.4;
   color: #fff;
