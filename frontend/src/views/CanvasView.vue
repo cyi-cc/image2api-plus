@@ -824,7 +824,7 @@ function onKeydown(e) {
     stage.value?.cancelLink()
     stage.value?.clearSelection()
     previewSrc.value = ''
-    pickerOpen.value = false
+    if (!uploadBusy.value) pickerOpen.value = false
   } else if (e.key === '+' || e.key === '=') {
     stage.value?.zoomStep(1)
   } else if (e.key === '-') {
@@ -1031,11 +1031,11 @@ const saveLabel = computed(() => ({
     </div>
 
     <!-- 图片库:我的全部作品 + 第一格上传入口 -->
-    <div v-if="pickerOpen" class="cv-picker" @click.self="pickerOpen = false">
+    <div v-if="pickerOpen" class="cv-picker" @click.self="if (!uploadBusy) pickerOpen = false">
       <div class="cv-picker__box">
         <div class="cv-picker__head">
           <span>图片库(点击插入画布)</span>
-          <button class="cv-btn" @click="pickerOpen = false">✕</button>
+          <button class="cv-btn" :disabled="uploadBusy" title="上传中,请稍候" @click="pickerOpen = false">✕</button>
         </div>
         <div v-if="pickerLoading" class="cv-loading">加载中…</div>
         <div v-else class="cv-picker__grid">
