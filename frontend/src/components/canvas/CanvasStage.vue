@@ -610,17 +610,20 @@ defineExpose({
 }
 .cv-edge {
   fill: none;
-  stroke: var(--ink-soft);
-  stroke-width: 2;
+  stroke: var(--m-orange-2);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 5px rgb(34 211 238 / 0.35));
 }
 .cv-edge--hot {
   stroke: var(--m-orange);
-  stroke-width: 2.5;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 0 7px var(--accent-glow));
 }
 .cv-edge--sel {
   stroke: var(--m-orange);
   stroke-width: 3.5;
   stroke-dasharray: 10 6;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 .cv-edge-hit {
   fill: none;

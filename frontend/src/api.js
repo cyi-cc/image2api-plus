@@ -47,13 +47,23 @@ export async function fetchHealth() {
   return r.json()
 }
 
-/** Absolute URL for a generated artifact (works in dev via proxy too). */
+/** Absolute URL for a generated artifact (works in dev via proxy too).
+ *  Older canvas documents may contain "/images/..." or a full URL instead of
+ *  the storage key; normalize all three forms instead of double-prefixing. */
 export function generatedUrl(name) {
-  return `${BASE}/images/${name}`
+  const s = String(name || '').trim()
+  if (!s) return ''
+  const marker = '/images/'
+  const i = s.indexOf(marker)
+  if (i >= 0) return /^https?:\/\//i.test(s) ? s : `${BASE}${s.slice(i)}`
+  if (/^https?:\/\//i.test(s)) return s
+  return `${BASE}/images/${s.replace(/^\/?images\//, '')}`
 }
 
 /** Small thumbnail URL for list views. The server falls back to the original
  * when no thumbnail object exists (old images), so this is always safe. */
 export function thumbUrl(name) {
-  return `${BASE}/images/${name}.thumb.jpg`
+  const url = generatedUrl(name)
+  if (!url || url.endsWith('.thumb.jpg') || !url.includes('/images/')) return url
+  return `${url}.thumb.jpg`
 }

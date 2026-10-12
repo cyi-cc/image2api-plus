@@ -2,8 +2,8 @@
 // 单个画布节点。位置/尺寸由 stage 的世界层 transform 统一缩放,
 // 这里只负责节点自身内容:image / note / gen(生成中占位)。
 // 性能:contain 隔离布局;图片 lazy + async 解码 + 缩略图。
-import { ref, onMounted, watch } from 'vue'
-import { thumbUrl } from '../../api'
+import { computed, ref, onMounted, watch } from 'vue'
+import { generatedUrl, thumbUrl } from '../../api'
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -15,6 +15,12 @@ const portSides = ['top', 'right', 'bottom', 'left']
 const portLabels = { top: '上', right: '右', bottom: '下', left: '左' }
 
 const imgLoaded = ref(false)
+const imgBroken = ref(false)
+const imgThumb = computed(() => thumbUrl(props.node.src))
+const imgOriginal = computed(() => generatedUrl(props.node.src))
+const imgOriginalAbs = computed(() => {
+  try { return new URL(imgOriginal.value, window.location.href).href } catch { return imgOriginal.value }
+})
 const noteEl = ref(null)
 const editing = ref(false)
 
@@ -34,8 +40,17 @@ watch(
   },
 )
 
+watch(
+  () => props.node.src,
+  () => {
+    imgLoaded.value = false
+    imgBroken.value = false
+  },
+)
+
 function onImgLoad(e) {
   imgLoaded.value = true
+  imgBroken.value = false
   const img = e.target
   // 按真实长宽比校正节点尺寸(以长边 512 归一,保持画布视觉密度一致)。
   if (img.naturalWidth && img.naturalHeight) {
@@ -46,6 +61,15 @@ function onImgLoad(e) {
       h: Math.round(img.naturalHeight * k),
     })
   }
+}
+
+function onImgError(e) {
+  if (e.target.src !== imgOriginalAbs.value) {
+    e.target.src = imgOriginal.value
+    return
+  }
+  imgLoaded.value = true
+  imgBroken.value = true
 }
 
 function startEdit() {
@@ -119,15 +143,17 @@ defineExpose({ startEdit, commitNote })
     <!-- 图片节点 -->
     <template v-if="node.type === 'image'">
       <img
+        v-if="!imgBroken"
         class="cv-node__img"
-        :src="thumbUrl(node.src)"
+        :src="imgThumb"
         loading="lazy"
         decoding="async"
         draggable="false"
         alt=""
         @load="onImgLoad"
-        @error="imgLoaded = true"
+        @error="onImgError"
       >
+      <div v-else class="cv-node__missing">图片不可用</div>
       <div v-if="node.prompt" class="cv-node__cap" :title="node.prompt">{{ node.prompt }}</div>
     </template>
 
@@ -184,6 +210,16 @@ defineExpose({ startEdit, commitNote })
   height: 100%;
   object-fit: cover;
   display: block;
+  background: var(--surface-2);
+}
+.cv-node__missing {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--fg-3);
+  font-size: 13px;
+  font-weight: 600;
   background: var(--surface-2);
 }
 
