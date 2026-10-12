@@ -5,7 +5,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { onBeforeRouteLeave } from 'vue-router'
 import { api, generatedUrl, jsonBody, thumbUrl } from '../api'
 import { auth } from '../auth'
-import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld } from '../utils/canvas'
+import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld, DEFAULT_SCALE } from '../utils/canvas'
 import CanvasStage from '../components/canvas/CanvasStage.vue'
 import SelectMenu from '../components/SelectMenu.vue'
 
@@ -15,7 +15,7 @@ const stage = ref(null)
 const canvases = ref([])
 const currentId = ref('')
 const title = ref('未命名画布')
-const doc = reactive({ viewport: { x: 0, y: 0, scale: 1 }, nodes: [], edges: [] })
+const doc = reactive({ viewport: { x: 0, y: 0, scale: DEFAULT_SCALE }, nodes: [], edges: [] })
 const loading = ref(true)
 const loadError = ref('')
 const saveState = ref('saved') // saved | dirty | saving | error
@@ -752,7 +752,7 @@ function onKeydown(e) {
   } else if (e.key === '-') {
     stage.value?.zoomStep(-1)
   } else if (e.key === '0') {
-    stage.value?.setViewport({ x: 0, y: 0, scale: 1 })
+    stage.value?.setViewport({ x: 0, y: 0, scale: DEFAULT_SCALE })
   } else if (e.key === '1') {
     stage.value?.fitToContent?.()
   }
@@ -836,7 +836,7 @@ const saveLabel = computed(() => ({
           @update:model-value="(p) => stage?.zoomTo(p / 100)"
         />
         <button class="cv-btn" title="放大 10%" @click="stage?.zoomStep(1)">＋</button>
-        <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: 1 })">⌂</button>
+        <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: DEFAULT_SCALE })">⌂</button>
         <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
         <span class="cv-sep" />
         <button class="cv-btn cv-btn--accent" @click="addNote">＋ 笔记</button>

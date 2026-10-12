@@ -17,6 +17,7 @@ export function screenToWorld(sx, sy, vp) {
 
 export const MIN_SCALE = 0.05
 export const MAX_SCALE = 4
+export const DEFAULT_SCALE = 0.6 // 新画布/重置视图的默认缩放
 
 /** 以屏幕点 m 为锚缩放到 newScale,返回新 viewport(平移量按锚点保持不动) */
 export function zoomAt(vp, mx, my, newScale) {
@@ -78,7 +79,7 @@ export function newId(prefix) {
  */
 export function normalizeDoc(raw) {
   const doc = {
-    viewport: { x: 0, y: 0, scale: 1 },
+    viewport: { x: 0, y: 0, scale: DEFAULT_SCALE },
     nodes: [],
     edges: [],
   }
