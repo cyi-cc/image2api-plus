@@ -43,6 +43,12 @@ const gen = reactive({ kind: 'image', modelId: '', prompt: '', ratio: '', resolu
 const runningGens = ref(0)
 const genBusy = computed(() => runningGens.value > 0)
 const genMsg = ref('')
+// 消息只做短暂 toast 提示,自动消失不常驻
+let genMsgTimer = null
+watch(genMsg, (v) => {
+  clearTimeout(genMsgTimer)
+  if (v) genMsgTimer = setTimeout(() => { genMsg.value = '' }, 3500)
+})
 const kindModels = computed(() =>
   (allModels.value || []).filter((m) => m.enabled !== false && m.type === gen.kind),
 )
@@ -526,7 +532,7 @@ async function uploadImageFile(file, at = null) {
       genMsg.value = r.data?.detail || `上传失败 (${r.status})`
     }
   } catch (e) {
-    genMsg.value = String(e)
+    genMsg.value = e?.name === 'AbortError' ? '上传超时,请重试' : String(e)
   } finally {
     uploadBusy.value = false
   }

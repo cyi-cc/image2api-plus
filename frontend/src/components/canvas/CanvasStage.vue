@@ -766,7 +766,6 @@ defineExpose({
     </div>
 
     <div v-if="marquee" class="cv-marquee" :style="marquee" />
-    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击连接点连线（拖线调弧度） · 双击笔记编辑</div>
   </div>
 </template>
 
@@ -843,25 +842,5 @@ defineExpose({
   background: rgb(124 92 252 / 0.08);
   pointer-events: none;
   border-radius: 4px;
-}
-.cv-hint {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--fg-2);
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  padding: 3px 14px;
-  box-shadow: var(--glass-shadow);
-  pointer-events: none;
-  white-space: nowrap;
-  max-width: 92%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 </style>

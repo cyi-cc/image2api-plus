@@ -11,7 +11,13 @@ const BASE = import.meta.env.VITE_API_BASE || ''
 export async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) }
   if (auth.token) headers.Authorization = `Bearer ${auth.token}`
-  const r = await fetch(`${BASE}/admin/api${path}`, { ...opts, headers })
+  // 请求不能无限挂起(比如上传走丢的网关连接)——120s 超时兜底
+  let signal = opts.signal
+  if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+    const t = AbortSignal.timeout(120000)
+    signal = signal && AbortSignal.any ? AbortSignal.any([signal, t]) : t
+  }
+  const r = await fetch(`${BASE}/admin/api${path}`, { ...opts, headers, signal })
   let data = null
   try {
     data = await r.json()
