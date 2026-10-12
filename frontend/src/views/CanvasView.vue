@@ -1031,7 +1031,7 @@ const saveLabel = computed(() => ({
     </div>
 
     <!-- 图片库:我的全部作品 + 第一格上传入口 -->
-    <div v-if="pickerOpen" class="cv-picker" @click.self="if (!uploadBusy) pickerOpen = false">
+    <div v-if="pickerOpen" class="cv-picker" @click.self="!uploadBusy && (pickerOpen = false)">
       <div class="cv-picker__box">
         <div class="cv-picker__head">
           <span>图片库(点击插入画布)</span>
