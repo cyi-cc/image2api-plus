@@ -797,7 +797,7 @@ onBeforeRouteLeave(async () => {
 })
 
 const saveLabel = computed(() => ({
-  saved: '', dirty: '待保存…', saving: '保存中…', error: '保存失败,重试中',
+  saved: '', dirty: '', saving: '保存中…', error: '保存失败,重试中',
 }[saveState.value] || ''))
 </script>
 
