@@ -726,7 +726,7 @@ defineExpose({
             class="cv-edge-bend"
             :cx="p.handle.x"
             :cy="p.handle.y"
-            r="5"
+            r="8"
           />
         </g>
       </svg>

@@ -378,7 +378,8 @@ function deleteSelection() {
 
 // ---- 手动连线 ----
 function onLinkCreate({ from, to, fromSide, toSide }) {
-  if (doc.edges.some((e) => e.from === from && e.to === to)) return // 去重
+  // 任意方向去重:两个节点之间只允许一条连线
+  if (doc.edges.some((e) => (e.from === from && e.to === to) || (e.from === to && e.to === from))) return
   doc.edges.push({ id: newId('e'), from, to, fromSide, toSide })
   pushHistory()
 }

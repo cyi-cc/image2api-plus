@@ -123,10 +123,14 @@ export function normalizeDoc(raw) {
     }
   }
   if (Array.isArray(raw.edges)) {
+    const pairs = new Set() // 同一对节点只保留一条线(旧文档可能有重复)
     for (const e of raw.edges) {
       if (!e || typeof e.id !== 'string') continue
       if (typeof e.from !== 'string' || typeof e.to !== 'string') continue
       if (!ids.has(e.from) || !ids.has(e.to) || e.from === e.to) continue
+      const pair = e.from < e.to ? `${e.from}|${e.to}` : `${e.to}|${e.from}`
+      if (pairs.has(pair)) continue
+      pairs.add(pair)
       const edge = { id: e.id, from: e.from, to: e.to }
       if (['top', 'right', 'bottom', 'left'].includes(e.fromSide)) edge.fromSide = e.fromSide
       if (['top', 'right', 'bottom', 'left'].includes(e.toSide)) edge.toSide = e.toSide
