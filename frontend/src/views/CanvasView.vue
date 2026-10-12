@@ -797,7 +797,7 @@ onBeforeRouteLeave(async () => {
 })
 
 const saveLabel = computed(() => ({
-  saved: '已保存', dirty: '待保存…', saving: '保存中…', error: '保存失败,重试中',
+  saved: '', dirty: '待保存…', saving: '保存中…', error: '保存失败,重试中',
 }[saveState.value] || ''))
 </script>
 
@@ -838,7 +838,7 @@ const saveLabel = computed(() => ({
           {{ uploadBusy ? '上传中…' : '⤒ 上传' }}
         </button>
         <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFilePicked">
-        <span class="cv-save" :data-state="saveState">{{ saveLabel }}</span>
+        <span v-if="saveLabel" class="cv-save" :data-state="saveState">{{ saveLabel }}</span>
       </div>
     </div>
 
