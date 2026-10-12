@@ -60,6 +60,9 @@ const currentLabel = computed(() => {
 // shell plus a route-label header.
 const isHome = computed(() => route.path === '/')
 
+// CanvasView's root is a <Teleport to="body"> — keep it outside the
+// out-in transition so leaving the canvas cannot stall the next page.
+
 async function onLogout() {
   menuOpen.value = false
   await logout()
@@ -184,8 +187,9 @@ async function onLogout() {
       <main :class="['relative z-10 mx-auto max-w-[1400px] pb-24',
                      isHome ? 'pt-[58px] px-0' : 'px-4 md:px-8 pt-2',
                      { 'public-dark': isDark }]">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
+        <router-view v-slot="{ Component, route: viewRoute }">
+          <component :is="Component" v-if="viewRoute.path === '/canvas'" />
+          <transition v-else name="fade" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
