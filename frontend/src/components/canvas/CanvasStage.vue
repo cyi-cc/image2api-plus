@@ -722,7 +722,7 @@ defineExpose({
             :d="p.d"
           />
           <circle
-            v-if="edgeSel.has(p.id) || p.bend"
+            v-if="edgeSel.has(p.id)"
             class="cv-edge-bend"
             :cx="p.handle.x"
             :cy="p.handle.y"
