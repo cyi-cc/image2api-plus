@@ -26,27 +26,33 @@ const previewSrc = ref('')
 
 // ---- 生成面板 ----
 const allModels = ref([])
-const gen = reactive({ modelId: '', prompt: '', ratio: '', resolution: '', count: 1 })
+const gen = reactive({ kind: 'image', modelId: '', prompt: '', ratio: '', resolution: '', duration: '', count: 1 })
 const runningGens = ref(0)
 const genBusy = computed(() => runningGens.value > 0)
 const genMsg = ref('')
-const imageModels = computed(() =>
-  (allModels.value || []).filter((m) => m.enabled !== false && m.type === 'image'),
+const kindModels = computed(() =>
+  (allModels.value || []).filter((m) => m.enabled !== false && m.type === gen.kind),
 )
-const model = computed(() => imageModels.value.find((m) => m.id === gen.modelId) || null)
+const model = computed(() => kindModels.value.find((m) => m.id === gen.modelId) || null)
 const ratios = computed(() => model.value?.ratios?.length ? model.value.ratios : ['1:1'])
 const resolutions = computed(() => model.value?.resolutions?.length
   ? model.value.resolutions
   : Object.keys(model.value?.prices || {}))
+const durations = computed(() => model.value?.durations?.length ? model.value.durations : ['5s'])
 const maxRefs = computed(() => Math.min(8, Math.max(
   Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
 )))
-// 换模型时重置参数默认值(和画图台一致)
+// 换类型/模型时重置参数默认值(和画图台一致)
+watch(() => gen.kind, () => {
+  const first = kindModels.value[0]
+  gen.modelId = first?.id || ''
+})
 watch(model, (m) => {
   if (!m) return
   gen.ratio = m.ratios?.[0] || '1:1'
   const res = m.resolutions?.length ? m.resolutions : Object.keys(m.prices || {})
   gen.resolution = res[0] || '1K'
+  gen.duration = m.durations?.[0] || '5s'
 })
 const selectedNotes = computed(() =>
   selectionIds.value
@@ -551,7 +557,7 @@ async function generate() {
   }
   genMsg.value = ''
 
-  const n = Math.max(1, Math.min(4, Number(gen.count) || 1))
+  const n = gen.kind === 'image' ? Math.max(1, Math.min(4, Number(gen.count) || 1)) : 1
   const size = ratioToSize(gen.ratio || ratios.value[0])
   const sources = [...selectedNotes.value]
   // 落点:参与源节点的包围盒右侧;无源则视口中心。多张时横向排开。
@@ -599,6 +605,7 @@ async function runGeneration(node, prompt) {
       model: gen.modelId, prompt, ratio: gen.ratio || ratios.value[0],
       resolution: gen.resolution || resolutions.value[0] || '1K',
     }
+    if (gen.kind === 'video') payload.duration = gen.duration || durations.value[0]
     if (refImages.value.length) {
       payload.reference_images = refImages.value.map((r) => r.dataUrl.replace(/^data:[^,]*,/, ''))
     }
@@ -606,7 +613,7 @@ async function runGeneration(node, prompt) {
     opts.headers['Idempotency-Key'] = node.id
     const r = await api('/generate', opts)
     if (r.ok && r.data?.url) {
-      node.type = 'image'
+      node.type = gen.kind === 'video' ? 'video' : 'image'
       node.src = r.data.url.replace(/^\/images\//, '')
       node.prompt = prompt
       node.model = model.value?.alias || model.value?.name || model.value?.id
@@ -746,7 +753,7 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibility)
   const mm = await api('/managed-models')
   allModels.value = mm.data?.data || []
-  const first = imageModels.value[0]
+  const first = kindModels.value[0]
   if (first) {
     gen.modelId = first.id
     gen.ratio = (first.ratios && first.ratios[0]) || '1:1'
@@ -874,44 +881,54 @@ const saveLabel = computed(() => ({
               placeholder="描述你要生成的画面…(留空则使用选中的笔记)"
             />
             <div class="cv-composer__bar">
+              <select v-model="gen.kind" class="cv-composer__sel" title="生成类型">
+                <option value="image">生图</option>
+                <option value="video">生视频</option>
+              </select>
               <select
-                v-if="imageModels.length"
+                v-if="kindModels.length"
                 v-model="gen.modelId"
-                class="cv-composer__sel"
+                class="cv-composer__sel cv-composer__sel--model"
                 title="生成模型"
               >
-                <option v-for="m in imageModels" :key="m.id" :value="m.id">
+                <option v-for="m in kindModels" :key="m.id" :value="m.id">
                   {{ m.alias || m.name || m.id }}
                 </option>
               </select>
               <select
-                v-if="resolutions.length > 1"
+                v-if="model && ratios.length"
+                v-model="gen.ratio"
+                class="cv-composer__sel"
+                title="比例"
+              >
+                <option v-for="r in ratios" :key="r" :value="r">{{ r }}</option>
+              </select>
+              <select
+                v-if="gen.kind === 'image' && model && resolutions.length"
                 v-model="gen.resolution"
                 class="cv-composer__sel"
                 title="画质"
               >
                 <option v-for="r in resolutions" :key="r" :value="r">{{ r }}</option>
               </select>
-              <div v-if="!imageModels.length" class="cv-nomodels">⚠ 还没有可用的图像模型,请到管理后台添加</div>
-              <div class="cv-ratios" title="比例">
-                <button
-                  v-for="r in ratios"
-                  :key="r"
-                  type="button"
-                  class="cv-chip"
-                  :class="{ 'is-on': gen.ratio === r }"
-                  @click="gen.ratio = r"
-                >{{ r }}</button>
-              </div>
-              <div class="cv-ratios" title="生成张数">
-                <button
-                  v-for="n in [1, 2, 3, 4]"
-                  :key="n"
-                  type="button"
-                  class="cv-chip"
-                  :class="{ 'is-on': gen.count === n }"
-                  @click="gen.count = n"
-                >{{ n }}张</button>
+              <select
+                v-if="gen.kind === 'video' && model && durations.length"
+                v-model="gen.duration"
+                class="cv-composer__sel"
+                title="时长"
+              >
+                <option v-for="d in durations" :key="d" :value="d">{{ d }}</option>
+              </select>
+              <select
+                v-if="gen.kind === 'image'"
+                v-model.number="gen.count"
+                class="cv-composer__sel"
+                title="生成张数"
+              >
+                <option v-for="n in [1, 2, 3, 4]" :key="n" :value="n">{{ n }}张</option>
+              </select>
+              <div v-if="!kindModels.length" class="cv-nomodels">
+                ⚠ 还没有可用的{{ gen.kind === 'video' ? '视频' : '图像' }}模型
               </div>
               <button class="cv-gen" :disabled="genBusy || !model" @click="generate">
                 {{ genBusy ? '生成中…' : '生成' }}
@@ -1282,6 +1299,10 @@ const saveLabel = computed(() => ({
 }
 .cv-composer__sel:focus {
   border-color: rgb(124 92 252 / 0.6);
+}
+.cv-composer__sel--model {
+  flex: 1;
+  min-width: 130px;
 }
 .cv-composer__bar .cv-gen {
   margin-left: auto;

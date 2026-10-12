@@ -24,7 +24,7 @@ const editing = ref(false)
 
 let imgController = null
 async function loadSrc() {
-  if (props.node.type !== 'image' || !props.node.src) return
+  if (!['image', 'video'].includes(props.node.type) || !props.node.src) return
   imgController?.abort()
   imgController = new AbortController()
   imgLoaded.value = false
@@ -76,6 +76,19 @@ function onImgLoad(e) {
     emit('imgload', {
       w: Math.round(img.naturalWidth * k),
       h: Math.round(img.naturalHeight * k),
+    })
+  }
+}
+function onVidMeta(e) {
+  imgLoaded.value = true
+  imgBroken.value = false
+  const v = e.target
+  if (v.videoWidth && v.videoHeight) {
+    const long = Math.max(v.videoWidth, v.videoHeight)
+    const k = 512 / long
+    emit('imgload', {
+      w: Math.round(v.videoWidth * k),
+      h: Math.round(v.videoHeight * k),
     })
   }
 }
@@ -161,6 +174,23 @@ defineExpose({ startEdit, commitNote })
         @load="onImgLoad"
       >
       <div v-else class="cv-node__missing">图片不可用<small v-if="imgStatus">HTTP {{ imgStatus }}</small></div>
+      <div v-if="node.prompt" class="cv-node__cap" :title="node.prompt">{{ node.prompt }}</div>
+    </template>
+
+    <!-- 视频节点 -->
+    <template v-else-if="node.type === 'video'">
+      <video
+        v-if="!imgBroken && imgBlob"
+        class="cv-node__img"
+        :src="imgBlob"
+        controls
+        muted
+        loop
+        playsinline
+        @loadedmetadata="onVidMeta"
+        @error="imgBroken = true"
+      />
+      <div v-else class="cv-node__missing">{{ imgBroken ? '视频不可用' : '加载中…' }}<small v-if="imgStatus">HTTP {{ imgStatus }}</small></div>
       <div v-if="node.prompt" class="cv-node__cap" :title="node.prompt">{{ node.prompt }}</div>
     </template>
 

@@ -97,7 +97,7 @@ export function normalizeDoc(raw) {
       if (!n || typeof n.id !== 'string' || ids.has(n.id)) continue
       if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) continue
       if (!Number.isFinite(n.w) || n.w <= 0 || !Number.isFinite(n.h) || n.h <= 0) continue
-      const type = n.type === 'note' || n.type === 'gen' ? n.type : 'image'
+      const type = ['note', 'gen', 'video'].includes(n.type) ? n.type : 'image'
       const node = {
         id: n.id,
         type,
@@ -108,9 +108,9 @@ export function normalizeDoc(raw) {
         z: Number.isFinite(n.z) ? n.z : 0,
       }
       if (type === 'note') node.text = typeof n.text === 'string' ? n.text.slice(0, 4000) : ''
-      if (type === 'image') {
+      if (type === 'image' || type === 'video') {
         node.src = typeof n.src === 'string' ? n.src.slice(0, 500) : ''
-        if (!node.src) continue // 图片节点必须有 src
+        if (!node.src) continue // 媒体节点必须有 src
         if (typeof n.prompt === 'string') node.prompt = n.prompt.slice(0, 2000)
         if (typeof n.model === 'string') node.model = n.model.slice(0, 120)
       }
