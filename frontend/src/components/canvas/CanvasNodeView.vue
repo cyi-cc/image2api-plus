@@ -273,23 +273,17 @@ defineExpose({ startEdit, commitNote })
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 26px 10px 8px;
-  font-size: 11px;
+  padding: 30px 12px 9px;
+  font-size: 13.5px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   color: #fff;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
-  background: linear-gradient(to top, rgb(0 0 0 / 0.62), transparent);
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 0.65);
+  background: linear-gradient(to top, rgb(0 0 0 / 0.66), transparent);
   pointer-events: none;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-}
-.cv-node:hover .cv-node__cap,
-.cv-node.is-selected .cv-node__cap {
-  opacity: 1;
 }
 
 /* 笔记 = 淡黄色贴纸 */
