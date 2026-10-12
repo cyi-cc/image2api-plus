@@ -7,6 +7,7 @@ import { api, generatedUrl, jsonBody, thumbUrl } from '../api'
 import { auth } from '../auth'
 import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld } from '../utils/canvas'
 import CanvasStage from '../components/canvas/CanvasStage.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 
 const stage = ref(null)
 
@@ -39,6 +40,21 @@ const resolutions = computed(() => model.value?.resolutions?.length
   ? model.value.resolutions
   : Object.keys(model.value?.prices || {}))
 const durations = computed(() => model.value?.durations?.length ? model.value.durations : ['5s'])
+// SelectMenu options(统一全站自定义下拉样式)
+const kindOptions = [
+  { value: 'image', label: '生图' },
+  { value: 'video', label: '生视频' },
+]
+const modelOptions = computed(() =>
+  kindModels.value.map((m) => ({ value: m.id, label: m.alias || m.name || m.id })),
+)
+const ratioOptions = computed(() => ratios.value.map((r) => ({ value: r, label: r })))
+const resolutionOptions = computed(() => resolutions.value.map((r) => ({ value: r, label: r })))
+const durationOptions = computed(() => durations.value.map((d) => ({ value: d, label: d })))
+const countOptions = [1, 2, 3, 4].map((n) => ({ value: n, label: `${n} 张` }))
+const canvasOptions = computed(() =>
+  canvases.value.map((c) => ({ value: c.id, label: c.title || '未命名画布' })),
+)
 const maxRefs = computed(() => Math.min(8, Math.max(
   Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
 )))
@@ -794,13 +810,13 @@ const saveLabel = computed(() => ({
     <div class="cv-top">
       <div class="cv-top__left">
         <button class="cv-btn" title="返回" @click="$router.push('/user')">←</button>
-        <select
-          class="cv-select"
-          :value="currentId"
-          @change="switchCanvas($event.target.value)"
-        >
-          <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.title }}</option>
-        </select>
+        <SelectMenu
+          class="cv-dd cv-dd--canvas"
+          :model-value="currentId"
+          :options="canvasOptions"
+          placeholder="选择画布"
+          @update:model-value="switchCanvas"
+        />
         <button class="cv-btn" title="重命名" @click="renameCanvas">✎</button>
         <button class="cv-btn" title="新建画布" @click="newCanvas">＋</button>
         <button class="cv-btn cv-btn--danger" title="删除画布" @click="deleteCanvas">🗑</button>
@@ -881,52 +897,43 @@ const saveLabel = computed(() => ({
               placeholder="描述你要生成的画面…(留空则使用选中的笔记)"
             />
             <div class="cv-composer__bar">
-              <select v-model="gen.kind" class="cv-composer__sel" title="生成类型">
-                <option value="image">生图</option>
-                <option value="video">生视频</option>
-              </select>
-              <select
+              <SelectMenu v-model="gen.kind" class="cv-dd" :options="kindOptions" up />
+              <SelectMenu
                 v-if="kindModels.length"
                 v-model="gen.modelId"
-                class="cv-composer__sel cv-composer__sel--model"
-                title="生成模型"
-              >
-                <option v-for="m in kindModels" :key="m.id" :value="m.id">
-                  {{ m.alias || m.name || m.id }}
-                </option>
-              </select>
-              <select
+                class="cv-dd cv-dd--model"
+                :options="modelOptions"
+                placeholder="模型"
+                up
+              />
+              <SelectMenu
                 v-if="model && ratios.length"
                 v-model="gen.ratio"
-                class="cv-composer__sel"
-                title="比例"
-              >
-                <option v-for="r in ratios" :key="r" :value="r">{{ r }}</option>
-              </select>
-              <select
+                class="cv-dd"
+                :options="ratioOptions"
+                up
+              />
+              <SelectMenu
                 v-if="gen.kind === 'image' && model && resolutions.length"
                 v-model="gen.resolution"
-                class="cv-composer__sel"
-                title="画质"
-              >
-                <option v-for="r in resolutions" :key="r" :value="r">{{ r }}</option>
-              </select>
-              <select
+                class="cv-dd"
+                :options="resolutionOptions"
+                up
+              />
+              <SelectMenu
                 v-if="gen.kind === 'video' && model && durations.length"
                 v-model="gen.duration"
-                class="cv-composer__sel"
-                title="时长"
-              >
-                <option v-for="d in durations" :key="d" :value="d">{{ d }}</option>
-              </select>
-              <select
+                class="cv-dd"
+                :options="durationOptions"
+                up
+              />
+              <SelectMenu
                 v-if="gen.kind === 'image'"
                 v-model.number="gen.count"
-                class="cv-composer__sel"
-                title="生成张数"
-              >
-                <option v-for="n in [1, 2, 3, 4]" :key="n" :value="n">{{ n }}张</option>
-              </select>
+                class="cv-dd"
+                :options="countOptions"
+                up
+              />
               <div v-if="!kindModels.length" class="cv-nomodels">
                 ⚠ 还没有可用的{{ gen.kind === 'video' ? '视频' : '图像' }}模型
               </div>
@@ -1056,8 +1063,21 @@ const saveLabel = computed(() => ({
   gap: 7px;
   flex-wrap: wrap;
 }
-.cv-select {
-  max-width: 220px;
+/* 统一自定义下拉的宽度/紧凑度(SelectMenu 内部是 .field 按钮) */
+.cv-dd {
+  min-width: 96px;
+}
+.cv-dd--canvas {
+  width: 200px;
+  min-width: 0;
+}
+.cv-dd :deep(.field) {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+.cv-dd--canvas :deep(.field) {
+  height: 30px;
 }
 .cv-sep {
   width: 2.5px;
@@ -1185,7 +1205,7 @@ const saveLabel = computed(() => ({
   backdrop-filter: blur(18px);
   box-shadow: var(--glass-shadow-lg);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  overflow: hidden;
+  overflow: visible; /* 下拉面板要从输入框上方弹出,不能被裁切 */
 }
 .cv-composer:focus-within {
   border-color: rgb(124 92 252 / 0.6);
@@ -1285,24 +1305,12 @@ const saveLabel = computed(() => ({
   flex-wrap: wrap;
   padding: 8px 12px;
   border-top: 1px solid var(--ink-soft);
+  border-radius: 0 0 19px 19px; /* composer 不再裁切,圆角由最底层行补齐 */
 }
-.cv-composer__sel {
-  padding: 5px 9px;
-  border-radius: 9px;
-  border: 1px solid var(--ink-soft);
-  background: transparent;
-  color: var(--fg);
-  font-size: 12px;
-  font-weight: 600;
-  outline: none;
-  max-width: 200px;
-}
-.cv-composer__sel:focus {
-  border-color: rgb(124 92 252 / 0.6);
-}
-.cv-composer__sel--model {
+.cv-composer__bar .cv-dd--model {
   flex: 1;
-  min-width: 130px;
+  min-width: 140px;
+  max-width: 260px;
 }
 .cv-composer__bar .cv-gen {
   margin-left: auto;
