@@ -164,9 +164,9 @@ async function submit() {
       <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="closeLogin"></div>
 
       <div class="card relative z-10 w-full max-w-[26rem]">
-        <!-- ambient memphis crayon washes -->
-        <div class="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#fef08a]/60 blur-3xl"></div>
-        <div class="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-[#ffc1cc]/50 blur-3xl"></div>
+        <!-- ambient aurora washes -->
+        <div class="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#8b5cf6]/30 blur-3xl"></div>
+        <div class="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-[#22d3ee]/25 blur-3xl"></div>
 
         <div class="relative p-7">
           <button class="absolute top-4 right-4 grid h-7 w-7 place-items-center rounded-lg text-[color:var(--fg-3)] hover:text-[color:var(--fg)] hover:bg-[var(--hover)] transition-colors"
@@ -262,21 +262,22 @@ async function submit() {
 
 <style scoped>
 .card {
-  border-radius: 1.1rem;
-  background: var(--surface);
+  border-radius: 1.2rem;
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   color: var(--fg);
-  border: 3px solid var(--ink);
-  box-shadow: 10px 10px 0 var(--shadow-ink);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
 }
 html.dark .card {
-  background: #1c1d24;
   color: rgb(255 255 255 / 0.9);
 }
 
 .logo-halo {
   position: relative;
-  filter: drop-shadow(0 6px 0 rgb(236 91 19 / 0.35));
+  filter: drop-shadow(0 6px 14px rgb(124 92 252 / 0.4));
 }
 
 /* segmented tab control */
@@ -284,22 +285,21 @@ html.dark .card {
   display: flex; gap: 0.3rem; padding: 0.3rem;
   border-radius: 0.7rem;
   background: var(--surface-2);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--ink-soft);
 }
 .tab {
   flex: 1; padding: 0.45rem 0; border-radius: 0.5rem;
   font-size: 0.8125rem; font-weight: 700; color: var(--fg-3);
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   transition: background 0.18s, color 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
 .tab:hover { color: var(--fg); }
 .tab-on {
-  color: #111;
-  background: var(--m-yellow);
-  border-color: var(--ink);
-  box-shadow: 2px 2px 0 var(--shadow-ink);
+  color: #fff;
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
-html.dark .tab-on { color: #fff; background: var(--m-orange); }
 
 /* icon-prefixed input */
 .lm-field { position: relative; }
@@ -311,14 +311,14 @@ html.dark .tab-on { color: #fff; background: var(--m-orange); }
 .lm-field:focus-within .ic { color: var(--m-orange); }
 .fld {
   width: 100%; padding: 0.7rem 0.85rem 0.7rem 2.4rem; border-radius: 0.6rem;
-  background: var(--surface); border: 2px solid var(--ink-soft);
+  background: var(--surface); border: 1px solid var(--ink-soft);
   color: var(--fg); font-size: 0.875rem; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 html.dark .fld { background: rgb(255 255 255 / 0.05); }
 .fld:focus {
-  border-color: var(--ink);
-  box-shadow: 3px 3px 0 var(--m-orange);
+  border-color: rgb(124 92 252 / 0.65);
+  box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
 }
 .fld::placeholder { color: var(--fg-faint); }
 /* Keep autofill on-theme in dark (otherwise it paints white/yellow). */
@@ -344,13 +344,12 @@ html.dark .fld:-webkit-autofill:focus {
   min-width: 5.5rem; /* keep width stable between text / spinner */
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 800; white-space: nowrap;
-  color: #111;
-  background: var(--m-yellow); border: 2px solid var(--ink);
-  box-shadow: 2px 2px 0 var(--shadow-ink);
+  color: var(--fg);
+  background: var(--hover); border: 1px solid rgb(124 92 252 / 0.4);
+  box-shadow: 0 2px 10px rgb(124 92 252 / 0.14);
   transition: background 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
 }
-html.dark .code-btn { color: #111; }
-.code-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--shadow-ink); }
+.code-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgb(124 92 252 / 0.22); }
 .code-btn:active:not(:disabled) { transform: scale(0.96) translateY(1px); box-shadow: none; }
 /* Disabled (sending / countdown): just dim — keep the theme text color so it
    never washes out to invisible white on the light card. */
@@ -362,13 +361,13 @@ html.dark .code-btn { color: #111; }
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
   padding: 0.72rem 0; border-radius: 0.65rem; font-size: 0.9rem; font-weight: 800;
   letter-spacing: 0.02em; color: white; margin-top: 0.35rem;
-  background: var(--m-orange);
-  border: 2.5px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--shadow-ink);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee 140%);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  box-shadow: 0 8px 22px var(--accent-glow);
   transition: transform 0.13s, box-shadow 0.13s, filter 0.15s;
 }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow-ink); }
-.btn-primary:active:not(:disabled) { transform: scale(0.98) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 12px 30px var(--accent-glow); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98) translateY(1px); box-shadow: 0 4px 12px var(--accent-glow); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .spinner {
@@ -382,7 +381,7 @@ html.dark .code-btn { color: #111; }
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem;
   padding: 0.6rem 0.75rem; border-radius: 0.6rem; font-size: 0.75rem; line-height: 1.4;
   color: #065f46; font-weight: 600;
-  background: var(--m-mint); border: 2px solid var(--ink);
+  background: rgb(52 211 153 / 0.14); border: 1px solid rgb(52 211 153 / 0.4);
 }
 html.dark .invite-banner { color: rgb(167 243 208); background: rgb(16 185 129 / 0.15); }
 .invite-banner svg { color: rgb(5 150 105); }

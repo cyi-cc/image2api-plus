@@ -677,8 +677,8 @@ html.dark .num, html.dark .txt, html.dark .field {
 }
 .num::placeholder, .txt::placeholder, .field::placeholder { color: var(--fg-faint); }
 .num:focus, .txt:focus, .field:focus {
-  border-color: var(--ink);
-  box-shadow: 3px 3px 0 var(--m-orange);
+  border-color: rgb(124 92 252 / 0.65);
+  box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
 }
 .num:disabled, .txt:disabled, .field:disabled { opacity: 0.45; cursor: not-allowed; }
 .num { width: 6rem; padding: 0.4rem 0.55rem; font-size: 0.8rem; text-align: right; -moz-appearance: textfield; appearance: textfield; }
@@ -686,24 +686,23 @@ html.dark .num, html.dark .txt, html.dark .field {
 .txt { width: 16rem; max-width: 60%; padding: 0.4rem 0.65rem; font-size: 0.8rem; }
 .field { width: 100%; padding: 0.55rem 0.75rem; font-size: 0.85rem; }
 
-/* Section save buttons — solid memphis orange with a hard offset shadow.
-   The global .btn-primary under .public-dark already uses this palette; we
-   re-assert it here so the save action stays visually distinct. */
+/* Section save buttons — violet→cyan gradient with a glow. The global
+   .btn-primary under .public-dark already uses this palette; we re-assert it
+   here so the save action stays visually distinct. */
 .btn-primary {
   padding: 0.55rem 1.15rem; border-radius: 0.6rem;
   font-size: 0.8rem; font-weight: 800; color: white;
-  background: var(--m-orange);
-  border: 2px solid var(--ink);
-  box-shadow: 3px 3px 0 var(--shadow-ink);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  box-shadow: 0 6px 18px var(--accent-glow);
   transition: filter 0.15s, transform 0.12s, box-shadow 0.15s, opacity 0.15s;
 }
-/* Re-assert the flat orange on hover for ALL states — the global
+/* Keep the gradient on hover for ALL states — the global
    `.public-dark .btn-primary:hover` in style.css repaints the background,
-   so even disabled save buttons (注册与登录 / 邮件服务 default to disabled)
-   would flash on hover. Keep this rule unconditional; only the
-   brightness/lift below is gated on :not(:disabled). */
-.btn-primary:hover { background: #f97316; }
-.btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow-ink); }
-.btn-primary:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+   so even disabled save buttons would flash on hover. Keep this rule
+   unconditional; only the brightness/lift below is gated on :not(:disabled). */
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px var(--accent-glow); }
+.btn-primary:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 </style>

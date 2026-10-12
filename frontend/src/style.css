@@ -9,72 +9,95 @@ video {
 
 :root {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --tw-ring-color: rgb(17 17 17 / 0.12);
+  --tw-ring-color: rgb(124 92 252 / 0.25);
 
-  /* ===== Theme palette — LIGHT (default): Memphis / neo-brutalism =====
+  /* ===== Theme palette — LIGHT (default): frosted glass / aurora =====
      Drives the app chrome (rails/header) and the public marketing pages.
      The `.dark` class on <html> flips these to the dark values below.
      Text over generated images keeps a literal text-white (handled in markup). */
-  --app-bg: #f8f6f2;                    /* warm paper */
-  --fg: #1a1a1a;                        /* primary heading/text */
-  --fg-2: rgb(26 26 26 / 0.64);         /* body / secondary */
-  --fg-3: rgb(26 26 26 / 0.48);         /* muted */
-  --fg-faint: rgb(26 26 26 / 0.34);     /* labels / hints */
-  --surface: #ffffff;                   /* raised card on page bg */
-  --surface-2: rgb(26 26 26 / 0.045);   /* subtle inset panel (counter cells) */
-  --hairline: rgb(26 26 26 / 0.12);     /* faint borders / separators */
-  --hover: rgb(254 240 138 / 0.55);     /* hover wash — memphis yellow tint */
-  /* ink = the heavy outline color; shadow-ink = the offset "chunky" shadow */
-  --ink: #111111;
-  --ink-soft: rgb(17 17 17 / 0.45);
-  --shadow-ink: #111111;
-  /* memphis accent crayons */
-  --m-orange: #ec5b13;
-  --m-yellow: #fef08a;
-  --m-pink: #ffc1cc;
-  --m-blue: #bae6fd;
-  --m-mint: #a7f3d0;
+  --app-bg: #eef0f8;                    /* cool porcelain */
+  --fg: #181524;                        /* primary heading/text */
+  --fg-2: rgb(24 21 36 / 0.66);         /* body / secondary */
+  --fg-3: rgb(24 21 36 / 0.48);         /* muted */
+  --fg-faint: rgb(24 21 36 / 0.36);     /* labels / hints */
+  --surface: rgb(255 255 255 / 0.66);   /* frosted card on page bg */
+  --surface-solid: #ffffff;             /* opaque version where blur is unwanted */
+  --surface-2: rgb(24 21 36 / 0.045);   /* subtle inset panel (counter cells) */
+  --hairline: rgb(24 21 36 / 0.1);      /* faint borders / separators */
+  --hover: rgb(124 92 252 / 0.1);       /* hover wash — violet tint */
+  /* ink = the hairline edge color; shadow-ink = the soft shadow tint.
+     Kept under their legacy names so existing markup keeps working — only the
+     values changed from memphis-solid to glass-subtle. */
+  --ink: rgb(24 21 36 / 0.14);
+  --ink-soft: rgb(24 21 36 / 0.09);
+  --shadow-ink: rgb(88 80 200 / 0.14);
+  /* aurora accent crayons — primary violet + soft pastel companions */
+  --m-orange: #7c5cfc;
+  --m-orange-2: #22d3ee;
+  --m-yellow: #ece7fe;
+  --m-pink: #fad9f0;
+  --m-blue: #d8eefb;
+  --m-mint: #d9f4e8;
   /* solid CTA button that sits on the page bg — inverts per theme */
-  --btn-solid-bg: #1a1a1a;
+  --btn-solid-bg: #181524;
   --btn-solid-bg-h: #000000;
   --btn-solid-fg: #fff;
-  --menu-bg: #ffffff;          /* dropdown / popover panel */
+  --menu-bg: rgb(255 255 255 / 0.82);   /* dropdown / popover panel */
+  /* shared glass treatments */
+  --glass-border: rgb(255 255 255 / 0.55);
+  --glass-shadow: 0 8px 28px rgb(80 74 190 / 0.1), 0 2px 8px rgb(24 21 36 / 0.05);
+  --glass-shadow-lg: 0 16px 44px rgb(80 74 190 / 0.16), 0 4px 12px rgb(24 21 36 / 0.06);
+  --accent-glow: rgb(124 92 252 / 0.35);
 }
 
 html.dark {
-  --app-bg: #131318;
-  --fg: rgb(255 255 255 / 0.92);
-  --fg-2: rgb(255 255 255 / 0.55);
-  --fg-3: rgb(255 255 255 / 0.4);
+  --app-bg: #08070f;
+  --fg: rgb(255 255 255 / 0.93);
+  --fg-2: rgb(255 255 255 / 0.6);
+  --fg-3: rgb(255 255 255 / 0.42);
   --fg-faint: rgb(255 255 255 / 0.3);
   --surface: rgb(255 255 255 / 0.05);
+  --surface-solid: #14131f;
   --surface-2: rgb(255 255 255 / 0.05);
   --hairline: rgb(255 255 255 / 0.1);
-  --hover: rgb(236 91 19 / 0.2);
-  --ink: rgb(244 244 245 / 0.85);
-  --ink-soft: rgb(244 244 245 / 0.4);
-  --shadow-ink: rgb(244 244 245 / 0.22);
-  --btn-solid-bg: #ec5b13;
-  --btn-solid-bg-h: #f97316;
+  --hover: rgb(139 92 246 / 0.16);
+  --ink: rgb(255 255 255 / 0.14);
+  --ink-soft: rgb(255 255 255 / 0.09);
+  --shadow-ink: rgb(0 0 0 / 0.4);
+  --m-orange: #8b5cf6;
+  --m-orange-2: #22d3ee;
+  --m-yellow: #a78bfa;
+  --m-pink: #f0a6d8;
+  --m-blue: #6cd0f2;
+  --m-mint: #5fd9ac;
+  --btn-solid-bg: #8b5cf6;
+  --btn-solid-bg-h: #7c3aed;
   --btn-solid-fg: #fff;
-  --menu-bg: #1d1e26;
+  --menu-bg: rgb(24 23 36 / 0.86);
+  --glass-border: rgb(255 255 255 / 0.12);
+  --glass-shadow: 0 8px 28px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.2);
+  --glass-shadow-lg: 0 18px 50px rgb(0 0 0 / 0.5), 0 4px 14px rgb(0 0 0 / 0.3);
+  --accent-glow: rgb(139 92 246 / 0.45);
 }
 
 /* Smooth the flip so toggling doesn't hard-cut. */
 body, .theme-x { transition: background-color 0.25s ease, color 0.25s ease; }
 
-/* Footer CTA band — flat memphis-yellow panel with a heavy ink outline. */
+/* Footer CTA band — aurora gradient panel with a glass edge. */
 .cta-band {
+  position: relative;
   background:
-    radial-gradient(circle, rgb(17 17 17 / 0.1) 1.3px, transparent 1.3px) 0 0 / 20px 20px,
-    var(--m-yellow);
-  border: 3px solid var(--ink);
-  box-shadow: 10px 10px 0 var(--shadow-ink);
+    radial-gradient(120% 160% at 0% 0%, rgb(124 92 252 / 0.2), transparent 55%),
+    radial-gradient(120% 160% at 100% 100%, rgb(34 211 238 / 0.16), transparent 55%),
+    var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
 }
 html.dark .cta-band {
   background:
-    radial-gradient(circle, rgb(255 255 255 / 0.1) 1.3px, transparent 1.3px) 0 0 / 20px 20px,
-    rgb(236 91 19 / 0.16);
+    radial-gradient(120% 160% at 0% 0%, rgb(139 92 246 / 0.22), transparent 55%),
+    radial-gradient(120% 160% at 100% 100%, rgb(34 211 238 / 0.14), transparent 55%),
+    rgb(255 255 255 / 0.04);
 }
 
 /* ===== Light-mode rescue for hardcoded-dark pages =====
@@ -83,10 +106,10 @@ html.dark .cta-band {
    LIGHT mode, remap those neutral whites to the dark-on-light palette. Scoped
    to a `.theme-text` wrapper so the marketing homepage's over-image whites are
    never touched. Un-layered, so these win over Tailwind's @layer utilities. */
-html:not(.dark) .theme-text :is(.text-white, [class*="text-white/9"], [class*="text-white/8"]) { color: rgb(15 23 42 / 0.95); }
-html:not(.dark) .theme-text :is([class*="text-white/7"], [class*="text-white/6"]) { color: rgb(15 23 42 / 0.7); }
-html:not(.dark) .theme-text :is([class*="text-white/5"], [class*="text-white/4"]) { color: rgb(15 23 42 / 0.52); }
-html:not(.dark) .theme-text :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"]) { color: rgb(15 23 42 / 0.4); }
+html:not(.dark) .theme-text :is(.text-white, [class*="text-white/9"], [class*="text-white/8"]) { color: rgb(24 21 36 / 0.95); }
+html:not(.dark) .theme-text :is([class*="text-white/7"], [class*="text-white/6"]) { color: rgb(24 21 36 / 0.7); }
+html:not(.dark) .theme-text :is([class*="text-white/5"], [class*="text-white/4"]) { color: rgb(24 21 36 / 0.52); }
+html:not(.dark) .theme-text :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"]) { color: rgb(24 21 36 / 0.4); }
 html:not(.dark) .theme-text [class*="bg-white/"] { background-color: var(--surface-2); }
 html:not(.dark) .theme-text [class*="border-white/"] { border-color: var(--hairline); }
 html:not(.dark) .theme-text [class*="ring-white/"] { --tw-ring-color: var(--hairline); }
@@ -102,7 +125,7 @@ html:not(.dark) .theme-text :is([class*="bg-slate-900"], [class*="bg-slate-800"]
    matcher also catches the /80 opacity variants. Badges keep their pale tinted
    bg (bg-*-500/10) which reads fine on white. */
 html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(79 70 229); }
-html:not(.dark) .theme-text :is([class*="text-orange-300"], [class*="text-orange-200"]) { color: rgb(234 88 12); }
+html:not(.dark) .theme-text :is([class*="text-orange-300"], [class*="text-orange-200"]) { color: rgb(124 58 237); }
 html:not(.dark) .theme-text :is([class*="text-rose-300"], [class*="text-rose-200"]) { color: rgb(225 29 72); }
 html:not(.dark) .theme-text :is([class*="text-emerald-300"], [class*="text-emerald-200"]) { color: rgb(5 150 105); }
 html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(2 132 199); }
@@ -120,17 +143,23 @@ html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset
 html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x):hover {
   color: var(--fg); background: var(--hover);
 }
-html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) { background: var(--fg); color: #fff; box-shadow: 2px 2px 0 var(--m-orange); }
+html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) {
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8); color: #fff;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
 /* Tag chips (TagInput) — near-white orange text is unreadable on white; keep
-   the orange tint but switch the label to dark ink. */
-html:not(.dark) .theme-text .chip { color: rgb(15 23 42 / 0.9); }
-html:not(.dark) .theme-text .chip .chip-x { color: rgb(15 23 42 / 0.55); background: transparent; box-shadow: none; }
+   the tint but switch the label to dark ink. */
+html:not(.dark) .theme-text .chip { color: rgb(24 21 36 / 0.9); }
+html:not(.dark) .theme-text .chip .chip-x { color: rgb(24 21 36 / 0.55); background: transparent; box-shadow: none; }
 html:not(.dark) .theme-text .chip .chip-x:hover { color: #fff; background: rgb(244 63 94 / 0.6); }
 /* ShowcaseView marks the selected filter/kind tab with an `.on` modifier on
    `.filter-pill`/`.kind-btn` (not the `-on` class above). Without this, the
    neutral `.filter-pill`/`.kind-btn` rescue paints selected == unselected and
    the highlight vanishes on a white page. Equal-or-higher specificity, later. */
-html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on { background: var(--fg); color: #fff; box-shadow: 2px 2px 0 var(--m-orange); }
+html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on {
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8); color: #fff;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
 /* Selected COLORED filter pills — their scoped (dark) selected colors get
    overridden by the neutral `.fp` rescue above, so re-state a light-mode
    variant (tinted bg + dark-enough text + colored ring) with equal specificity
@@ -138,16 +167,14 @@ html:not(.dark) .theme-text :is(.filter-pill, .kind-btn).on { background: var(--
 html:not(.dark) .theme-text .fp-emerald { background: rgb(16 185 129 / 0.14); color: rgb(4 120 87); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.45); }
 html:not(.dark) .theme-text .fp-rose { background: rgb(244 63 94 / 0.12); color: rgb(190 18 60); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.45); }
 html:not(.dark) .theme-text .fp-amber { background: rgb(245 158 11 / 0.16); color: rgb(180 83 9); box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.5); }
-html:not(.dark) .theme-text .fp-orange { background: rgb(249 115 22 / 0.14); color: rgb(194 65 12); box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.45); }
+html:not(.dark) .theme-text .fp-orange { background: rgb(139 92 246 / 0.14); color: rgb(109 40 217); box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.45); }
 html:not(.dark) .theme-text .fp-pink { background: rgb(244 114 182 / 0.14); color: rgb(190 24 93); box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.45); }
 html:not(.dark) .theme-text .fp-slate { background: rgb(100 116 139 / 0.14); color: rgb(51 65 85); box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.45); }
 html:not(.dark) .theme-text .fp-sky { background: rgb(14 165 233 / 0.14); color: rgb(3 105 161); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.45); }
 html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color: rgb(15 118 110); box-shadow: inset 0 0 0 1px rgb(20 184 166 / 0.45); }
 
 /* Custom checkbox for admin tables (<input type="checkbox" class="chk">).
-   Replaces the plain accent-color box with a rounded, branded one + white check.
-   Neutral border + transparent bg so it reads on both the dark admin shell and
-   light mode; fills rose when checked. */
+   Rounded glass box + white check; fills with the violet gradient when on. */
 .chk {
   appearance: none;
   -webkit-appearance: none;
@@ -161,14 +188,14 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   display: inline-grid;
   place-content: center;
   vertical-align: middle;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.chk { border-color: var(--ink-soft); }
+.chk { border-color: var(--ink); }
 .chk:hover:not(:checked) { border-color: var(--m-orange); }
 .chk:checked {
-  background: var(--m-orange);
-  border-color: var(--ink);
-  box-shadow: 2px 2px 0 var(--shadow-ink);
+  background: linear-gradient(135deg, #7c5cfc, #22d3ee);
+  border-color: transparent;
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 .chk:checked::after {
   content: "";
@@ -179,7 +206,7 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   transform: rotate(45deg);
   margin-top: -0.12rem;
 }
-.chk:focus-visible { outline: 2px solid rgb(236 91 19 / 0.5); outline-offset: 1px; }
+.chk:focus-visible { outline: 2px solid rgb(124 92 252 / 0.5); outline-offset: 1px; }
 /* Account identity tags (AccountsView: 子号 / 母号 / 普号 / 限额). The colors live
    here rather than as inline dark-palette utilities, which were invisible on the
    light theme: light values first, html.dark override after. */
@@ -195,11 +222,11 @@ html:not(.dark) .theme-text .fp-teal { background: rgb(20 184 166 / 0.14); color
   white-space: nowrap;
 }
 .acct-tag-sub { background: rgb(14 165 233 / 0.14); color: rgb(3 105 161); box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.4); }
-.acct-tag-master { background: rgb(249 115 22 / 0.14); color: rgb(194 65 12); box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.4); }
+.acct-tag-master { background: rgb(139 92 246 / 0.14); color: rgb(109 40 217); box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.4); }
 .acct-tag-free { background: rgb(100 116 139 / 0.14); color: rgb(51 65 85); box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.4); }
 .acct-tag-limit { background: rgb(245 158 11 / 0.16); color: rgb(180 83 9); box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.4); }
 html.dark .acct-tag-sub { background: rgb(14 165 233 / 0.18); color: rgb(125 211 252); box-shadow: inset 0 0 0 1px rgb(56 189 248 / 0.35); }
-html.dark .acct-tag-master { background: rgb(249 115 22 / 0.22); color: rgb(253 186 116); box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.35); }
+html.dark .acct-tag-master { background: rgb(139 92 246 / 0.22); color: rgb(196 181 253); box-shadow: inset 0 0 0 1px rgb(167 139 250 / 0.35); }
 html.dark .acct-tag-free { background: rgb(148 163 184 / 0.22); color: rgb(226 232 240); box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.35); }
 html.dark .acct-tag-limit { background: rgb(245 158 11 / 0.18); color: rgb(252 211 77); box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.35); }
 /* Capability chips (ModelsView): all variants need bg + ring + color reset in light mode.
@@ -224,7 +251,7 @@ html:not(.dark) .theme-text .price-chip {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
-/* fp-white selected pill: on white bg the all-white fill vanishes — use a neutral dark variant. */
+/* fp-white selected pill: on white bg the all-white fill vanishes — use a neutral variant. */
 html:not(.dark) .theme-text .fp-white {
   background: var(--surface-2);
   color: var(--fg-2);
@@ -256,7 +283,7 @@ html:not(.dark) .media-card :is([class*="border-white/"], [class*="ring-white/"]
 html:not(.dark) .media-card :is([class*="text-emerald-3"], [class*="text-emerald-2"]) { color: rgb(110 231 183) !important; }
 html:not(.dark) .media-card :is([class*="text-rose-3"], [class*="text-rose-2"]) { color: rgb(251 207 232) !important; }
 html:not(.dark) .media-card :is([class*="text-sky-3"], [class*="text-sky-2"]) { color: rgb(147 197 253) !important; }
-html:not(.dark) .media-card :is([class*="text-orange-3"], [class*="text-orange-2"]) { color: rgb(253 186 116) !important; }
+html:not(.dark) .media-card :is([class*="text-orange-3"], [class*="text-orange-2"]) { color: rgb(196 181 253) !important; }
 html:not(.dark) .media-card :is([class*="text-sky-3"], [class*="text-sky-2"]) { color: rgb(125 211 252) !important; }
 html:not(.dark) .media-card :is([class*="text-amber-3"], [class*="text-amber-2"]) { color: rgb(252 211 77) !important; }
 
@@ -271,8 +298,8 @@ html:not(.dark) .doc-code code { background: rgb(255 255 255 / 0.08); color: rgb
 html {
   scroll-behavior: smooth;
   /* Kill the bounce/glow when scrolling past the top or bottom of any
-     scroll surface (the dark admin shell has fixed viewport height and we
-     don't want a rubber-band-y feel at the edges of inner scroll areas). */
+    scroll surface (the dark admin shell has fixed viewport height and we
+    don't want a rubber-band-y feel at the edges of inner scroll areas). */
   overscroll-behavior: none;
 }
 
@@ -281,10 +308,11 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior: none;
-  /* Subtle ambient gradient + grain (used by PublicLayout via .ambient-bg) */
+  /* Aurora ambient gradient + grain (used by PublicLayout via .ambient-bg) */
 }
 
-::selection { background: var(--m-yellow); color: #111; }
+::selection { background: rgb(139 92 246 / 0.32); color: inherit; }
+html:not(.dark) ::selection { color: #181524; }
 
 /* Tailwind v4 / preflight leaves <button> on the default arrow cursor, so
    admins miss the affordance on icon-only actions (复制 / 删除 / 生成 等).
@@ -300,36 +328,45 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 .card:has(> table) { overflow-x: auto; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: rgb(26 26 26 / 0.28); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: rgb(26 26 26 / 0.45); background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: rgb(24 21 36 / 0.2); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgb(24 21 36 / 0.38); background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
-html.dark ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.22); background-clip: content-box; }
-html.dark ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.35); background-clip: content-box; }
+html.dark ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); background-clip: content-box; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.32); background-clip: content-box; }
 
-/* ===== Ambient background — used by the public shell ===== */
+/* ===== Ambient background — aurora wash used by the public shell ===== */
 .ambient-bg {
   background-color: var(--app-bg);
-  background-image: radial-gradient(circle, rgb(17 17 17 / 0.07) 1.3px, transparent 1.3px);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(60rem 40rem at 12% -10%, rgb(124 92 252 / 0.14), transparent 60%),
+    radial-gradient(52rem 36rem at 92% 8%, rgb(34 211 238 / 0.11), transparent 60%),
+    radial-gradient(46rem 32rem at 8% 96%, rgb(240 171 252 / 0.1), transparent 60%);
 }
 html.dark .ambient-bg {
-  background-image: radial-gradient(circle, rgb(255 255 255 / 0.06) 1.3px, transparent 1.3px);
+  background-image:
+    radial-gradient(60rem 40rem at 12% -10%, rgb(139 92 246 / 0.2), transparent 60%),
+    radial-gradient(52rem 36rem at 92% 8%, rgb(34 211 238 / 0.13), transparent 60%),
+    radial-gradient(46rem 32rem at 8% 96%, rgb(232 121 249 / 0.1), transparent 60%);
 }
 
-/* ===== Memphis / neo-brutalist design kit =====
-   Heavy ink outlines, hard offset shadows, flat crayon accents (orange / yellow
-   / pink / blue / mint), rotated stickers and squishy press feedback. Reusable
-   across the workbench + user subpages + public pages so the whole front-end
-   shares one punchy, print-like look. */
+/* ===== Glass / aurora design kit =====
+   Frosted surfaces, hairline edges, soft layered shadows and violet→cyan
+   gradient accents. Same class names as the previous memphis kit so every
+   view picks the new look up without markup changes. */
 
-/* Highlighter text — black words "marked" with a yellow swipe. */
+/* Gradient headline text — violet → cyan swipe. */
 .anime-grad-text {
-  background: linear-gradient(transparent 55%, var(--m-yellow) 55%);
-  padding: 0 0.1em;
-  color: inherit;
+  background: linear-gradient(100deg, #7c5cfc 0%, #a855f7 45%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  padding: 0 0.05em;
 }
 html.dark .anime-grad-text {
-  background: linear-gradient(transparent 55%, rgb(236 91 19 / 0.55) 55%);
+  background: linear-gradient(100deg, #a78bfa 0%, #e879f9 45%, #67e8f9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 /* Section eyebrow — tiny uppercase kicker with a leading star. */
@@ -344,23 +381,24 @@ html.dark .anime-grad-text {
 }
 .anime-eyebrow::before { content: '✦'; font-size: 0.85em; }
 
-/* Sticker label — rotated yellow chip with a hard shadow. */
+/* Sticker label — glass chip with a soft glow. */
 .sticker {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: 0.55rem;
+  gap: 0.4rem;
+  padding: 0.34rem 0.85rem;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
-  color: #111;
-  background: var(--m-yellow);
-  border: 2.5px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--shadow-ink);
-  transform: rotate(-1.5deg);
+  font-weight: 700;
+  color: var(--fg);
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
-/* Chunky CTA — flat orange with an offset ink shadow and a press feel. */
+/* Chunky CTA — violet→cyan gradient with a glow. */
 .bubble-btn {
   display: inline-flex;
   align-items: center;
@@ -370,42 +408,37 @@ html.dark .anime-grad-text {
   font-size: 14px;
   font-weight: 800;
   color: #fff;
-  border: 2.5px solid var(--ink);
+  border: 1px solid rgb(255 255 255 / 0.18);
   cursor: pointer;
-  background: var(--m-orange);
-  box-shadow: 4px 4px 0 var(--shadow-ink);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee);
+  box-shadow: 0 8px 24px var(--accent-glow);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.bubble-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--shadow-ink); filter: brightness(1.05); }
-.bubble-btn:active { transform: scale(0.97) translateY(2px); box-shadow: 1px 1px 0 var(--shadow-ink); }
+.bubble-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--accent-glow); filter: brightness(1.06); }
+.bubble-btn:active { transform: scale(0.97) translateY(1px); box-shadow: 0 4px 12px var(--accent-glow); }
 
-/* Memphis card — flat surface, heavy ink outline, hard offset shadow. */
+/* Glass card — frosted surface, hairline edge, soft shadow. */
 .anime-card {
   position: relative;
-  border-radius: 1rem;
+  border-radius: 1.1rem;
   background: var(--surface);
-  border: 2.5px solid var(--ink);
-  box-shadow: 5px 5px 0 var(--shadow-ink);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 .anime-card:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 8px 8px 0 var(--shadow-ink);
-}
-html.dark .anime-card {
-  background: rgb(255 255 255 / 0.05);
+  transform: translateY(-3px);
+  box-shadow: var(--glass-shadow-lg);
 }
 
-/* Selected pill — solid ink with an orange offset shadow. */
+/* Selected pill — gradient fill with a glow. */
 .chip-on {
   color: #fff !important;
-  background: #1a1a1a !important;
-  border: 2px solid var(--ink) !important;
-  box-shadow: 3px 3px 0 var(--m-orange) !important;
-}
-html.dark .chip-on {
-  background: var(--m-orange) !important;
-  box-shadow: 3px 3px 0 var(--shadow-ink) !important;
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 4px 16px var(--accent-glow) !important;
 }
 
 /* Twinkling star field — drop into any relatively-positioned decorative layer.
@@ -415,12 +448,12 @@ html.dark .chip-on {
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(1.5px 1.5px at 12% 22%, rgb(236 91 19 / 0.7), transparent),
-    radial-gradient(1.5px 1.5px at 78% 12%, rgb(56 189 248 / 0.7), transparent),
-    radial-gradient(1px 1px at 42% 62%, rgb(236 91 19 / 0.6), transparent),
-    radial-gradient(1.5px 1.5px at 88% 72%, rgb(244 114 182 / 0.6), transparent),
-    radial-gradient(1px 1px at 24% 84%, rgb(56 189 248 / 0.55), transparent),
-    radial-gradient(1px 1px at 62% 34%, rgb(250 204 21 / 0.55), transparent);
+    radial-gradient(1.5px 1.5px at 12% 22%, rgb(139 92 246 / 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 78% 12%, rgb(34 211 238 / 0.7), transparent),
+    radial-gradient(1px 1px at 42% 62%, rgb(139 92 246 / 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 88% 72%, rgb(232 121 249 / 0.6), transparent),
+    radial-gradient(1px 1px at 24% 84%, rgb(34 211 238 / 0.55), transparent),
+    radial-gradient(1px 1px at 62% 34%, rgb(167 139 250 / 0.55), transparent);
   animation: twinkle 4.5s ease-in-out infinite;
 }
 @keyframes twinkle { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.4; } }
@@ -445,35 +478,38 @@ html.dark .chip-on {
   z-index: 0;
 }
 
-/* ===== Memphis utilities ===== */
-/* Polka-dot texture layer (drop on a decorative absolutely-positioned div). */
+/* ===== Glass utilities ===== */
+/* Dot texture layer — kept faint so it reads as grain, not polka dots. */
 .memphis-dots {
-  background-image: radial-gradient(circle, rgb(17 17 17 / 0.14) 1.4px, transparent 1.4px);
-  background-size: 22px 22px;
+  background-image: radial-gradient(circle, rgb(24 21 36 / 0.07) 1.1px, transparent 1.1px);
+  background-size: 26px 26px;
 }
 html.dark .memphis-dots {
-  background-image: radial-gradient(circle, rgb(255 255 255 / 0.1) 1.4px, transparent 1.4px);
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.05) 1.1px, transparent 1.1px);
 }
-/* Heavy outline + hard offset shadow helpers for one-off markup. */
+/* Frosted surface helpers for one-off markup. */
 .ink-card {
   background: var(--surface);
-  border: 2.5px solid var(--ink);
-  box-shadow: 6px 6px 0 var(--shadow-ink);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
 }
 .ink-card-sm {
   background: var(--surface);
-  border: 2px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--shadow-ink);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
-/* Lift on hover — the signature memphis card interaction. */
+/* Lift on hover — the signature card interaction. */
 .chunky-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-.chunky-hover:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--shadow-ink); }
-/* Squishy press for buttons (mirrors the reference site's .memphis-press). */
+.chunky-hover:hover { transform: translateY(-3px); box-shadow: var(--glass-shadow-lg); }
+/* Squishy press for buttons. */
 .memphis-press { transition: transform 0.15s ease; }
-.memphis-press:active { transform: scale(0.97) translateY(2px); }
+.memphis-press:active { transform: scale(0.97) translateY(1px); }
 
-/* Empty-state badge — a rotated crayon tile with a star, replaces the old
-   mascot illustration in empty lists. */
+/* Empty-state badge — frosted tile with a gradient star. */
 .empty-badge {
   width: 4.5rem;
   height: 4.5rem;
@@ -481,12 +517,11 @@ html.dark .memphis-dots {
   place-items: center;
   font-size: 1.8rem;
   font-weight: 900;
-  color: #111;
-  background: var(--m-yellow);
-  border: 3px solid var(--ink);
-  border-radius: 1rem;
-  box-shadow: 5px 5px 0 var(--shadow-ink);
-  transform: rotate(-6deg);
+  color: #fff;
+  background: linear-gradient(135deg, #7c5cfc, #22d3ee);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 1.2rem;
+  box-shadow: 0 12px 32px var(--accent-glow);
   animation: memphis-float 6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .empty-badge { animation: none; } }
@@ -507,40 +542,41 @@ html.dark .memphis-dots {
    remap them to the dark palette. */
 .public-dark { color: rgb(255 255 255 / 0.9); }
 .public-dark .card {
-  background: rgb(255 255 255 / 0.035);
-  border-color: var(--ink);
+  background: rgb(255 255 255 / 0.04);
+  border-color: rgb(255 255 255 / 0.1);
   color: rgb(255 255 255 / 0.92);
-  box-shadow: 5px 5px 0 var(--shadow-ink);
+  box-shadow: var(--glass-shadow);
 }
 .public-dark .field {
   background: rgb(255 255 255 / 0.04);
-  border-color: var(--ink-soft);
+  border-color: rgb(255 255 255 / 0.12);
   color: rgb(255 255 255 / 0.95);
   transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
 }
 .public-dark .field::placeholder { color: rgb(255 255 255 / 0.3); }
 /* Single focus treatment shared by every <.field> across the admin shell —
-   an orange offset shadow, matching the light theme's focus affordance. */
+   a violet glow ring, matching the light theme's focus affordance. */
 .public-dark .field:focus,
 .public-dark .field:focus-visible {
-  border-color: var(--ink);
+  border-color: rgb(139 92 246 / 0.7);
   background: rgb(255 255 255 / 0.06);
-  box-shadow: 3px 3px 0 rgb(236 91 19 / 0.6);
+  box-shadow: 0 0 0 3px rgb(139 92 246 / 0.25);
   outline: none;
 }
 .public-dark .btn-soft {
-  background: rgb(255 255 255 / 0.06);
-  border-color: var(--ink-soft);
+  background: rgb(255 255 255 / 0.05);
+  border-color: rgb(255 255 255 / 0.12);
   color: rgb(255 255 255 / 0.85);
 }
-.public-dark .btn-soft:hover { background: rgb(236 91 19 / 0.25); color: white; }
+.public-dark .btn-soft:hover { background: rgb(139 92 246 / 0.25); color: white; }
 .public-dark .btn-ghost { color: rgb(255 255 255 / 0.65); border-color: transparent; }
-.public-dark .btn-ghost:hover { background: rgb(236 91 19 / 0.18); color: white; }
+.public-dark .btn-ghost:hover { background: rgb(139 92 246 / 0.18); color: white; }
 .public-dark .btn-primary {
-  background: var(--m-orange); color: #fff; box-shadow: 3px 3px 0 var(--shadow-ink);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8); color: #fff;
+  box-shadow: 0 6px 18px var(--accent-glow);
 }
-.public-dark .btn-primary:hover { background: #f97316; }
-.public-dark .pill { background: rgb(255 255 255 / 0.06); color: rgb(255 255 255 / 0.85); border-color: var(--ink-soft); }
+.public-dark .btn-primary:hover { filter: brightness(1.08); }
+.public-dark .pill { background: rgb(255 255 255 / 0.06); color: rgb(255 255 255 / 0.85); border-color: rgb(255 255 255 / 0.12); }
 
 /* Remap slate text tokens */
 .public-dark .text-slate-900,
@@ -564,7 +600,7 @@ html.dark .memphis-dots {
 /* Tables in dark */
 .public-dark .th { color: rgb(255 255 255 / 0.4); }
 .public-dark .row { border-color: rgb(255 255 255 / 0.06); }
-.public-dark .row:hover { background: rgb(255 255 255 / 0.03); }
+.public-dark .row:hover { background: rgb(139 92 246 / 0.07); }
 
 /* Inline code blocks (pill highlight) — only for inline <code>, NOT code inside
    a <pre> block (docs examples), which would get an unwanted full-width tint. */
@@ -590,11 +626,14 @@ html.dark .memphis-dots {
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
 
 @layer components {
-  /* surfaces — flat white card with the memphis ink outline + offset shadow */
+  /* surfaces — frosted card with a hairline glass edge + soft shadow */
   .card {
-    @apply bg-white rounded-xl;
-    border: 2.5px solid var(--ink);
-    box-shadow: 5px 5px 0 var(--shadow-ink);
+    @apply rounded-xl;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   /* buttons — each variant is self-contained (Tailwind v4 can't @apply a custom class) */
@@ -602,56 +641,64 @@ html.dark .memphis-dots {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-bold
            disabled:opacity-50 disabled:cursor-not-allowed px-3.5 py-2;
     color: #fff;
-    background: var(--m-orange);
-    border: 2.5px solid var(--ink);
-    box-shadow: 3px 3px 0 var(--shadow-ink);
+    background: linear-gradient(120deg, #7c5cfc, #5f6cf8 60%, #22d3ee 140%);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    box-shadow: 0 6px 18px var(--accent-glow);
     transition: transform 0.13s ease, box-shadow 0.13s ease, filter 0.13s ease;
   }
-  .btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow-ink); filter: brightness(1.05); }
-  .btn-primary:active:not(:disabled) { transform: scale(0.97) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px var(--accent-glow); filter: brightness(1.07); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.97) translateY(1px); box-shadow: 0 3px 10px var(--accent-glow); }
   .btn-soft {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold
            disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
     color: var(--fg-2);
     background: var(--surface);
-    border: 2px solid var(--ink-soft);
-    transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.15s ease, color 0.15s ease;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--ink-soft);
+    transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .btn-soft:hover:not(:disabled) {
     color: var(--fg);
-    background: var(--m-yellow);
-    border-color: var(--ink);
-    box-shadow: 3px 3px 0 var(--shadow-ink);
+    background: var(--hover);
+    border-color: rgb(124 92 252 / 0.45);
+    box-shadow: 0 4px 14px rgb(124 92 252 / 0.16);
   }
-  .btn-soft:active:not(:disabled) { transform: scale(0.97) translateY(2px); box-shadow: none; }
+  html.dark .btn-soft:hover:not(:disabled) { border-color: rgb(139 92 246 / 0.5); box-shadow: 0 4px 14px rgb(139 92 246 / 0.22); }
+  .btn-soft:active:not(:disabled) { transform: scale(0.97) translateY(1px); box-shadow: none; }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium
            disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
     color: var(--fg-2);
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .btn-ghost:hover:not(:disabled) {
     color: var(--fg);
-    background: var(--m-yellow);
-    border-color: var(--ink);
+    background: var(--hover);
+    border-color: rgb(124 92 252 / 0.3);
   }
 
   /* text link / quiet action */
-  .link { @apply hover:text-slate-900 transition-colors cursor-pointer; color: var(--fg-3); }
+  .link { @apply transition-colors cursor-pointer; color: var(--fg-3); }
   .link:hover { color: var(--m-orange); }
 
-  /* form controls — heavy outline, orange offset shadow on focus */
+  /* form controls — glass field, violet glow ring on focus */
   .field {
-    @apply w-full rounded-lg bg-white px-3 py-2 text-sm
+    @apply w-full rounded-lg px-3 py-2 text-sm
            outline-none placeholder:text-slate-400;
     color: var(--fg);
-    border: 2px solid var(--ink-soft);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: var(--surface);
+    border: 1px solid var(--ink-soft);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
   .field:focus, .field:focus-visible {
-    border-color: var(--ink);
-    box-shadow: 3px 3px 0 var(--m-orange);
+    border-color: rgb(124 92 252 / 0.65);
+    box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
+  }
+  html.dark .field:focus, html.dark .field:focus-visible {
+    border-color: rgb(139 92 246 / 0.7);
+    box-shadow: 0 0 0 3px rgb(139 92 246 / 0.25);
   }
 
   /* Native <select> using .field: drop the OS arrow for a custom chevron that
@@ -680,15 +727,19 @@ html.dark .memphis-dots {
   /* status pill */
   .pill {
     @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
-    border: 1.5px solid var(--ink-soft);
+    border: 1px solid var(--ink-soft);
   }
 
   /* table primitives */
   .th { @apply text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider; color: var(--fg-faint); }
   .td { @apply px-4 py-3.5 align-middle; }
   .row { @apply border-t transition-colors; border-color: var(--hairline); }
-  .row:hover { background: rgb(254 240 138 / 0.35); }
+  .row:hover { background: rgb(124 92 252 / 0.06); }
 
   /* avatar chip for identity columns */
-  .avatar { @apply w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0; border: 2px solid var(--ink); }
+  .avatar {
+    @apply w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0;
+    border: 1px solid var(--ink);
+    background: var(--surface-2);
+  }
 }

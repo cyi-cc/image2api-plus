@@ -90,8 +90,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 -translate-y-1">
       <div v-if="open" ref="panel"
-           class="absolute z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border-[2.5px] border-[color:var(--ink)]
-                  bg-[var(--menu-bg)] p-1.5 shadow-[5px_5px_0_var(--shadow-ink)]">
+           class="absolute z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border border-[color:var(--glass-border)]
+                  bg-[var(--menu-bg)] backdrop-blur-xl p-1.5 shadow-[var(--glass-shadow-lg)]">
         <button v-for="(o, i) in options" :key="o.value" type="button"
                 :data-idx="i" @click="pick(o)" @mouseenter="active = i"
                 class="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors"

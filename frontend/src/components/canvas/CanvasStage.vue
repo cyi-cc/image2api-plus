@@ -617,8 +617,8 @@ defineExpose({
 }
 .cv-marquee {
   position: absolute;
-  border: 2px dashed var(--ink);
-  background: color-mix(in srgb, var(--m-yellow) 35%, transparent);
+  border: 2px dashed rgb(124 92 252 / 0.5);
+  background: rgb(124 92 252 / 0.08);
   pointer-events: none;
   border-radius: 4px;
 }
@@ -631,10 +631,12 @@ defineExpose({
   font-weight: 600;
   color: var(--fg-2);
   background: var(--surface);
-  border: 2px solid var(--ink);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
   padding: 3px 14px;
-  box-shadow: 3px 3px 0 var(--shadow-ink);
+  box-shadow: var(--glass-shadow);
   pointer-events: none;
   white-space: nowrap;
   max-width: 92%;

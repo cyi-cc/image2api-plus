@@ -883,26 +883,28 @@ const saveLabel = computed(() => ({
 </template>
 
 <style scoped>
-/* ===== 画布:Memphis/neo-brutalism 全屏工作台(随站点明暗主题走变量) ===== */
+/* ===== 画布:玻璃拟态全屏工作台(随站点明暗主题走变量) ===== */
 .cv-btn {
   padding: 5px 11px;
   border-radius: 9px;
-  border: 2.5px solid var(--ink);
+  border: 1px solid var(--ink-soft);
   background: var(--surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   color: var(--fg);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 3px 3px 0 var(--shadow-ink);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
 .cv-btn:hover:not(:disabled) {
-  background: var(--m-yellow);
+  background: var(--hover);
+  border-color: rgb(124 92 252 / 0.4);
 }
 .cv-btn:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--shadow-ink);
+  transform: translateY(1px);
 }
 .cv-btn:disabled {
   opacity: 0.45;
@@ -912,16 +914,18 @@ const saveLabel = computed(() => ({
   background: #ffb4ab;
 }
 .cv-btn--accent {
-  background: var(--m-blue);
+  background: rgb(34 211 238 / 0.16);
+  border-color: rgb(34 211 238 / 0.4);
 }
 .cv-btn--accent:hover:not(:disabled) {
-  background: var(--m-mint);
+  background: rgb(52 211 153 / 0.16);
+  border-color: rgb(52 211 153 / 0.4);
 }
 .cv-select,
 .cv-input {
   padding: 6px 10px;
   border-radius: 9px;
-  border: 2.5px solid var(--ink);
+  border: 1px solid var(--ink-soft);
   background: var(--surface);
   color: var(--fg);
   font-size: 13px;
@@ -929,7 +933,8 @@ const saveLabel = computed(() => ({
 }
 .cv-select:focus,
 .cv-input:focus {
-  box-shadow: 3px 3px 0 var(--m-orange);
+  border-color: rgb(124 92 252 / 0.6);
+  box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
 }
 
 .cv-page {
@@ -947,8 +952,10 @@ const saveLabel = computed(() => ({
   justify-content: space-between;
   gap: 12px;
   padding: 9px 14px;
-  border-bottom: 3px solid var(--ink);
+  border-bottom: 1px solid var(--ink-soft);
   background: var(--surface);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   flex-wrap: wrap;
 }
 .cv-top__left,
@@ -975,8 +982,8 @@ const saveLabel = computed(() => ({
   color: var(--fg);
   min-width: 46px;
   text-align: center;
-  background: var(--m-yellow);
-  border: 2px solid var(--ink);
+  background: var(--hover);
+  border: 1px solid rgb(124 92 252 / 0.35);
   border-radius: 999px;
   padding: 1px 8px;
 }
@@ -1017,9 +1024,9 @@ const saveLabel = computed(() => ({
   font-size: 15px;
   font-weight: 800;
   color: var(--fg);
-  border: 3px dashed var(--ink);
+  border: 2px dashed rgb(34 211 238 / 0.6);
   border-radius: 18px;
-  background: color-mix(in srgb, var(--m-blue) 55%, transparent);
+  background: rgb(34 211 238 / 0.1);
   pointer-events: none;
 }
 .cv-loading,
@@ -1039,12 +1046,14 @@ const saveLabel = computed(() => ({
   color: #dc2626;
 }
 
-/* 右侧生成面板 = 白纸卡片 */
+/* 右侧生成面板 = 玻璃侧栏 */
 .cv-panel {
   width: 264px;
   flex-shrink: 0;
-  border-left: 3px solid var(--ink);
+  border-left: 1px solid var(--ink-soft);
   background: var(--surface);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   padding: 16px 14px;
   display: flex;
   flex-direction: column;
@@ -1081,19 +1090,23 @@ const saveLabel = computed(() => ({
 .cv-chip {
   padding: 3px 11px;
   border-radius: 999px;
-  border: 2.5px solid var(--ink);
+  border: 1px solid var(--ink-soft);
   background: var(--surface);
   color: var(--fg);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease, box-shadow 0.13s ease;
 }
 .cv-chip:hover {
-  background: var(--m-blue);
+  background: var(--hover);
+  border-color: rgb(124 92 252 / 0.4);
 }
 .cv-chip.is-on {
-  background: var(--m-yellow);
-  box-shadow: 2.5px 2.5px 0 var(--shadow-ink);
+  color: #fff;
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 .cv-refs {
   font-size: 11px;
@@ -1106,22 +1119,23 @@ const saveLabel = computed(() => ({
 .cv-gen {
   padding: 10px;
   border-radius: 11px;
-  border: 2.5px solid var(--ink);
-  background: var(--m-orange);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee 140%);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--shadow-ink);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 8px 22px var(--accent-glow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
 .cv-gen:hover:not(:disabled) {
-  transform: translate(-1px, -1px);
-  box-shadow: 5px 5px 0 var(--shadow-ink);
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+  box-shadow: 0 12px 30px var(--accent-glow);
 }
 .cv-gen:active:not(:disabled) {
-  transform: translate(3px, 3px);
-  box-shadow: 1px 1px 0 var(--shadow-ink);
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 .cv-gen:disabled {
   opacity: 0.5;
@@ -1137,9 +1151,9 @@ const saveLabel = computed(() => ({
   font-weight: 600;
   color: #92400e;
   line-height: 1.6;
-  border: 2px dashed #f59e0b;
+  border: 1px dashed rgb(245 158 11 / 0.6);
   border-radius: 9px;
-  background: var(--m-yellow);
+  background: rgb(245 158 11 / 0.12);
   padding: 8px 10px;
 }
 .cv-tips {
@@ -1163,8 +1177,8 @@ const saveLabel = computed(() => ({
   max-width: 92vw;
   max-height: 92vh;
   border-radius: 12px;
-  border: 3px solid #fff;
-  box-shadow: 10px 10px 0 var(--m-orange);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.5), 0 0 40px var(--accent-glow);
 }
 
 .cv-picker {
@@ -1179,10 +1193,12 @@ const saveLabel = computed(() => ({
 .cv-picker__box {
   width: min(720px, 92vw);
   max-height: 80vh;
-  background: var(--surface);
-  border: 3px solid var(--ink);
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
-  box-shadow: 8px 8px 0 var(--shadow-ink);
+  box-shadow: var(--glass-shadow-lg);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -1212,13 +1228,14 @@ const saveLabel = computed(() => ({
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 10px;
-  border: 2.5px solid var(--ink);
+  border: 1px solid var(--ink-soft);
   cursor: pointer;
   background: var(--surface-2);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 .cv-picker__grid img:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--m-orange);
+  transform: translateY(-2px);
+  border-color: rgb(124 92 252 / 0.55);
+  box-shadow: 0 8px 20px var(--accent-glow);
 }
 </style>

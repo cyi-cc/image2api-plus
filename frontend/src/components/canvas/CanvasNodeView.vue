@@ -153,18 +153,19 @@ defineExpose({ startEdit, commitNote })
 .cv-node {
   position: absolute;
   border-radius: 14px;
-  border: 2.5px solid var(--ink);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   contain: layout style paint;
   user-select: none;
   touch-action: none;
   cursor: grab;
-  background: var(--surface);
-  box-shadow: 5px 5px 0 var(--shadow-ink);
-  transition: box-shadow 0.15s ease;
+  background: var(--surface-solid);
+  box-shadow: var(--glass-shadow);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .cv-node.is-selected {
-  box-shadow: 7px 7px 0 var(--m-orange);
+  border-color: rgb(124 92 252 / 0.7);
+  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(124 92 252 / 0.25), 0 10px 30px var(--accent-glow);
 }
 .cv-node:active {
   cursor: grabbing;
@@ -188,18 +189,23 @@ defineExpose({ startEdit, commitNote })
   font-weight: 600;
   line-height: 1.35;
   color: var(--fg);
-  background: var(--surface);
-  border-top: 2.5px solid var(--ink);
+  background: var(--surface-solid);
+  border-top: 1px solid var(--ink-soft);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
   pointer-events: none;
 }
 
-/* 笔记 = 孟菲斯黄贴纸 */
+/* 笔记 = 淡黄色贴纸 */
 .cv-node--note {
-  background: var(--m-yellow);
+  background: #fdf6c9;
+  border-color: rgb(180 140 20 / 0.35);
   cursor: text;
+}
+html.dark .cv-node--note {
+  background: rgb(250 204 21 / 0.14);
+  border-color: rgb(250 204 21 / 0.35);
 }
 .cv-node--note:not(.is-editing) {
   cursor: grab;
@@ -217,6 +223,7 @@ defineExpose({ startEdit, commitNote })
   overflow: hidden;
   user-select: none;
 }
+html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 .is-editing .cv-node__note {
   user-select: text;
   cursor: text;
@@ -229,6 +236,8 @@ defineExpose({ startEdit, commitNote })
   align-items: center;
   justify-content: center;
   background: var(--surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border-style: dashed;
   color: var(--fg-2);
   font-size: 13px;
@@ -266,8 +275,9 @@ defineExpose({ startEdit, commitNote })
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: var(--m-orange);
-  border: 2.5px solid var(--ink);
+  background: linear-gradient(135deg, #7c5cfc, #22d3ee);
+  border: 1.5px solid rgb(255 255 255 / 0.7);
+  box-shadow: 0 2px 10px var(--accent-glow);
   opacity: 0;
   transition: opacity 0.12s;
   cursor: crosshair;
@@ -286,8 +296,8 @@ defineExpose({ startEdit, commitNote })
   width: 15px;
   height: 15px;
   border-radius: 4px;
-  background: var(--m-blue);
-  border: 2.5px solid var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--ink);
   cursor: nwse-resize;
   z-index: 3;
 }
@@ -305,22 +315,28 @@ defineExpose({ startEdit, commitNote })
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  border: 2.5px solid var(--ink);
-  background: var(--m-yellow);
-  color: #1a1a1a;
+  border: 1px solid var(--glass-border);
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--fg);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 2.5px 2.5px 0 var(--shadow-ink);
+  box-shadow: var(--glass-shadow);
   display: grid;
   place-items: center;
   padding: 0;
+  transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 .cv-tools button:hover {
-  transform: translate(1px, 1px);
-  box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
+  transform: translateY(-1px);
+  background: var(--hover);
 }
 .cv-tools__del {
-  background: #ffb4ab !important;
+  color: #e5484d;
+}
+.cv-tools__del:hover {
+  background: rgb(229 72 77 / 0.14) !important;
 }
 </style>

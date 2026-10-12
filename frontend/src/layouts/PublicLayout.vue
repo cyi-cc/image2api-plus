@@ -142,7 +142,7 @@ async function onLogout() {
       </div>
 
       <!-- mobile panel -->
-      <div v-if="mobileOpen" class="md:hidden border-t-2 border-[color:var(--ink)] px-3 py-3 bg-[var(--menu-bg)]">
+      <div v-if="mobileOpen" class="md:hidden border-t border-[color:var(--ink-soft)] px-3 py-3 bg-[var(--menu-bg)]">
         <router-link v-for="n in nav" :key="n.to" :to="n.to"
                      :exact-active-class="n.to === '/' ? 'm-on' : ''"
                      :active-class="n.to === '/' ? '' : 'm-on'"
@@ -164,15 +164,15 @@ async function onLogout() {
 
     <!-- ===== Main column ===== -->
     <div class="relative">
-      <!-- memphis backdrop: polka dots + flat crayon washes -->
+      <!-- aurora backdrop: drifting gradient orbs + faint grain -->
       <div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
-        <div class="memphis-dots absolute inset-0 opacity-60"></div>
-        <div class="absolute -top-32 left-1/3 w-[40rem] h-[40rem] rounded-full opacity-[0.22]"
-             style="background: radial-gradient(circle, #fef08a, transparent 60%); filter: blur(90px)"></div>
-        <div class="absolute top-1/2 -right-40 w-[36rem] h-[36rem] rounded-full opacity-[0.18]"
-             style="background: radial-gradient(circle, #bae6fd, transparent 60%); filter: blur(90px)"></div>
-        <div class="absolute bottom-0 left-0 w-[32rem] h-[32rem] rounded-full opacity-[0.16]"
-             style="background: radial-gradient(circle, #ffc1cc, transparent 60%); filter: blur(90px)"></div>
+        <div class="memphis-dots absolute inset-0 opacity-50"></div>
+        <div class="absolute -top-40 left-1/4 w-[42rem] h-[42rem] rounded-full opacity-[0.5]"
+             style="background: radial-gradient(circle, rgb(139 92 246 / 0.35), transparent 60%); filter: blur(100px)"></div>
+        <div class="absolute top-1/3 -right-48 w-[38rem] h-[38rem] rounded-full opacity-[0.45]"
+             style="background: radial-gradient(circle, rgb(34 211 238 / 0.3), transparent 60%); filter: blur(100px)"></div>
+        <div class="absolute bottom-0 -left-24 w-[34rem] h-[34rem] rounded-full opacity-[0.4]"
+             style="background: radial-gradient(circle, rgb(232 121 249 / 0.28), transparent 60%); filter: blur(100px)"></div>
         <div class="anime-stars"></div>
       </div>
 
@@ -196,8 +196,8 @@ async function onLogout() {
 
 <style scoped>
 .top-bar {
-  background: color-mix(in srgb, var(--app-bg) 82%, transparent);
-  border-bottom: 2.5px solid var(--ink);
+  background: color-mix(in srgb, var(--app-bg) 62%, transparent);
+  border-bottom: 1px solid var(--ink-soft);
   transition: border-color 0.2s ease;
 }
 
@@ -208,21 +208,17 @@ async function onLogout() {
   font-weight: 600;
   color: var(--fg-2);
   background: transparent;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.top-link:hover { color: var(--fg); background: var(--m-yellow); border-color: var(--ink); }
+.top-link:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.3); }
 .top-link.on {
-  color: #111;
-  font-weight: 800;
-  background: var(--m-yellow);
-  border-color: var(--ink);
-  box-shadow: 3px 3px 0 var(--shadow-ink);
-}
-html.dark .top-link.on {
   color: #fff;
-  background: var(--m-orange);
+  font-weight: 700;
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 
 .brand-spark {
@@ -245,19 +241,18 @@ html.dark .top-link.on {
   font-weight: 600;
   color: var(--fg-2);
   background: transparent;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.m-link:hover { color: var(--fg); background: var(--m-yellow); border-color: var(--ink); }
+.m-link:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.3); }
 .m-link.m-on {
-  color: #111;
-  font-weight: 800;
-  background: var(--m-yellow);
-  border-color: var(--ink);
-  box-shadow: 3px 3px 0 var(--shadow-ink);
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
-html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
 
 .round-btn {
   width: 2.125rem;
@@ -267,10 +262,12 @@ html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
   place-items: center;
   color: var(--fg-3);
   background: var(--surface);
-  border: 2px solid var(--ink);
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ink-soft);
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
-.round-btn:hover { color: #111; background: var(--m-yellow); box-shadow: 3px 3px 0 var(--shadow-ink); transform: translate(-1px, -1px); }
+.round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.4); box-shadow: 0 4px 14px rgb(124 92 252 / 0.16); transform: translateY(-1px); }
 .round-btn:active { transform: scale(0.95) translateY(1px); box-shadow: none; }
 
 /* mobile-only: .round-btn's display:grid outranks Tailwind's md:hidden, so
@@ -286,14 +283,14 @@ html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
   font-size: 13.5px;
   font-weight: 800;
   color: #fff;
-  background: var(--m-orange);
-  border: 2.5px solid var(--ink);
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee 140%);
+  border: 1px solid rgb(255 255 255 / 0.16);
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--shadow-ink);
+  box-shadow: 0 6px 18px var(--accent-glow);
   transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
-.solid-btn:hover { filter: brightness(1.06); transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow-ink); }
-.solid-btn:active { transform: scale(0.97) translateY(2px); box-shadow: 0 0 0 var(--shadow-ink); }
+.solid-btn:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 10px 26px var(--accent-glow); }
+.solid-btn:active { transform: scale(0.97) translateY(1px); box-shadow: 0 3px 10px var(--accent-glow); }
 
 .name-btn {
   display: inline-flex;
@@ -303,18 +300,21 @@ html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
   height: 2.125rem;
   padding: 0 0.7rem 0 0.85rem;
   border-radius: 0.6rem;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--ink-soft);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
   color: var(--fg);
   background: var(--surface);
-  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
 .name-btn:hover {
-  background: var(--m-yellow);
-  box-shadow: 3px 3px 0 var(--shadow-ink);
-  transform: translate(-1px, -1px);
+  background: var(--hover);
+  border-color: rgb(124 92 252 / 0.4);
+  box-shadow: 0 4px 14px rgb(124 92 252 / 0.16);
+  transform: translateY(-1px);
 }
 .name-txt {
   overflow: hidden;
@@ -328,10 +328,12 @@ html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
   top: 2.75rem;
   width: 11.5rem;
   padding: 0.4rem;
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   background: var(--menu-bg);
-  border: 2.5px solid var(--ink);
-  box-shadow: 6px 6px 0 var(--shadow-ink);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
   z-index: 50;
 }
 .menu-item {
@@ -345,8 +347,8 @@ html.dark .m-link.m-on { color: #fff; background: var(--m-orange); }
   border: none;
   cursor: pointer;
 }
-.menu-item:hover { background: var(--m-yellow); color: #111; }
-.menu-sep { height: 2px; background: var(--ink); opacity: 0.15; margin: 0.35rem 0.25rem; }
+.menu-item:hover { background: var(--hover); color: var(--fg); }
+.menu-sep { height: 1px; background: var(--hairline); margin: 0.35rem 0.25rem; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-enter-from { opacity: 0; transform: translateY(8px); }

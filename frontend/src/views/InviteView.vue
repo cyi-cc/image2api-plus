@@ -80,26 +80,27 @@ function toast(m) {
   <div class="theme-text space-y-10">
     <!-- header -->
     <header>
-      <span class="sticker">🎀 奖励</span>
+      <span class="sticker">✦ 奖励</span>
       <h1 class="mt-3 text-4xl md:text-5xl font-bold tracking-tight">邀请好友</h1>
       <p class="text-white/45 mt-2">好友用你的链接注册,并完成首次生图后,你得 {{ INVITE_REWARD }} 积分。</p>
     </header>
 
     <section class="relative rounded-2xl p-7 md:p-8 overflow-hidden ink-card">
       <div class="memphis-dots absolute inset-0 opacity-30 pointer-events-none"></div>
-      <div class="relative inline-grid w-11 h-11 rounded-xl bg-[var(--m-yellow)] border-2 border-[color:var(--ink)] shadow-[3px_3px_0_var(--shadow-ink)] grid place-items-center text-[#111]">
+      <div class="relative inline-grid w-11 h-11 rounded-xl text-white place-items-center"
+           style="background: linear-gradient(135deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">
         <Icon name="accounts" class="w-5 h-5" />
       </div>
 
       <!-- summary -->
       <div class="relative mt-6 grid grid-cols-2 gap-3">
-        <div class="rounded-xl px-4 py-3 border-2 border-[color:var(--ink)] bg-[var(--m-mint)] shadow-[3px_3px_0_var(--shadow-ink)]">
-          <div class="text-2xl font-black tabular-nums text-[#111]">{{ inviteCount }}</div>
-          <div class="text-[10px] text-[#111]/55 mt-1 uppercase tracking-widest font-bold">已邀请</div>
+        <div class="rounded-xl px-4 py-3 border border-[color:var(--glass-border)] bg-[var(--surface)] shadow-[var(--glass-shadow)]">
+          <div class="text-2xl font-black tabular-nums text-[color:var(--fg)]">{{ inviteCount }}</div>
+          <div class="text-[10px] text-[color:var(--fg-3)] mt-1 uppercase tracking-widest font-bold">已邀请</div>
         </div>
-        <div class="rounded-xl px-4 py-3 border-2 border-[color:var(--ink)] bg-[var(--m-blue)] shadow-[3px_3px_0_var(--shadow-ink)]">
-          <div class="text-2xl font-black tabular-nums text-[#111]">{{ inviteEarned.toLocaleString('en-US') }}</div>
-          <div class="text-[10px] text-[#111]/55 mt-1 uppercase tracking-widest font-bold">累计积分</div>
+        <div class="rounded-xl px-4 py-3 border border-[color:var(--glass-border)] bg-[var(--surface)] shadow-[var(--glass-shadow)]">
+          <div class="text-2xl font-black tabular-nums text-[color:var(--fg)]">{{ inviteEarned.toLocaleString('en-US') }}</div>
+          <div class="text-[10px] text-[color:var(--fg-3)] mt-1 uppercase tracking-widest font-bold">累计积分</div>
         </div>
       </div>
 
@@ -108,11 +109,12 @@ function toast(m) {
         <label class="block text-xs font-bold text-white/50 mb-2">邀请码</label>
         <div class="flex gap-2">
           <button @click="copyCode"
-                  class="flex-1 rounded-xl border-2 border-[color:var(--ink)] bg-[var(--surface)] px-4 py-3 text-sm font-mono text-left shadow-[3px_3px_0_var(--shadow-ink)] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--shadow-ink)] transition-all">
+                  class="flex-1 rounded-xl border border-[color:var(--ink-soft)] bg-[var(--surface)] px-4 py-3 text-sm font-mono text-left shadow-[var(--glass-shadow)] hover:-translate-y-0.5 hover:border-[rgb(124_92_252/0.45)] transition-all">
             {{ inviteCode || '—' }}
           </button>
           <button @click="copyInvite"
-                  class="rounded-xl border-[2.5px] border-[color:var(--ink)] bg-[var(--m-orange)] text-white px-5 py-3 text-sm font-extrabold shadow-[3px_3px_0_var(--shadow-ink)] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--shadow-ink)] active:translate-y-0.5 active:shadow-none transition-all">
+                  class="rounded-xl border border-white/20 text-white px-5 py-3 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                  style="background: linear-gradient(120deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">
             复制链接
           </button>
         </div>

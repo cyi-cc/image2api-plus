@@ -361,7 +361,7 @@ onUnmounted(() => {
               <span v-if="e.resolution" class="text-emerald-300/90">{{ e.resolution }}</span>
               <span v-if="e.ratio" class="text-white/40">{{ e.ratio }}</span>
               <span v-if="e.kind === 'video' && e.duration" class="text-rose-300/80">{{ e.duration }}</span>
-              <span v-if="e.deai" class="text-[#ec5b13]">去AI</span>
+              <span v-if="e.deai" class="text-[#a78bfa]">去AI</span>
             </span>
           </div>
           <div class="text-[10px] text-white/35 mt-0.5 tabular-nums">{{ fmtTs(e.ts) }}<span v-if="e.elapsed_ms"> · {{ fmtMs(e.elapsed_ms) }}</span></div>

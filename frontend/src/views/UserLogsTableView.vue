@@ -257,7 +257,7 @@ const params = (e) => {
                    :title="e.error + ' — 点击复制'"
                    @click.stop="copyError(e)">⚠ {{ e.error }}</div>
             </td>
-            <td class="px-3 py-3 align-middle text-xs text-slate-500 tabular-nums">{{ params(e) || '—' }}<span v-if="e.deai"> · <span class="text-[#ec5b13]">去AI特征</span></span></td>
+            <td class="px-3 py-3 align-middle text-xs text-slate-500 tabular-nums">{{ params(e) || '—' }}<span v-if="e.deai"> · <span class="text-[#a78bfa]">去AI特征</span></span></td>
             <td class="px-3 py-3 align-middle text-right text-xs text-slate-700 tabular-nums">{{ e.cost ? points(e.cost) : '—' }}</td>
             <td class="px-3 py-3 align-middle text-right text-xs text-slate-500 tabular-nums">{{ e.elapsed_ms ? (e.elapsed_ms / 1000).toFixed(1) + 's' : '—' }}</td>
           </tr>

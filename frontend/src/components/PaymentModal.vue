@@ -103,31 +103,33 @@ onUnmounted(clearTimers)
   <transition name="pay-fade">
     <div v-if="payment.show" class="fixed inset-0 z-[85] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
          @click.self="!paid && finish()">
-      <div class="w-full max-w-sm rounded-xl bg-white text-slate-800 border-[3px] border-[#111] shadow-[8px_8px_0_#111] overflow-hidden">
-        <div class="px-5 py-4 border-b-[2.5px] border-b-[#111] flex items-center justify-between">
+      <div class="w-full max-w-sm rounded-2xl bg-[var(--menu-bg)] backdrop-blur-xl text-[color:var(--fg)] border border-[color:var(--glass-border)] shadow-[var(--glass-shadow-lg)] overflow-hidden">
+        <div class="px-5 py-4 border-b border-b-[color:var(--ink-soft)] flex items-center justify-between">
           <h2 class="text-base font-semibold">{{ paid ? '支付成功' : dead ? '支付超时' : (isJump ? '支付监控中' : '扫码支付') }}</h2>
-          <button v-if="!paid" @click="finish" class="text-slate-400 hover:text-slate-700"><Icon name="close" class="w-5 h-5" /></button>
+          <button v-if="!paid" @click="finish" class="text-[color:var(--fg-3)] hover:text-[color:var(--fg)] transition-colors"><Icon name="close" class="w-5 h-5" /></button>
         </div>
 
         <!-- paid -->
         <div v-if="paid" class="px-6 py-10 text-center">
-          <div class="w-16 h-16 mx-auto rounded-full bg-[#a7f3d0] text-emerald-700 border-[2.5px] border-[#111] shadow-[4px_4px_0_#111] grid place-items-center mb-4">
+          <div class="w-16 h-16 mx-auto rounded-full text-white grid place-items-center mb-4"
+               style="background: linear-gradient(135deg, #34d399, #2dd4bf); box-shadow: 0 10px 28px rgb(52 211 153 / 0.4)">
             <Icon name="spark" class="w-8 h-8" />
           </div>
-          <p class="text-lg font-semibold text-slate-800">充值成功</p>
-          <p class="text-sm text-slate-500 mt-1">已到账 <strong class="text-emerald-600">{{ order.points }}</strong> 积分</p>
-          <p class="text-xs text-slate-400 mt-4">{{ closeIn }} 秒后自动关闭</p>
+          <p class="text-lg font-semibold text-[color:var(--fg)]">充值成功</p>
+          <p class="text-sm text-[color:var(--fg-3)] mt-1">已到账 <strong class="text-emerald-500">{{ order.points }}</strong> 积分</p>
+          <p class="text-xs text-[color:var(--fg-faint)] mt-4">{{ closeIn }} 秒后自动关闭</p>
         </div>
 
         <!-- expired / cancelled -->
         <div v-else-if="dead" class="px-6 py-10 text-center">
-          <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 grid place-items-center mb-4">
+          <div class="w-16 h-16 mx-auto rounded-full bg-[var(--surface-2)] text-[color:var(--fg-3)] grid place-items-center mb-4">
             <Icon name="close" class="w-8 h-8" />
           </div>
-          <p class="text-lg font-semibold text-slate-700">支付超时</p>
-          <p class="text-sm text-slate-500 mt-1">二维码已失效,订单已取消</p>
-          <p class="text-xs text-slate-400 mt-1">如需充值请重新下单</p>
-          <button @click="finish" class="mt-5 rounded-lg bg-[#ec5b13] text-white border-[2.5px] border-[#111] shadow-[3px_3px_0_#111] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none px-5 py-2 text-sm font-extrabold transition-all">关闭</button>
+          <p class="text-lg font-semibold text-[color:var(--fg)]">支付超时</p>
+          <p class="text-sm text-[color:var(--fg-3)] mt-1">二维码已失效,订单已取消</p>
+          <p class="text-xs text-[color:var(--fg-faint)] mt-1">如需充值请重新下单</p>
+          <button @click="finish" class="mt-5 rounded-lg text-white border border-white/20 px-5 py-2 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                  style="background: linear-gradient(120deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">关闭</button>
         </div>
 
         <!-- pending -->
@@ -135,31 +137,31 @@ onUnmounted(clearTimers)
           <!-- qrcode: scan to pay -->
           <template v-if="!isJump">
             <div class="flex justify-center mb-3">
-              <div class="w-[228px] h-[228px] rounded-xl border-[2.5px] border-[#111] shadow-[4px_4px_0_#111] grid place-items-center overflow-hidden bg-white p-3.5">
+              <div class="w-[228px] h-[228px] rounded-xl border border-[color:var(--glass-border)] shadow-[var(--glass-shadow)] grid place-items-center overflow-hidden bg-white p-3.5">
                 <img v-if="qrUrl" :src="qrUrl" alt="支付二维码" class="w-full h-full rounded-lg" />
                 <span v-else class="text-xs text-slate-400">二维码生成中…</span>
               </div>
             </div>
-            <p class="text-center text-xs text-slate-500 mb-4">请使用<strong class="text-slate-700">{{ methodLabel }}</strong>扫码支付</p>
+            <p class="text-center text-xs text-[color:var(--fg-3)] mb-4">请使用<strong class="text-[color:var(--fg)]">{{ methodLabel }}</strong>扫码支付</p>
           </template>
           <!-- jump (no qrcode): the cashier opened in a new tab — just monitor -->
           <template v-else>
             <div class="flex flex-col items-center justify-center py-7 mb-2">
-              <div class="w-12 h-12 rounded-full border-[3px] border-[#fecaca] border-t-[#ec5b13] animate-spin mb-3"></div>
-              <p class="text-sm font-medium text-slate-700">支付监控中…</p>
-              <p class="text-xs text-slate-400 mt-1">已打开支付页面,完成后自动到账</p>
+              <div class="w-12 h-12 rounded-full border-[3px] border-[rgb(124_92_252/0.2)] border-t-[#7c5cfc] animate-spin mb-3"></div>
+              <p class="text-sm font-medium text-[color:var(--fg)]">支付监控中…</p>
+              <p class="text-xs text-[color:var(--fg-faint)] mt-1">已打开支付页面,完成后自动到账</p>
             </div>
           </template>
 
           <dl class="text-sm space-y-2">
-            <div class="flex justify-between"><dt class="text-slate-400">订单号</dt><dd class="font-mono text-xs text-slate-700">{{ order.id }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">状态</dt><dd class="text-amber-600 font-medium">{{ statusLabel }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">金额</dt><dd class="font-semibold text-slate-800">¥{{ order.amount }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">充值积分</dt><dd class="text-[#ec5b13] font-semibold">{{ order.points }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">下单时间</dt><dd class="text-xs text-slate-600">{{ fmtTime(order.created_at) }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">支付倒计时</dt><dd class="tabular-nums font-medium" :class="remaining > 0 ? 'text-slate-700' : 'text-rose-500'">{{ remaining > 0 ? mmss : '已超时' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">订单号</dt><dd class="font-mono text-xs text-[color:var(--fg)]">{{ order.id }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">状态</dt><dd class="text-amber-500 font-medium">{{ statusLabel }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">金额</dt><dd class="font-semibold text-[color:var(--fg)]">¥{{ order.amount }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">充值积分</dt><dd class="text-[color:var(--m-orange)] font-semibold">{{ order.points }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">下单时间</dt><dd class="text-xs text-[color:var(--fg-2)]">{{ fmtTime(order.created_at) }}</dd></div>
+            <div class="flex justify-between"><dt class="text-[color:var(--fg-faint)]">支付倒计时</dt><dd class="tabular-nums font-medium" :class="remaining > 0 ? 'text-[color:var(--fg)]' : 'text-rose-500'">{{ remaining > 0 ? mmss : '已超时' }}</dd></div>
           </dl>
-          <p class="text-[11px] text-slate-400 mt-4 text-center">支付完成后将自动到账,请勿关闭本窗口</p>
+          <p class="text-[11px] text-[color:var(--fg-faint)] mt-4 text-center">支付完成后将自动到账,请勿关闭本窗口</p>
         </div>
       </div>
     </div>
