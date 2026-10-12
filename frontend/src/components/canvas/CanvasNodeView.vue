@@ -155,7 +155,7 @@ defineExpose({ startEdit, commitNote })
             @pointerdown.stop @dblclick.stop @click.stop="emit('port-click', side)" />
     <!-- 右下角缩放手柄 + 悬浮工具条:仅选中时显示,舞台接管 resize 手势 -->
     <span v-if="selected && node.type !== 'gen'" class="cv-size" data-resize />
-    <div v-if="selected && node.type !== 'gen'" class="cv-tools" @dblclick.stop @pointerdown.stop>
+    <div v-if="node.type !== 'gen'" class="cv-tools" @dblclick.stop @pointerdown.stop>
       <button v-if="node.type === 'image'" title="添加为参考图" @click.stop="emit('node-action', { type: 'ref' })">＋</button>
       <button class="cv-tools__del" title="删除" @click.stop="emit('node-action', { type: 'delete' })">✕</button>
     </div>
@@ -404,7 +404,7 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
   z-index: 3;
 }
 
-/* 选中悬浮工具条:贴节点内上缘(节点 overflow:hidden,外侧会被裁) */
+/* 悬浮工具条:鼠标放上节点就显示(选中时常显),贴节点内上缘 */
 .cv-tools {
   position: absolute;
   top: 6px;
@@ -412,6 +412,15 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
   display: flex;
   gap: 4px;
   z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.cv-node:hover .cv-tools,
+.cv-node.is-selected .cv-tools,
+.cv-tools:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 .cv-tools button {
   width: 24px;
