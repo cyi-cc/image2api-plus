@@ -16,6 +16,7 @@ const portLabels = { top: '上', right: '右', bottom: '下', left: '左' }
 
 const imgLoaded = ref(false)
 const imgBroken = ref(false)
+const imgStatus = ref('')
 const imgThumb = computed(() => thumbUrl(props.node.src))
 const imgOriginal = computed(() => generatedUrl(props.node.src))
 const imgOriginalAbs = computed(() => {
@@ -70,6 +71,10 @@ function onImgError(e) {
   }
   imgLoaded.value = true
   imgBroken.value = true
+  imgStatus.value = ''
+  fetch(imgOriginal.value, { credentials: 'include' })
+    .then((r) => { imgStatus.value = String(r.status) })
+    .catch(() => { imgStatus.value = '网络错误' })
 }
 
 function startEdit() {
@@ -140,6 +145,7 @@ defineExpose({ startEdit, commitNote })
       <button title="置顶" @click.stop="emit('node-action', { type: 'front' })">⤒</button>
       <button class="cv-tools__del" title="删除" @click.stop="emit('node-action', { type: 'delete' })">✕</button>
     </div>
+    <div class="cv-node__clip">
     <!-- 图片节点 -->
     <template v-if="node.type === 'image'">
       <img
@@ -153,7 +159,7 @@ defineExpose({ startEdit, commitNote })
         @load="onImgLoad"
         @error="onImgError"
       >
-      <div v-else class="cv-node__missing">图片不可用</div>
+      <div v-else class="cv-node__missing">图片不可用<small v-if="imgStatus">HTTP {{ imgStatus }}</small></div>
       <div v-if="node.prompt" class="cv-node__cap" :title="node.prompt">{{ node.prompt }}</div>
     </template>
 
@@ -180,6 +186,7 @@ defineExpose({ startEdit, commitNote })
         <span class="cv-node__err" :title="node.error || ''">{{ node.error || '请检查提示词后重试' }}</span>
       </template>
     </div>
+    </div>
   </div>
 </template>
 
@@ -188,14 +195,19 @@ defineExpose({ startEdit, commitNote })
   position: absolute;
   border-radius: 14px;
   border: 1px solid var(--glass-border);
-  overflow: hidden;
-  contain: layout style paint;
+  contain: layout style;
   user-select: none;
   touch-action: none;
   cursor: grab;
   background: var(--surface-solid);
   box-shadow: var(--glass-shadow);
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.cv-node__clip {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  overflow: hidden;
 }
 .cv-node.is-selected {
   border-color: rgb(124 92 252 / 0.7);
@@ -212,9 +224,12 @@ defineExpose({ startEdit, commitNote })
   display: block;
   background: var(--surface-2);
 }
+.cv-node__missing small { display: block; margin-top: 4px; font-weight: 500; opacity: 0.7; }
 .cv-node__missing {
   width: 100%;
   height: 100%;
+  align-content: center;
+  text-align: center;
   display: grid;
   place-items: center;
   color: var(--fg-3);
@@ -341,10 +356,10 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 }
 .cv-port.is-active::after { background: var(--m-orange); }
 .cv-port:focus-visible { outline: 2px solid var(--m-orange); outline-offset: -2px; border-radius: 50%; }
-.cv-port--top { top: 0; left: 50%; transform: translateX(-50%); }
-.cv-port--right { right: 0; top: 50%; transform: translateY(-50%); }
-.cv-port--bottom { bottom: 0; left: 50%; transform: translateX(-50%); }
-.cv-port--left { left: 0; top: 50%; transform: translateY(-50%); }
+.cv-port--top { top: -17px; left: 50%; transform: translateX(-50%); }
+.cv-port--right { right: -17px; top: 50%; transform: translateY(-50%); }
+.cv-port--bottom { bottom: -17px; left: 50%; transform: translateX(-50%); }
+.cv-port--left { left: -17px; top: 50%; transform: translateY(-50%); }
 
 /* 右下角缩放方块(节点 contain:paint,只能放内侧) */
 .cv-size {

@@ -55,10 +55,10 @@ const nodeById = computed(() => {
 })
 
 function portPoint(n, side) {
-  if (side === 'top') return { x: n.x + n.w / 2, y: n.y + 16 }
-  if (side === 'right') return { x: n.x + n.w - 16, y: n.y + n.h / 2 }
-  if (side === 'bottom') return { x: n.x + n.w / 2, y: n.y + n.h - 16 }
-  if (side === 'left') return { x: n.x + 16, y: n.y + n.h / 2 }
+  if (side === 'top') return { x: n.x + n.w / 2, y: n.y }
+  if (side === 'right') return { x: n.x + n.w, y: n.y + n.h / 2 }
+  if (side === 'bottom') return { x: n.x + n.w / 2, y: n.y + n.h }
+  if (side === 'left') return { x: n.x, y: n.y + n.h / 2 }
   return { x: n.x + n.w / 2, y: n.y + n.h / 2 }
 }
 function portDirection(side, fallback) {
@@ -186,7 +186,13 @@ const edgePaths = computed(() => {
     const c2 = shifted(p2, v2, d)
     let path
     if (manualBend) {
-      path = roundedPath([p1, shifted(p1, v1, 30), manualBend, shifted(p2, v2, 30), p2])
+      const L = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1
+      const tx = (p2.x - p1.x) / L
+      const ty = (p2.y - p1.y) / L
+      const d1 = Math.max(40, Math.hypot(manualBend.x - p1.x, manualBend.y - p1.y) * 0.5)
+      const d2 = Math.max(40, Math.hypot(p2.x - manualBend.x, p2.y - manualBend.y) * 0.5)
+      path = `M ${p1.x} ${p1.y} C ${p1.x + v1.x * d1} ${p1.y + v1.y * d1}, ${manualBend.x - tx * d1} ${manualBend.y - ty * d1}, ${manualBend.x} ${manualBend.y} `
+        + `C ${manualBend.x + tx * d2} ${manualBend.y + ty * d2}, ${p2.x + v2.x * d2} ${p2.y + v2.y * d2}, ${p2.x} ${p2.y}`
     } else {
       path = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`
       const obstacles = props.nodes
@@ -441,8 +447,13 @@ function applyMove(e) {
       clearSelection()
     }
     const cur = screenToWorld(p.x, p.y, vp)
-    act.edge.bendX = Math.round(act.bendX + cur.x - act.start.x)
-    act.edge.bendY = Math.round(act.bendY + cur.y - act.start.y)
+    const a = nodeById.value.get(act.edge.from)
+    const b = nodeById.value.get(act.edge.to)
+    if (!a || !b) return
+    const p1 = portPoint(a, act.edge.fromSide)
+    const p2 = portPoint(b, act.edge.toSide)
+    act.edge.bendX = Math.round(cur.x - (p1.x + p2.x) / 2)
+    act.edge.bendY = Math.round(cur.y - (p1.y + p2.y) / 2)
     return
   }
   if (act.mode === 'resize') {
