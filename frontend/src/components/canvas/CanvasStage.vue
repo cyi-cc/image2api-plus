@@ -563,8 +563,8 @@ defineExpose({
   background-color: var(--app-bg);
   background-image: radial-gradient(
     circle,
-    color-mix(in srgb, var(--ink) 18%, transparent) 1.3px,
-    transparent 1.3px
+    color-mix(in srgb, var(--fg) 16%, transparent) 1.4px,
+    transparent 1.4px
   );
 }
 .cv-stage.is-panning {
