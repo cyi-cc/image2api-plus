@@ -1067,8 +1067,13 @@ const saveLabel = computed(() => ({
 <style scoped>
 /* ===== 画布:玻璃拟态全屏工作台(随站点明暗主题走变量) ===== */
 .cv-btn {
-  padding: 5px 11px;
-  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 10px;
   border: 1px solid var(--ink-soft);
   background: var(--surface);
   -webkit-backdrop-filter: blur(10px);
@@ -1076,6 +1081,7 @@ const saveLabel = computed(() => ({
   color: var(--fg);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
   box-shadow: var(--glass-shadow);
@@ -1083,10 +1089,12 @@ const saveLabel = computed(() => ({
 }
 .cv-btn:hover:not(:disabled) {
   background: var(--hover);
-  border-color: rgb(124 92 252 / 0.4);
+  border-color: rgb(124 92 252 / 0.45);
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transform: translateY(-1px);
 }
 .cv-btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 .cv-btn:disabled {
   opacity: 0.45;
@@ -1094,14 +1102,18 @@ const saveLabel = computed(() => ({
 }
 .cv-btn--danger:hover:not(:disabled) {
   background: #ffb4ab;
+  border-color: #e5484d;
+  box-shadow: 0 4px 14px rgb(229 72 77 / 0.25);
 }
 .cv-btn--accent {
-  background: rgb(34 211 238 / 0.16);
-  border-color: rgb(34 211 238 / 0.4);
+  background: linear-gradient(120deg, rgb(124 92 252 / 0.16), rgb(168 85 247 / 0.14));
+  border-color: rgb(124 92 252 / 0.42);
+  color: var(--m-orange);
 }
 .cv-btn--accent:hover:not(:disabled) {
-  background: rgb(52 211 153 / 0.16);
-  border-color: rgb(52 211 153 / 0.4);
+  background: linear-gradient(120deg, rgb(124 92 252 / 0.26), rgb(168 85 247 / 0.22));
+  border-color: rgb(124 92 252 / 0.62);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 .cv-select,
 .cv-input {
