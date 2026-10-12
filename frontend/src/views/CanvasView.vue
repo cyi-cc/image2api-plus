@@ -675,6 +675,7 @@ async function generate() {
     const node = reactive({
       id: newId('g'), type: 'gen', status: 'running',
       x: Math.round(x + i * (size.w + 48)), y: Math.round(y), w: size.w, h: size.h, z: 0,
+      model: model.value?.alias || model.value?.name || model.value?.id || 'AI',
     })
     doc.nodes.push(node)
     for (const s of sources) {
@@ -1249,13 +1250,13 @@ const saveLabel = computed(() => ({
 .cv-dock {
   position: absolute;
   left: 50%;
-  bottom: 14px;
+  bottom: 18px;
   transform: translateX(-50%);
-  width: min(720px, calc(100% - 28px));
+  width: min(760px, calc(100% - 28px));
   z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .cv-ratios {
   display: flex;
@@ -1287,23 +1288,25 @@ const saveLabel = computed(() => ({
 .cv-composer {
   width: 100%;
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  box-shadow: var(--glass-shadow-lg);
+  border-radius: 22px;
+  background:
+    linear-gradient(160deg, rgb(124 92 252 / 0.06), transparent 40%),
+    var(--surface);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  backdrop-filter: blur(22px) saturate(1.15);
+  box-shadow: var(--glass-shadow-lg), 0 0 42px var(--accent-glow);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   overflow: visible; /* 下拉面板要从输入框上方弹出,不能被裁切 */
 }
 .cv-composer:focus-within {
-  border-color: rgb(124 92 252 / 0.6);
-  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(124 92 252 / 0.18);
+  border-color: rgb(124 92 252 / 0.55);
+  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(124 92 252 / 0.16), 0 0 42px var(--accent-glow);
 }
 .cv-composer__refs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 10px 0;
+  padding: 12px 14px 4px;
 }
 .cv-composer__refs:empty,
 .cv-composer__refs:not(:has(> *)) {
@@ -1311,12 +1314,13 @@ const saveLabel = computed(() => ({
 }
 .cv-refthumb {
   position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--ink-soft);
+  border: 1px solid var(--glass-border);
   background: var(--surface-2);
+  box-shadow: var(--glass-shadow);
 }
 .cv-refthumb img {
   width: 100%;
@@ -1343,26 +1347,27 @@ const saveLabel = computed(() => ({
   background: #ef4444;
 }
 .cv-refadd {
-  width: 52px;
-  height: 52px;
-  border-radius: 10px;
-  border: 2px dashed rgb(124 92 252 / 0.45);
-  background: transparent;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  border: 1.5px dashed rgb(124 92 252 / 0.5);
+  background: rgb(124 92 252 / 0.04);
   color: var(--m-orange);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 2px;
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.13s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.13s ease, box-shadow 0.15s ease;
 }
 .cv-refadd:hover {
   border-color: var(--m-orange);
-  background: rgb(124 92 252 / 0.08);
+  background: rgb(124 92 252 / 0.1);
   transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--accent-glow);
 }
 .cv-refadd__icon {
   font-size: 15px;
@@ -1375,25 +1380,29 @@ const saveLabel = computed(() => ({
 }
 .cv-composer__ta {
   width: 100%;
-  min-height: 56px;
-  padding: 10px 14px;
+  min-height: 62px;
+  padding: 12px 16px;
   border: none;
   background: transparent;
   color: var(--fg);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 13.5px;
+  line-height: 1.6;
   resize: none;
   outline: none;
   display: block;
+}
+.cv-composer__ta::placeholder {
+  color: var(--fg-faint);
 }
 .cv-composer__bar {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-top: 1px solid var(--ink-soft);
-  border-radius: 0 0 19px 19px; /* composer 不再裁切,圆角由最底层行补齐 */
+  background: rgb(255 255 255 / 0.02);
+  border-radius: 0 0 21px 21px; /* composer 不再裁切,圆角由最底层行补齐 */
 }
 .cv-composer__bar .cv-dd--model {
   flex: 1;
@@ -1402,7 +1411,9 @@ const saveLabel = computed(() => ({
 }
 .cv-composer__bar .cv-gen {
   margin-left: auto;
-  padding: 7px 24px;
+  padding: 8px 26px;
+  border-radius: 12px;
+  letter-spacing: 1px;
 }
 .cv-gen {
   padding: 10px;

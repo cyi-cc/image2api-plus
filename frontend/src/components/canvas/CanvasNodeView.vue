@@ -207,7 +207,8 @@ defineExpose({ startEdit, commitNote })
     <div v-else class="cv-node__gen">
       <template v-if="node.status === 'running'">
         <span class="cv-node__spin" />
-        <span>生成中…</span>
+        <span class="cv-node__genlabel">生成中…</span>
+        <span class="cv-node__gensub">{{ node.model || 'AI' }}</span>
       </template>
       <template v-else>
         <span class="cv-node__x">✕</span>
@@ -272,17 +273,23 @@ defineExpose({ startEdit, commitNote })
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 5px 9px;
+  padding: 26px 10px 8px;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--fg);
-  background: var(--surface-solid);
-  border-top: 1px solid var(--ink-soft);
+  color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+  background: linear-gradient(to top, rgb(0 0 0 / 0.62), transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  pointer-events: none;
+}
+.cv-node:hover .cv-node__cap,
+.cv-node.is-selected .cv-node__cap {
+  opacity: 1;
 }
 
 /* 笔记 = 淡黄色贴纸 */
@@ -318,14 +325,6 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 }
 
 .cv-node--gen {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
   border-style: dashed;
   color: var(--fg-2);
   font-size: 13px;
@@ -334,18 +333,62 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 .cv-node--gen.is-failed {
   border-color: #e5484d;
   color: #e5484d;
-  background: #ffe4e6;
+}
+/* 生成占位内容:居中排布 + 微光扫过 */
+.cv-node__gen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(130% 130% at 15% 0%, rgb(124 92 252 / 0.14), transparent 55%),
+    radial-gradient(130% 130% at 85% 100%, rgb(34 211 238 / 0.12), transparent 55%),
+    var(--surface);
+}
+.cv-node__gen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.18) 50%, transparent 62%);
+  background-size: 260% 100%;
+  background-position: 260% 0;
+  animation: cv-gen-shine 2.4s linear infinite;
+  pointer-events: none;
+}
+.is-failed .cv-node__gen {
+  background:
+    radial-gradient(130% 130% at 15% 0%, rgb(229 72 77 / 0.1), transparent 55%),
+    var(--surface);
+}
+.is-failed .cv-node__gen::after {
+  display: none;
+}
+.cv-node__genlabel {
+  letter-spacing: 2px;
+}
+.cv-node__gensub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-faint);
 }
 .cv-node__spin {
-  width: 22px;
-  height: 22px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 3px solid var(--ink-soft);
+  border: 3px solid rgb(124 92 252 / 0.2);
   border-top-color: var(--m-orange);
+  border-right-color: var(--m-orange-2);
   animation: cv-spin 0.9s linear infinite;
+  filter: drop-shadow(0 0 10px var(--accent-glow));
 }
 @keyframes cv-spin {
   to { transform: rotate(360deg); }
+}
+@keyframes cv-gen-shine {
+  to { background-position: -260% 0; }
 }
 .cv-node__err {
   font-size: 11px;
