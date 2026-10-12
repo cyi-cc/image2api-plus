@@ -3,7 +3,7 @@
 // 交互细节全部在 CanvasStage;这里只做数据编排。
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { api, generatedUrl, jsonBody, thumbUrl } from '../api'
+import { api, jsonBody, loadImageBlob, loadImageData } from '../api'
 import { auth } from '../auth'
 import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld, rectsIntersect, DEFAULT_SCALE } from '../utils/canvas'
 import CanvasStage from '../components/canvas/CanvasStage.vue'
@@ -24,6 +24,18 @@ const scalePct = ref(100)
 // ---- 选择 / 预览 ----
 const selectionIds = ref([])
 const previewSrc = ref('')
+const previewUrl = ref('')
+watch(previewSrc, async (v) => {
+  if (previewUrl.value) { URL.revokeObjectURL(previewUrl.value); previewUrl.value = '' }
+  if (!v) return
+  try {
+    const { url } = await loadImageBlob(v)
+    if (previewSrc.value === v) previewUrl.value = url
+  } catch { /* 预览失败保持空白遮罩 */ }
+})
+onBeforeUnmount(() => {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+})
 
 // ---- 生成面板 ----
 const allModels = ref([])
@@ -476,6 +488,16 @@ async function deleteCanvas() {
 
 // ---- 我的图片 ----
 
+const pickerUrls = reactive({}) // name -> blob URL(带鉴权加载)
+async function ensurePickerThumb(name) {
+  if (name in pickerUrls) return
+  try {
+    const { url } = await loadImageBlob(name)
+    pickerUrls[name] = url
+  } catch {
+    pickerUrls[name] = ''
+  }
+}
 async function openPicker() {
   pickerOpen.value = true
   if (pickerItems.value.length) return
@@ -484,6 +506,7 @@ async function openPicker() {
   pickerItems.value = (r.data?.data || []).filter((f) =>
     /\.(png|jpe?g|webp|gif)$/i.test(f.name || ''),
   )
+  pickerItems.value.forEach((f) => ensurePickerThumb(f.name))
   pickerLoading.value = false
 }
 
@@ -497,6 +520,7 @@ async function uploadImageFile(file, at = null) {
     const r = await api('/my-images', { method: 'POST', body: fd })
     if (r.ok && r.data?.name) {
       pickerItems.value.unshift({ name: r.data.name })
+      ensurePickerThumb(r.data.name)
       addImageNode(r.data.name, '', at)
     } else {
       genMsg.value = r.data?.detail || `上传失败 (${r.status})`
@@ -568,6 +592,21 @@ async function addRefFile(f) {
   }
   refImages.value.push({ name: f.name, dataUrl: await fileToDataUrl(f) })
 }
+// 画布图片节点 → 参考图(记录 nodeId,生成时自动连边标明来源)
+async function addNodeAsRef(n) {
+  if (!n || n.type !== 'image' || !n.src) return
+  if (refImages.value.some((r) => r.nodeId === n.id)) return
+  if (refImages.value.length >= maxRefs.value) {
+    genMsg.value = `参考图最多 ${maxRefs.value} 张`
+    return
+  }
+  try {
+    const dataUrl = await loadImageData(n.src)
+    refImages.value.push({ name: n.src, dataUrl, nodeId: n.id })
+  } catch (e) {
+    genMsg.value = `参考图读取失败:${e.message || e}`
+  }
+}
 function onRefPicked(e) {
   const files = [...(e.target.files || [])]
   e.target.value = ''
@@ -595,7 +634,17 @@ async function generate() {
 
   const n = gen.kind === 'image' ? Math.max(1, Math.min(4, Number(gen.count) || 1)) : 1
   const size = ratioToSize(gen.ratio || ratios.value[0])
-  const sources = [...selectedNotes.value]
+  // 生成来源:选中的笔记(提示词) + 通过 ＋ 添加为参考图的画布节点,生成时自动连线
+  const refNodes = refImages.value
+    .filter((r) => r.nodeId)
+    .map((r) => doc.nodes.find((n) => n.id === r.nodeId))
+    .filter(Boolean)
+  const seenSrc = new Set()
+  const sources = [...selectedNotes.value, ...refNodes].filter((n) => {
+    if (seenSrc.has(n.id)) return false
+    seenSrc.add(n.id)
+    return true
+  })
   // 落点:参与源节点的包围盒右侧;无源则视口中心。多张时横向排开。
   let x
   let y
@@ -623,7 +672,10 @@ async function generate() {
     })
     doc.nodes.push(node)
     for (const s of sources) {
-      doc.edges.push({ id: newId('e'), from: s.id, to: node.id })
+      // 同向已存在就跳过,避免重复生成时边越堆越多
+      if (!doc.edges.some((e) => e.from === s.id && e.to === node.id)) {
+        doc.edges.push({ id: newId('e'), from: s.id, to: node.id })
+      }
     }
     created.push(node)
     runGeneration(node, prompt)
@@ -720,6 +772,8 @@ function onNodeAction({ type, id }) {
   if (!n) return
   if (type === 'preview') {
     if (n.type === 'image') previewSrc.value = n.src
+  } else if (type === 'ref') {
+    addNodeAsRef(n)
   } else if (type === 'duplicate') {
     selectionIds.value = [id]
     duplicateSelection()
@@ -964,9 +1018,10 @@ const saveLabel = computed(() => ({
       </div>
     </div>
 
-    <!-- 图片预览 -->
+    <!-- 图片预览(带鉴权 blob,不再依赖 cookie) -->
     <div v-if="previewSrc" class="cv-lightbox" @click="previewSrc = ''">
-      <img :src="generatedUrl(previewSrc)" alt="" @click.stop>
+      <img v-if="previewUrl" :src="previewUrl" alt="" @click.stop>
+      <span v-else class="cv-lightbox__loading">加载中…</span>
     </div>
 
     <!-- 图片库:我的全部作品 + 第一格上传入口 -->
@@ -991,8 +1046,7 @@ const saveLabel = computed(() => ({
           <img
             v-for="f in pickerItems"
             :key="f.name"
-            :src="thumbUrl(f.name)"
-            loading="lazy"
+            :src="pickerUrls[f.name] || undefined"
             alt=""
             @click="addImageNode(f.name); pickerOpen = false"
           >
@@ -1405,6 +1459,11 @@ const saveLabel = computed(() => ({
   justify-content: center;
   z-index: 100;
   cursor: zoom-out;
+}
+.cv-lightbox__loading {
+  color: rgb(255 255 255 / 0.8);
+  font-size: 14px;
+  font-weight: 600;
 }
 .cv-lightbox img {
   max-width: 92vw;

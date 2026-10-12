@@ -60,10 +60,9 @@ export function generatedUrl(name) {
   return `${BASE}/images/${s.replace(/^\/?images\//, '')}`
 }
 
-/** Load a private image (thumbnail, falling back to the original) using the
- * same Bearer token the SPA already has. Returns a browser blob: URL so the
- * component can revoke it later. Throws on real failure. */
-export async function loadImageBlob(name, signal) {
+/** Fetch a private image (thumbnail first, original as fallback) with the
+ * SPA's Bearer token. Returns { blob, status } — throws on real failure. */
+async function fetchImageBlob(name, signal) {
   const headers = auth.token ? { Authorization: `Bearer ${auth.token}` } : {}
   let u = thumbUrl(name)
   let r = await fetch(u, { headers, credentials: 'include', signal })
@@ -72,8 +71,24 @@ export async function loadImageBlob(name, signal) {
     r = await fetch(u, { headers, credentials: 'include', signal })
   }
   if (!r.ok) throw new Error(`图片加载失败 (${r.status})`)
-  const blob = await r.blob()
-  return { url: URL.createObjectURL(blob), status: r.status }
+  return { blob: await r.blob(), status: r.status }
+}
+
+/** Same as fetchImageBlob but returns a revocable blob: URL for <img>/<video>. */
+export async function loadImageBlob(name, signal) {
+  const { blob, status } = await fetchImageBlob(name, signal)
+  return { url: URL.createObjectURL(blob), status }
+}
+
+/** Same as fetchImageBlob but returns a data: URL (用于参考图提交/复制)。 */
+export async function loadImageData(name) {
+  const { blob } = await fetchImageBlob(name)
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(fr.result)
+    fr.onerror = reject
+    fr.readAsDataURL(blob)
+  })
 }
 
 /** Small thumbnail URL for list views. The server falls back to the original

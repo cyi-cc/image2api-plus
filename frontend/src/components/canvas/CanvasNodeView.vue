@@ -156,9 +156,7 @@ defineExpose({ startEdit, commitNote })
     <!-- 右下角缩放手柄 + 悬浮工具条:仅选中时显示,舞台接管 resize 手势 -->
     <span v-if="selected && node.type !== 'gen'" class="cv-size" data-resize />
     <div v-if="selected && node.type !== 'gen'" class="cv-tools" @dblclick.stop @pointerdown.stop>
-      <button v-if="node.type === 'image'" title="预览" @click.stop="emit('node-action', { type: 'preview' })">⤢</button>
-      <button title="复制 (Ctrl+D)" @click.stop="emit('node-action', { type: 'duplicate' })">⧉</button>
-      <button title="置顶" @click.stop="emit('node-action', { type: 'front' })">⤒</button>
+      <button v-if="node.type === 'image'" title="添加为参考图" @click.stop="emit('node-action', { type: 'ref' })">＋</button>
       <button class="cv-tools__del" title="删除" @click.stop="emit('node-action', { type: 'delete' })">✕</button>
     </div>
     <div class="cv-node__clip">
