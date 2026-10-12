@@ -302,17 +302,16 @@ html.dark .cv-node--note {
 .cv-node__note {
   width: 100%;
   height: 100%;
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #1a1a1a;
+  padding: 12px 14px;
+  font-size: 32px;
+  line-height: 1.35;
+  color: #111;
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
   overflow: hidden;
   user-select: none;
 }
-html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 .is-editing .cv-node__note {
   user-select: text;
   cursor: text;
