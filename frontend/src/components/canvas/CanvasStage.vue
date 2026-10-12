@@ -216,6 +216,7 @@ function onPointerDown(e) {
   // 2) 点击连线:切换选中(不再落入平移)
   const edgeHit = e.target.closest?.('.cv-edge-hit')
   if (edgeHit && e.button === 0) {
+    linkSource.value = null
     const id = edgeHit.dataset.edgeId
     const s = new Set(edgeSel.value)
     if (s.has(id)) s.delete(id)
@@ -226,7 +227,7 @@ function onPointerDown(e) {
   }
 
   const node = hitNode(e)
-  if (!node) linkSource.value = null
+  if (!node || node.id === linkSource.value?.id) linkSource.value = null
   const p = localXY(e)
 
   const wantPan =
@@ -355,7 +356,7 @@ function onPortClick(id, side) {
     return
   }
   if (linkSource.value.id === id) {
-    linkSource.value = linkSource.value.side === side ? null : { id, side }
+    linkSource.value = null
     return
   }
   emit('link-create', {
@@ -570,7 +571,7 @@ defineExpose({
     </div>
 
     <div v-if="marquee" class="cv-marquee" :style="marquee" />
-    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击两个节点的连接点连线（Esc 取消） · 双击笔记编辑</div>
+    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击两个连接点连线（再点起点/空白/Esc 取消） · 双击笔记编辑</div>
   </div>
 </template>
 

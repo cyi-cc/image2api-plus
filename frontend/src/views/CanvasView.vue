@@ -857,8 +857,8 @@ const saveLabel = computed(() => ({
         <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
 
         <div class="cv-tips">
-          双击空白建笔记 · 依次点击两个连接点连线 · 选中后右下角缩放 · Ctrl+D 复制 ·
-          本地图片直接拖入或 Ctrl+V 粘贴 · 按 1 适应全部内容
+          双击空白建笔记 · 依次点击两个连接点连线,再点起点/空白/Esc 取消 ·
+          选中后右下角缩放 · Ctrl+D 复制 · 本地图片直接拖入或 Ctrl+V 粘贴 · 按 1 适应全部内容
         </div>
       </aside>
     </div>
