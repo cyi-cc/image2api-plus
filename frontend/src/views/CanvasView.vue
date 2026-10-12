@@ -817,7 +817,7 @@ onBeforeRouteLeave(async () => {
 })
 
 const saveLabel = computed(() => ({
-  saved: '', dirty: '', saving: '保存中…', error: '保存失败,重试中',
+  saved: '', dirty: '', saving: '', error: '保存失败,重试中',
 }[saveState.value] || ''))
 </script>
 
@@ -853,10 +853,7 @@ const saveLabel = computed(() => ({
         <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
         <span class="cv-sep" />
         <button class="cv-btn cv-btn--accent" @click="addNote">＋ 笔记</button>
-        <button class="cv-btn cv-btn--accent" @click="openPicker">＋ 图片</button>
-        <button class="cv-btn" :disabled="uploadBusy" title="上传本地图片(也可直接拖入/粘贴)" @click="fileInput?.click()">
-          {{ uploadBusy ? '上传中…' : '⤒ 上传' }}
-        </button>
+        <button class="cv-btn cv-btn--accent" @click="openPicker">🗂 图片库</button>
         <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFilePicked">
         <span v-if="saveLabel" class="cv-save" :data-state="saveState">{{ saveLabel }}</span>
       </div>
@@ -972,19 +969,25 @@ const saveLabel = computed(() => ({
       <img :src="generatedUrl(previewSrc)" alt="" @click.stop>
     </div>
 
-    <!-- 我的图片选择 -->
+    <!-- 图片库:我的全部作品 + 第一格上传入口 -->
     <div v-if="pickerOpen" class="cv-picker" @click.self="pickerOpen = false">
       <div class="cv-picker__box">
         <div class="cv-picker__head">
-          <span>插入图片(点击放置到画布)</span>
-          <div class="cv-picker__acts">
-            <button class="cv-btn cv-btn--accent" @click="fileInput?.click()">⤒ 上传本地</button>
-            <button class="cv-btn" @click="pickerOpen = false">✕</button>
-          </div>
+          <span>图片库(点击插入画布)</span>
+          <button class="cv-btn" @click="pickerOpen = false">✕</button>
         </div>
         <div v-if="pickerLoading" class="cv-loading">加载中…</div>
-        <div v-else-if="!pickerItems.length" class="cv-loading">还没有生成过图片</div>
         <div v-else class="cv-picker__grid">
+          <button
+            type="button"
+            class="cv-picker__up"
+            :disabled="uploadBusy"
+            title="上传本地图片"
+            @click="fileInput?.click()"
+          >
+            <span class="cv-picker__up-icon">⤒</span>
+            <span>{{ uploadBusy ? '上传中…' : '上传图片' }}</span>
+          </button>
           <img
             v-for="f in pickerItems"
             :key="f.name"
@@ -1467,5 +1470,36 @@ const saveLabel = computed(() => ({
   transform: translateY(-2px);
   border-color: rgb(124 92 252 / 0.55);
   box-shadow: 0 8px 20px var(--accent-glow);
+}
+.cv-picker__up {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px dashed rgb(124 92 252 / 0.45);
+  background: transparent;
+  color: var(--m-orange);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.cv-picker__up:hover {
+  transform: translateY(-2px);
+  border-color: var(--m-orange);
+  background: rgb(124 92 252 / 0.08);
+  box-shadow: 0 8px 20px var(--accent-glow);
+}
+.cv-picker__up:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.cv-picker__up-icon {
+  font-size: 22px;
+  line-height: 1;
 }
 </style>
