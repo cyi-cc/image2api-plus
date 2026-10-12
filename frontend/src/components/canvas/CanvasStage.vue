@@ -682,9 +682,12 @@ function fitToContent() {
   const bw = Math.max(1, x2 - x1 + pad * 2)
   const bh = Math.max(1, y2 - y1 + pad * 2)
   const s = Math.min(sw / bw, sh / bh, 1.2) // 期望的有效缩放
-  vp.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s / BASE_SCALE))
-  vp.x = sw / 2 - (x1 - pad + bw / 2) * s
-  vp.y = sh / 2 - (y1 - pad + bh / 2) * s
+  // 对齐 10% 档位:向下取整保证内容完整可见
+  const target = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.floor(s / BASE_SCALE * 10 + 1e-6) / 10))
+  const eff = target * BASE_SCALE
+  vp.scale = target
+  vp.x = sw / 2 - (x1 - pad + bw / 2) * eff
+  vp.y = sh / 2 - (y1 - pad + bh / 2) * eff
   notifyViewport()
 }
 function selectedIds() {
