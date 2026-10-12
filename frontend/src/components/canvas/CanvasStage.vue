@@ -672,7 +672,10 @@ function onDblClick(e) {
 function fitToContent() {
   const r = stageEl.value?.getBoundingClientRect()
   const sw = r ? r.width : 800
-  const sh = r ? r.height : 600
+  // 底部悬浮输入框会遮住舞台下缘:把它的高度从可用区域里扣掉,内容避开输入框居中
+  const dockEl = document.querySelector('.cv-dock')
+  const dockH = dockEl ? dockEl.getBoundingClientRect().height + 32 : 0
+  const sh = Math.max(120, (r ? r.height : 600) - dockH)
   const nodes = props.nodes
   if (!nodes.length) {
     setViewport({ x: 0, y: 0, scale: 1 })
