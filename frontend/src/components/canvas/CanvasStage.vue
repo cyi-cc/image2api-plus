@@ -633,6 +633,16 @@ function zoomStep(direction) {
   Object.assign(vp, zoomAt(vp, cx, cy, scale))
   notifyViewport()
 }
+// 直接缩放到指定比例(围绕视口中心)
+function zoomTo(scale) {
+  const r = stageEl.value?.getBoundingClientRect()
+  const cx = r ? r.width / 2 : 0
+  const cy = r ? r.height / 2 : 0
+  scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale))
+  if (scale === vp.scale) return
+  Object.assign(vp, zoomAt(vp, cx, cy, scale))
+  notifyViewport()
+}
 function centerOn(x, y) {
   const r = stageEl.value?.getBoundingClientRect()
   vp.x = (r ? r.width / 2 : 400) - x * vp.scale
@@ -690,7 +700,7 @@ function screenRectToWorld(r) {
   }
 }
 defineExpose({
-  setViewport, zoomStep, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
+  setViewport, zoomStep, zoomTo, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
   cancelLink, consumeSelectedEdges, hasSelectedEdges, fitToContent, selectIds, bumpNode,
 })
 </script>

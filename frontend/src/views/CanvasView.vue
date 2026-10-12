@@ -55,6 +55,8 @@ const countOptions = [1, 2, 3, 4].map((n) => ({ value: n, label: `${n} 张` }))
 const canvasOptions = computed(() =>
   canvases.value.map((c) => ({ value: c.id, label: c.title || '未命名画布' })),
 )
+const zoomOptions = [20, 30, 40, 50, 60, 70, 80, 90, 100, 125, 150, 200]
+  .map((p) => ({ value: p, label: `${p}%` }))
 const maxRefs = computed(() => Math.min(8, Math.max(
   Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
 )))
@@ -827,7 +829,12 @@ const saveLabel = computed(() => ({
         <button class="cv-btn" :disabled="!redoCount" title="重做 (Ctrl+Shift+Z)" @click="redo">↪</button>
         <span class="cv-sep" />
         <button class="cv-btn" title="缩小 10%" @click="stage?.zoomStep(-1)">−</button>
-        <span class="cv-zoom">{{ scalePct }}%</span>
+        <SelectMenu
+          class="cv-dd cv-dd--zoom"
+          :model-value="Math.round(scalePct)"
+          :options="zoomOptions"
+          @update:model-value="(p) => stage?.zoomTo(p / 100)"
+        />
         <button class="cv-btn" title="放大 10%" @click="stage?.zoomStep(1)">＋</button>
         <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: 1 })">⌂</button>
         <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
@@ -1079,6 +1086,13 @@ const saveLabel = computed(() => ({
 .cv-dd--canvas :deep(.field) {
   height: 30px;
 }
+.cv-dd--zoom {
+  min-width: 74px;
+}
+.cv-dd--zoom :deep(.field) {
+  height: 30px;
+  justify-content: center;
+}
 .cv-sep {
   width: 2.5px;
   height: 20px;
@@ -1091,12 +1105,6 @@ const saveLabel = computed(() => ({
   font-size: 12px;
   font-weight: 700;
   color: var(--fg);
-  min-width: 46px;
-  text-align: center;
-  background: var(--hover);
-  border: 1px solid rgb(124 92 252 / 0.35);
-  border-radius: 999px;
-  padding: 1px 8px;
 }
 .cv-save {
   font-size: 11px;
