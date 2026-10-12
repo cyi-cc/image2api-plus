@@ -352,7 +352,7 @@ function duplicateSelection() {
   doc.nodes.push(...clones)
   for (const e of [...doc.edges]) {
     if (idMap[e.from] && idMap[e.to]) {
-      doc.edges.push({ id: newId('e'), from: idMap[e.from], to: idMap[e.to] })
+      doc.edges.push({ ...e, id: newId('e'), from: idMap[e.from], to: idMap[e.to] })
     }
   }
   selectionIds.value = clones.map((c) => c.id)
@@ -377,9 +377,9 @@ function deleteSelection() {
 }
 
 // ---- 手动连线 ----
-function onLinkCreate({ from, to }) {
+function onLinkCreate({ from, to, fromSide, toSide }) {
   if (doc.edges.some((e) => e.from === from && e.to === to)) return // 去重
-  doc.edges.push({ id: newId('e'), from, to })
+  doc.edges.push({ id: newId('e'), from, to, fromSide, toSide })
   pushHistory()
 }
 
@@ -690,9 +690,9 @@ function onKeydown(e) {
     previewSrc.value = ''
     pickerOpen.value = false
   } else if (e.key === '+' || e.key === '=') {
-    stage.value?.zoomBy(1.2)
+    stage.value?.zoomStep(1)
   } else if (e.key === '-') {
-    stage.value?.zoomBy(1 / 1.2)
+    stage.value?.zoomStep(-1)
   } else if (e.key === '0') {
     stage.value?.setViewport({ x: 0, y: 0, scale: 1 })
   } else if (e.key === '1') {
@@ -770,9 +770,9 @@ const saveLabel = computed(() => ({
         <button class="cv-btn" :disabled="!undoCount" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
         <button class="cv-btn" :disabled="!redoCount" title="重做 (Ctrl+Shift+Z)" @click="redo">↪</button>
         <span class="cv-sep" />
-        <button class="cv-btn" title="缩小" @click="stage?.zoomBy(1 / 1.2)">−</button>
+        <button class="cv-btn" title="缩小 10%" @click="stage?.zoomStep(-1)">−</button>
         <span class="cv-zoom">{{ scalePct }}%</span>
-        <button class="cv-btn" title="放大" @click="stage?.zoomBy(1.2)">＋</button>
+        <button class="cv-btn" title="放大 10%" @click="stage?.zoomStep(1)">＋</button>
         <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: 1 })">⌂</button>
         <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
         <span class="cv-sep" />
@@ -857,7 +857,7 @@ const saveLabel = computed(() => ({
         <div v-if="genMsg" class="cv-genmsg">{{ genMsg }}</div>
 
         <div class="cv-tips">
-          双击空白建笔记 · 拖右侧圆点连线 · 选中后右下角缩放 · Ctrl+D 复制 ·
+          双击空白建笔记 · 依次点击两个连接点连线 · 选中后右下角缩放 · Ctrl+D 复制 ·
           本地图片直接拖入或 Ctrl+V 粘贴 · 按 1 适应全部内容
         </div>
       </aside>

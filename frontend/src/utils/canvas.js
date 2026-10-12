@@ -127,7 +127,10 @@ export function normalizeDoc(raw) {
       if (!e || typeof e.id !== 'string') continue
       if (typeof e.from !== 'string' || typeof e.to !== 'string') continue
       if (!ids.has(e.from) || !ids.has(e.to) || e.from === e.to) continue
-      doc.edges.push({ id: e.id, from: e.from, to: e.to })
+      const edge = { id: e.id, from: e.from, to: e.to }
+      if (['top', 'right', 'bottom', 'left'].includes(e.fromSide)) edge.fromSide = e.fromSide
+      if (['top', 'right', 'bottom', 'left'].includes(e.toSide)) edge.toSide = e.toSide
+      doc.edges.push(edge)
     }
   }
   return doc

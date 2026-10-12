@@ -8,8 +8,11 @@ import { thumbUrl } from '../../api'
 const props = defineProps({
   node: { type: Object, required: true },
   selected: { type: Boolean, default: false },
+  linkSourceSide: { type: String, default: '' },
 })
-const emit = defineEmits(['imgload', 'note-commit', 'node-action'])
+const emit = defineEmits(['imgload', 'note-commit', 'node-action', 'port-click'])
+const portSides = ['top', 'right', 'bottom', 'left']
+const portLabels = { top: '上', right: '右', bottom: '下', left: '左' }
 
 const imgLoaded = ref(false)
 const noteEl = ref(null)
@@ -99,8 +102,12 @@ defineExpose({ startEdit, commitNote })
     :data-node-id="node.id"
     @dblclick="onSelfDblClick"
   >
-    <!-- 连线出口:拖到目标节点创建连线(舞台接管手势) -->
-    <span v-if="node.type !== 'gen'" class="cv-port" data-port="out" />
+    <!-- 连线出口:点选起点和终点建立连线 -->
+    <button v-for="side in portSides" :key="side"
+            type="button" class="cv-port" :class="[`cv-port--${side}`, { 'is-active': linkSourceSide === side }]"
+            :aria-label="`${portLabels[side]}侧连接点`" :aria-pressed="linkSourceSide === side"
+            :title="`${portLabels[side]}侧连接点`"
+            @pointerdown.stop @dblclick.stop @click.stop="emit('port-click', side)" />
     <!-- 右下角缩放手柄 + 悬浮工具条:仅选中时显示,舞台接管 resize 手势 -->
     <span v-if="selected && node.type !== 'gen'" class="cv-size" data-resize />
     <div v-if="selected && node.type !== 'gen'" class="cv-tools" @dblclick.stop @pointerdown.stop>
@@ -273,24 +280,35 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 
 .cv-port {
   position: absolute;
-  right: -5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #7c5cfc, #22d3ee);
-  border: 1.5px solid rgb(255 255 255 / 0.7);
-  box-shadow: 0 2px 10px var(--accent-glow);
-  opacity: 0;
-  transition: opacity 0.12s;
-  cursor: crosshair;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
   z-index: 3;
+  touch-action: manipulation;
 }
-.cv-node:hover .cv-port,
-.cv-node.is-selected .cv-port {
-  opacity: 1;
+.cv-port::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--m-orange);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35), 0 0 0 2px rgb(255 255 255 / 0.8);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+.cv-port:hover::after, .cv-port:focus-visible::after, .cv-port.is-active::after {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgb(124 92 252 / 0.25), 0 2px 10px var(--accent-glow);
+}
+.cv-port.is-active::after { background: var(--m-orange); }
+.cv-port:focus-visible { outline: 2px solid var(--m-orange); outline-offset: -2px; border-radius: 50%; }
+.cv-port--top { top: 0; left: 50%; transform: translateX(-50%); }
+.cv-port--right { right: 0; top: 50%; transform: translateY(-50%); }
+.cv-port--bottom { bottom: 0; left: 50%; transform: translateX(-50%); }
+.cv-port--left { left: 0; top: 50%; transform: translateY(-50%); }
 
 /* 右下角缩放方块(节点 contain:paint,只能放内侧) */
 .cv-size {

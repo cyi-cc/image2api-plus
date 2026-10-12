@@ -36,7 +36,7 @@ const stageSize = reactive({ w: 0, h: 0 })
 const selection = ref(new Set())
 const edgeSel = ref(new Set())
 const marquee = ref(null)
-const linkLine = ref(null) // 手动连线进行中 {x1,y1,x2,y2} 世界坐标
+const linkSource = ref(null)
 const spaceHeld = ref(false)
 const panning = ref(false)
 
@@ -54,21 +54,35 @@ const nodeById = computed(() => {
   return m
 })
 
+function portPoint(n, side) {
+  if (side === 'top') return { x: n.x + n.w / 2, y: n.y + 16 }
+  if (side === 'right') return { x: n.x + n.w - 16, y: n.y + n.h / 2 }
+  if (side === 'bottom') return { x: n.x + n.w / 2, y: n.y + n.h - 16 }
+  if (side === 'left') return { x: n.x + 16, y: n.y + n.h / 2 }
+  return { x: n.x + n.w / 2, y: n.y + n.h / 2 }
+}
+function portDirection(side, fallback) {
+  return {
+    top: { x: 0, y: -1 }, right: { x: 1, y: 0 },
+    bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 },
+  }[side] || fallback
+}
+
 const edgePaths = computed(() => {
   const out = []
   for (const e of props.edges) {
     const a = nodeById.value.get(e.from)
     const b = nodeById.value.get(e.to)
     if (!a || !b) continue
-    const x1 = a.x + a.w / 2
-    const y1 = a.y + a.h / 2
-    const x2 = b.x + b.w / 2
-    const y2 = b.y + b.h / 2
-    const dx = Math.max(60, Math.abs(x2 - x1) * 0.45)
+    const p1 = portPoint(a, e.fromSide)
+    const p2 = portPoint(b, e.toSide)
+    const d = Math.max(60, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.45)
+    const v1 = portDirection(e.fromSide, { x: 1, y: 0 })
+    const v2 = portDirection(e.toSide, { x: -1, y: 0 })
     out.push({
       id: e.id,
       to: e.to,
-      d: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`,
+      d: `M ${p1.x} ${p1.y} C ${p1.x + v1.x * d} ${p1.y + v1.y * d}, ${p2.x + v2.x * d} ${p2.y + v2.y * d}, ${p2.x} ${p2.y}`,
     })
   }
   return out
@@ -78,13 +92,6 @@ const worldStyle = computed(() => ({
   transform: `translate3d(${vp.x}px, ${vp.y}px, 0) scale(${vp.scale})`,
 }))
 
-// 手动连线进行中的预览路径
-const linkPath = computed(() => {
-  const l = linkLine.value
-  if (!l) return ''
-  const dx = Math.max(60, Math.abs(l.x2 - l.x1) * 0.45)
-  return `M ${l.x1} ${l.y1} C ${l.x1 + dx} ${l.y1}, ${l.x2 - dx} ${l.y2}, ${l.x2} ${l.y2}`
-})
 const gridStyle = computed(() => {
   const cell = Math.max(14, 24 * vp.scale)
   return {
@@ -206,25 +213,6 @@ function onPointerDown(e) {
     }
   }
 
-  // 1) 连线出口:拖到目标节点建边
-  const port = e.target.closest?.('[data-port]')
-  if (port && e.button === 0) {
-    const node = hitNode(e)
-    if (node) {
-      clearEdgeSel()
-      setSelection(new Set([node.id]))
-      act = { mode: 'link', fromId: node.id }
-      linkLine.value = {
-        x1: node.x + node.w,
-        y1: node.y + node.h / 2,
-        x2: node.x + node.w,
-        y2: node.y + node.h / 2,
-      }
-      try { stageEl.value.setPointerCapture(e.pointerId) } catch { /* 合成/失效指针 */ }
-      return
-    }
-  }
-
   // 2) 点击连线:切换选中(不再落入平移)
   const edgeHit = e.target.closest?.('.cv-edge-hit')
   if (edgeHit && e.button === 0) {
@@ -238,6 +226,7 @@ function onPointerDown(e) {
   }
 
   const node = hitNode(e)
+  if (!node) linkSource.value = null
   const p = localXY(e)
 
   const wantPan =
@@ -326,12 +315,6 @@ function applyMove(e) {
     }
     return
   }
-  if (act.mode === 'link' && linkLine.value) {
-    const cur = screenToWorld(p.x, p.y, vp)
-    linkLine.value.x2 = cur.x
-    linkLine.value.y2 = cur.y
-    return
-  }
   if (act.mode === 'marquee') {
     marquee.value = {
       x: Math.min(act.px, p.x),
@@ -355,27 +338,36 @@ function onPointerUp(e) {
   try { stageEl.value.releasePointerCapture(e.pointerId) } catch { /* 已释放 */ }
   if (a.mode === 'drag' && a.moved) emit('move-end')
   if (a.mode === 'resize') emit('move-end') // 尺寸进了快照,可撤销
-  if (a.mode === 'link') {
-    const target = hitNode(e)
-    if (target && target.id !== a.fromId) emit('link-create', { from: a.fromId, to: target.id })
-    linkLine.value = null
-  }
 }
 function onPointerCancel() {
   if (act?.mode === 'drag' && act.moved) emit('move-end')
   if (act?.mode === 'resize') emit('move-end')
   act = null
   marquee.value = null
-  linkLine.value = null
   panning.value = false
+}
+
+function onPortClick(id, side) {
+  if (linkSource.value && !nodeById.value.has(linkSource.value.id)) linkSource.value = null
+  if (!linkSource.value) {
+    clearEdgeSel()
+    linkSource.value = { id, side }
+    return
+  }
+  if (linkSource.value.id === id) {
+    linkSource.value = linkSource.value.side === side ? null : { id, side }
+    return
+  }
+  emit('link-create', {
+    from: linkSource.value.id, to: id,
+    fromSide: linkSource.value.side, toSide: side,
+  })
+  linkSource.value = null
 }
 
 // 取消进行中的连线(Esc)
 function cancelLink() {
-  if (act?.mode === 'link') {
-    act = null
-    linkLine.value = null
-  }
+  linkSource.value = null
 }
 
 // 返回并清空选中的连线(父级 Delete 处理用)
@@ -391,12 +383,37 @@ function hasSelectedEdges() {
   return edgeSel.value.size > 0
 }
 
+function nextZoom(scale, direction) {
+  if (direction < 0 && scale < 0.1) return scale
+  const level = scale * 10
+  const step = direction > 0 ? Math.floor(level + 1e-6) + 1 : Math.ceil(level - 1e-6) - 1
+  return Math.min(4, Math.max(0.1, step / 10))
+}
+let wheelAccum = 0
+let lastWheelAt = 0
 function onWheel(e) {
   e.preventDefault()
   const p = localXY(e)
   if (e.ctrlKey || e.metaKey) {
-    Object.assign(vp, zoomAt(vp, p.x, p.y, vp.scale * Math.exp(-e.deltaY * 0.0018)))
+    const now = Date.now()
+    if (now - lastWheelAt > 200) wheelAccum = 0
+    lastWheelAt = now
+    const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1)
+    let steps
+    if (Math.abs(delta) >= 80) {
+      steps = Math.sign(delta) * Math.max(1, Math.round(Math.abs(delta) / 120))
+      wheelAccum = 0
+    } else {
+      wheelAccum += delta
+      steps = Math.trunc(wheelAccum / 80)
+      wheelAccum -= steps * 80
+    }
+    let scale = vp.scale
+    for (let i = 0; i < Math.min(Math.abs(steps), 20); i++) scale = nextZoom(scale, -steps)
+    if (scale !== vp.scale) Object.assign(vp, zoomAt(vp, p.x, p.y, scale))
+    else return
   } else {
+    wheelAccum = 0
     vp.x -= e.deltaX
     vp.y -= e.deltaY
   }
@@ -440,11 +457,13 @@ function setViewport(v) {
   Object.assign(vp, v)
   notifyViewport()
 }
-function zoomBy(factor) {
+function zoomStep(direction) {
   const r = stageEl.value?.getBoundingClientRect()
   const cx = r ? r.width / 2 : 0
   const cy = r ? r.height / 2 : 0
-  Object.assign(vp, zoomAt(vp, cx, cy, vp.scale * factor))
+  const scale = nextZoom(vp.scale, direction)
+  if (scale === vp.scale) return
+  Object.assign(vp, zoomAt(vp, cx, cy, scale))
   notifyViewport()
 }
 function centerOn(x, y) {
@@ -504,7 +523,7 @@ function screenRectToWorld(r) {
   }
 }
 defineExpose({
-  setViewport, zoomBy, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
+  setViewport, zoomStep, centerOn, clearSelection, selectedIds, selectAll, syncZTop, vp,
   cancelLink, consumeSelectedEdges, hasSelectedEdges, fitToContent, selectIds, bumpNode,
 })
 </script>
@@ -536,13 +555,14 @@ defineExpose({
             :d="p.d"
           />
         </g>
-        <path v-if="linkLine" class="cv-linkline" :d="linkPath" />
       </svg>
       <CanvasNodeView
         v-for="n in visibleNodes"
         :key="n.id"
         :node="n"
         :selected="selection.has(n.id)"
+        :link-source-side="linkSource?.id === n.id ? linkSource.side : ''"
+        @port-click="(side) => onPortClick(n.id, side)"
         @imgload="(s) => emit('img-size', { id: n.id, ...s })"
         @note-commit="(text) => emit('note-commit', { id: n.id, text })"
         @node-action="(a) => emit('node-action', { ...a, id: n.id })"
@@ -550,7 +570,7 @@ defineExpose({
     </div>
 
     <div v-if="marquee" class="cv-marquee" :style="marquee" />
-    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 拖节点右侧圆点连线 · 点击连线可选中删除 · 双击笔记编辑</div>
+    <div class="cv-hint">拖拽空白平移 · Ctrl+滚轮缩放 · 依次点击两个节点的连接点连线（Esc 取消） · 双击笔记编辑</div>
   </div>
 </template>
 
@@ -607,13 +627,6 @@ defineExpose({
   stroke-width: 16;
   pointer-events: stroke;
   cursor: pointer;
-}
-.cv-linkline {
-  fill: none;
-  stroke: var(--m-orange);
-  stroke-width: 2.5;
-  stroke-dasharray: 8 6;
-  pointer-events: none;
 }
 .cv-marquee {
   position: absolute;
