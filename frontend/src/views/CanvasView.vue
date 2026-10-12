@@ -34,6 +34,12 @@ const imageModels = computed(() =>
 )
 const model = computed(() => imageModels.value.find((m) => m.id === gen.modelId) || null)
 const ratios = computed(() => model.value?.ratios?.length ? model.value.ratios : ['1:1'])
+const resolutions = computed(() => model.value?.resolutions?.length
+  ? model.value.resolutions
+  : Object.keys(model.value?.prices || {}))
+const maxRefs = computed(() => Math.min(4, Math.max(
+  Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
+)))
 const selectedImages = computed(() =>
   selectionIds.value
     .map((id) => doc.nodes.find((n) => n.id === id))
@@ -493,7 +499,7 @@ function onPaste(e) {
 
 async function refToBase64(name) {
   const res = await fetch(generatedUrl(name))
-  if (!res.ok) throw new Error('fetch ref failed')
+  if (!res.ok) throw new Error(`参考图加载失败 (${res.status})，请重新选择图片`)
   const blob = await res.blob()
   const dataUrl = await new Promise((resolve, reject) => {
     const fr = new FileReader()
@@ -511,13 +517,18 @@ async function generate() {
     genMsg.value = '请输入提示词,或选中一个有内容的笔记节点'
     return
   }
+  const images = selectedImages.value.slice(0, maxRefs.value)
+  if (selectedImages.value.length && !maxRefs.value) {
+    genMsg.value = '当前模型不支持参考图，请取消图片选择或切换模型'
+    return
+  }
   genBusy.value = true
   genMsg.value = ''
 
   const size = ratioToSize(gen.ratio || ratios.value[0])
   const sources = [
     ...selectedNotes.value,
-    ...selectedImages.value.slice(0, 4),
+    ...images,
   ]
   // 落点:参与源节点的包围盒右侧;无源则视口中心
   let x
@@ -537,23 +548,26 @@ async function generate() {
     y = c.y - size.h / 2
   }
 
-  const node = {
+  const node = reactive({
     id: newId('g'), type: 'gen', status: 'running',
     x: Math.round(x), y: Math.round(y), w: size.w, h: size.h, z: 0,
-  }
+  })
   doc.nodes.push(node)
   for (const s of sources) {
     doc.edges.push({ id: newId('e'), from: s.id, to: node.id })
   }
   selectionIds.value = [node.id]
+  stage.value?.selectIds([node.id])
   pushHistory()
 
   try {
-    const payload = { model: gen.modelId, prompt, ratio: gen.ratio || ratios.value[0] }
-    if (selectedImages.value.length) {
-      payload.reference_images = await Promise.all(
-        selectedImages.value.slice(0, 4).map((n) => refToBase64(n.src).catch(() => null)),
-      ).then((arr) => arr.filter(Boolean))
+    const payload = {
+      model: gen.modelId, prompt, ratio: gen.ratio || ratios.value[0],
+      resolution: resolutions.value[0] || '1K',
+    }
+    if (images.length) {
+      const refs = await Promise.all(images.map((n) => refToBase64(n.src)))
+      payload.reference_images = refs
     }
     const opts = jsonBody('POST', payload)
     opts.headers['Idempotency-Key'] = node.id
@@ -834,7 +848,7 @@ const saveLabel = computed(() => ({
         />
 
         <div class="cv-refs">
-          参考图:选中画布上的图片节点({{ selectedImages.length }}/4)
+          参考图:选中画布上的图片节点({{ selectedImages.length }}/{{ maxRefs }})
         </div>
 
         <button class="cv-gen" :disabled="genBusy || !model" @click="generate">

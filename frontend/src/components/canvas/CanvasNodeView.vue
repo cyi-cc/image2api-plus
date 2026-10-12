@@ -143,7 +143,8 @@ defineExpose({ startEdit, commitNote })
       </template>
       <template v-else>
         <span class="cv-node__x">✕</span>
-        <span class="cv-node__err" :title="node.error || ''">生成失败</span>
+        <span>生成失败</span>
+        <span class="cv-node__err" :title="node.error || ''">{{ node.error || '请检查提示词后重试' }}</span>
       </template>
     </div>
   </div>
@@ -261,10 +262,13 @@ html.dark .cv-node__note { color: rgb(255 255 255 / 0.88); }
 }
 .cv-node__err {
   font-size: 11px;
-  max-width: 90%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  max-width: min(90%, 320px);
+  max-height: 5em;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  text-align: center;
+  user-select: text;
 }
 
 .cv-port {
