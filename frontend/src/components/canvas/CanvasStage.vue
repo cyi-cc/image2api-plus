@@ -802,11 +802,13 @@ defineExpose({
   height: 1px;
   overflow: visible;
 }
+/* 常规连线:蓝色虚线;选中时改紫色实线加粗 */
 .cv-edge {
   fill: none;
-  stroke: var(--m-orange-2);
+  stroke: rgb(95 108 248 / 0.85);
   stroke-width: 2.4;
-  filter: drop-shadow(0 0 5px rgb(34 211 238 / 0.35));
+  stroke-dasharray: 10 6;
+  filter: drop-shadow(0 0 5px rgb(124 92 252 / 0.3));
 }
 .cv-edge--hot {
   stroke: var(--m-orange);
@@ -816,7 +818,7 @@ defineExpose({
 .cv-edge--sel {
   stroke: var(--m-orange);
   stroke-width: 3.5;
-  stroke-dasharray: 10 6;
+  stroke-dasharray: none;
   filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 .cv-edge-hit {
