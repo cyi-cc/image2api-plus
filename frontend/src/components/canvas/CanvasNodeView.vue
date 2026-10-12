@@ -2,8 +2,8 @@
 // 单个画布节点。位置/尺寸由 stage 的世界层 transform 统一缩放,
 // 这里只负责节点自身内容:image / note / gen(生成中占位)。
 // 性能:contain 隔离布局;图片 lazy + async 解码 + 缩略图。
-import { computed, ref, onMounted, watch } from 'vue'
-import { generatedUrl, thumbUrl } from '../../api'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { generatedUrl, loadImageBlob, thumbUrl } from '../../api'
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -17,13 +17,37 @@ const portLabels = { top: '上', right: '右', bottom: '下', left: '左' }
 const imgLoaded = ref(false)
 const imgBroken = ref(false)
 const imgStatus = ref('')
-const imgThumb = computed(() => thumbUrl(props.node.src))
+const imgBlob = ref('')
 const imgOriginal = computed(() => generatedUrl(props.node.src))
-const imgOriginalAbs = computed(() => {
-  try { return new URL(imgOriginal.value, window.location.href).href } catch { return imgOriginal.value }
-})
 const noteEl = ref(null)
 const editing = ref(false)
+
+let imgController = null
+async function loadSrc() {
+  if (props.node.type !== 'image' || !props.node.src) return
+  imgController?.abort()
+  imgController = new AbortController()
+  imgLoaded.value = false
+  imgBroken.value = false
+  if (imgBlob.value) { URL.revokeObjectURL(imgBlob.value); imgBlob.value = '' }
+  try {
+    const { url } = await loadImageBlob(props.node.src, imgController.signal)
+    imgBlob.value = url
+  } catch (e) {
+    imgBroken.value = true
+    const msg = e?.message || ''
+    const m = msg.match(/\((\d+)\)/)
+    imgStatus.value = m ? m[1] : '失败'
+    imgLoaded.value = true
+  }
+}
+
+onMounted(() => loadSrc())
+onUnmounted(() => {
+  imgController?.abort()
+  if (imgBlob.value) { URL.revokeObjectURL(imgBlob.value); imgBlob.value = '' }
+})
+watch(() => props.node.src, loadSrc)
 
 onMounted(() => {
   // 非受控 contenteditable:只在挂载时写初值,避免输入时光标被 v-model 回写打跳。
@@ -41,14 +65,6 @@ watch(
   },
 )
 
-watch(
-  () => props.node.src,
-  () => {
-    imgLoaded.value = false
-    imgBroken.value = false
-  },
-)
-
 function onImgLoad(e) {
   imgLoaded.value = true
   imgBroken.value = false
@@ -62,19 +78,6 @@ function onImgLoad(e) {
       h: Math.round(img.naturalHeight * k),
     })
   }
-}
-
-function onImgError(e) {
-  if (e.target.src !== imgOriginalAbs.value) {
-    e.target.src = imgOriginal.value
-    return
-  }
-  imgLoaded.value = true
-  imgBroken.value = true
-  imgStatus.value = ''
-  fetch(imgOriginal.value, { credentials: 'include' })
-    .then((r) => { imgStatus.value = String(r.status) })
-    .catch(() => { imgStatus.value = '网络错误' })
 }
 
 function startEdit() {
@@ -149,15 +152,13 @@ defineExpose({ startEdit, commitNote })
     <!-- 图片节点 -->
     <template v-if="node.type === 'image'">
       <img
-        v-if="!imgBroken"
+        v-if="!imgBroken && imgBlob"
         class="cv-node__img"
-        :src="imgThumb"
-        loading="lazy"
+        :src="imgBlob"
         decoding="async"
         draggable="false"
         alt=""
         @load="onImgLoad"
-        @error="onImgError"
       >
       <div v-else class="cv-node__missing">图片不可用<small v-if="imgStatus">HTTP {{ imgStatus }}</small></div>
       <div v-if="node.prompt" class="cv-node__cap" :title="node.prompt">{{ node.prompt }}</div>

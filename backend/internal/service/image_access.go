@@ -48,6 +48,21 @@ func (s *ImageAccessService) IsPublic(ctx context.Context, rel string) (bool, er
 	return s.showcase.IsPublicFile(ctx, rel)
 }
 
-func (s *ImageAccessService) IsAuthorized(ctx context.Context, sessionCookie, owner string) (bool, error) {
+func (s *ImageAccessService) IsAuthorized(ctx context.Context, authHeader, sessionCookie, owner string) (bool, error) {
+	// Private images may be requested by an <img> tag with the session cookie
+	// OR by the SPA via a Bearer token. Admins may view anyone's images.
+	if authHeader != "" {
+		user, _, err := s.auth.CurrentUserFromBearer(ctx, authHeader)
+		if err != nil {
+			return false, err
+		}
+		if user == nil {
+			return false, nil
+		}
+		if user.Role == "admin" {
+			return true, nil
+		}
+		return s.auth.OwnsImageDir(user, owner), nil
+	}
 	return s.auth.IsAuthorizedForPrivateImage(ctx, sessionCookie, owner)
 }

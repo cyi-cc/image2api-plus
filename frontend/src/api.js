@@ -60,6 +60,22 @@ export function generatedUrl(name) {
   return `${BASE}/images/${s.replace(/^\/?images\//, '')}`
 }
 
+/** Load a private image (thumbnail, falling back to the original) using the
+ * same Bearer token the SPA already has. Returns a browser blob: URL so the
+ * component can revoke it later. Throws on real failure. */
+export async function loadImageBlob(name, signal) {
+  const headers = auth.token ? { Authorization: `Bearer ${auth.token}` } : {}
+  let u = thumbUrl(name)
+  let r = await fetch(u, { headers, credentials: 'include', signal })
+  if (!r.ok || r.status === 404) {
+    u = generatedUrl(name)
+    r = await fetch(u, { headers, credentials: 'include', signal })
+  }
+  if (!r.ok) throw new Error(`图片加载失败 (${r.status})`)
+  const blob = await r.blob()
+  return { url: URL.createObjectURL(blob), status: r.status }
+}
+
 /** Small thumbnail URL for list views. The server falls back to the original
  * when no thumbnail object exists (old images), so this is always safe. */
 export function thumbUrl(name) {

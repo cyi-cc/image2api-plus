@@ -100,6 +100,11 @@ func ownsImageDir(user *model.User, owner string) bool {
 	return false
 }
 
+// OwnsImageDir is the exported alias used by other services (image access, etc.)
+func (s *AuthService) OwnsImageDir(user *model.User, owner string) bool {
+	return ownsImageDir(user, owner)
+}
+
 // checkOwnerDirCollision rejects a signup whose sanitized username or email
 // local-part collides with any existing user's directory candidates. Media
 // authorization (ownsImageDir) matches on those candidates, so without this
@@ -481,21 +486,21 @@ func (s *AuthService) PublicUser(ctx context.Context, user *model.User) (map[str
 		}
 	}
 	return map[string]any{
-		"id":             user.ID,
-		"email":          user.Email,
-		"name":           user.Name,
-		"role":           user.Role,
-		"status":         user.Status,
-		"credits":        user.Credits,
-		"recharge_total": user.RechargeTotal,
+		"id":                user.ID,
+		"email":             user.Email,
+		"name":              user.Name,
+		"role":              user.Role,
+		"status":            user.Status,
+		"credits":           user.Credits,
+		"recharge_total":    user.RechargeTotal,
 		"concurrency_group": concName,
 		"concurrency_limit": concMax,
-		"checkin_last":   user.CheckinLast,
-		"checkin_streak": user.CheckinStreak,
-		"checkin_today":  user.CheckinLast == time.Now().Format("2006-01-02"),
-		"invite_code":    user.InviteCode,
-		"invite_count":   stats.InviteCount,
-		"invite_earned":  stats.InviteEarned,
+		"checkin_last":      user.CheckinLast,
+		"checkin_streak":    user.CheckinStreak,
+		"checkin_today":     user.CheckinLast == time.Now().Format("2006-01-02"),
+		"invite_code":       user.InviteCode,
+		"invite_count":      stats.InviteCount,
+		"invite_earned":     stats.InviteEarned,
 	}, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/service"
 	"backend/internal/storage"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -55,6 +56,7 @@ func (h *ImageHandler) Serve(c *gin.Context) {
 	if !public {
 		authorized, err := h.imageAccess.IsAuthorized(
 			c.Request.Context(),
+			c.GetHeader("Authorization"),
 			readCookie(c, h.cfg.SessionCookieName),
 			user,
 		)
