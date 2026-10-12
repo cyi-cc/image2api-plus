@@ -5,7 +5,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { onBeforeRouteLeave } from 'vue-router'
 import { api, generatedUrl, jsonBody, thumbUrl } from '../api'
 import { auth } from '../auth'
-import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld, DEFAULT_SCALE } from '../utils/canvas'
+import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld, rectsIntersect, DEFAULT_SCALE } from '../utils/canvas'
 import CanvasStage from '../components/canvas/CanvasStage.vue'
 import SelectMenu from '../components/SelectMenu.vue'
 
@@ -318,8 +318,34 @@ function redo() {
 
 // ================= 节点操作 =================
 
+// 自动找空位:从锚点(默认视口中心)开始往右排,一行最多10个,超了才换下一行
+const NODE_PAD = 48
+const ROW_MAX = 10
+function spotIsFree(x, y, w, h) {
+  const r = { x: x - NODE_PAD / 2, y: y - NODE_PAD / 2, w: w + NODE_PAD, h: h + NODE_PAD }
+  return !doc.nodes.some((n) => rectsIntersect(r, { x: n.x, y: n.y, w: n.w, h: n.h }))
+}
+function freeSpot(w, h, at = null) {
+  const c = at || viewportCenterWorld()
+  const x0 = Math.round(c.x - w / 2)
+  const y0 = Math.round(c.y - h / 2)
+  for (let i = 0; i < 200; i++) {
+    const x = x0 + (i % ROW_MAX) * (w + NODE_PAD)
+    const y = y0 + Math.floor(i / ROW_MAX) * (h + NODE_PAD)
+    if (spotIsFree(x, y, w, h)) return { x, y }
+  }
+  return { x: x0, y: y0 }
+}
+
 function addNote() {
-  addNoteAt(viewportCenterWorld())
+  const s = freeSpot(260, 140)
+  const n = {
+    id: newId('t'), type: 'note', text: '',
+    x: s.x, y: s.y, w: 260, h: 140, z: 0,
+  }
+  doc.nodes.push(n)
+  selectionIds.value = [n.id]
+  pushHistory()
 }
 
 function addNoteAt(w) {
@@ -333,21 +359,15 @@ function addNoteAt(w) {
 }
 
 function addImageNode(src, prompt = '', at = null) {
-  const c = at || viewportCenterWorld()
+  // at 作为锚点(拖放位置);被占用就自动往右找空位,连续上传自然排成一排
+  const s = freeSpot(512, 512, at)
   const n = {
     id: newId('i'), type: 'image', src, prompt,
-    x: Math.round(c.x - 256 + cascade()), y: Math.round(c.y - 256 + cascade()),
-    w: 512, h: 512, z: 0,
+    x: s.x, y: s.y, w: 512, h: 512, z: 0,
   }
   doc.nodes.push(n)
   selectionIds.value = [n.id]
   pushHistory()
-}
-
-let cascadeN = 0
-function cascade() {
-  cascadeN = (cascadeN + 1) % 8
-  return cascadeN * 24
 }
 
 function viewportCenterWorld() {
@@ -589,10 +609,10 @@ async function generate() {
     x = maxX + 64
     y = minY
   } else {
-    const c = viewportCenterWorld()
     const totalW = n * size.w + (n - 1) * 48
-    x = c.x - totalW / 2
-    y = c.y - size.h / 2
+    const s = freeSpot(totalW, size.h)
+    x = s.x
+    y = s.y
   }
 
   const created = []
