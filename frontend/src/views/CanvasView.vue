@@ -73,9 +73,24 @@ const countOptions = [1, 2, 3, 4].map((n) => ({ value: n, label: `${n} 张` }))
 const canvasOptions = computed(() =>
   canvases.value.map((c) => ({ value: c.id, label: c.title || '未命名画布' })),
 )
-const maxRefs = computed(() => Math.min(8, Math.max(
-  Number(model.value?.max_reference_images || 0), model.value?.image_to_image ? 1 : 0,
-)))
+// 参考文件分类上限:custom 模型直接读模型三个字段;老模型只有
+// max_reference_images(各类合计)或 image_to_image 兜底 1 张图。
+const refCaps = computed(() => {
+  const m = model.value || {}
+  const imgs = Number(m.max_reference_images || 0) || (m.image_to_image ? 1 : 0)
+  const vids = Number(m.max_reference_videos || 0)
+  const auds = Number(m.max_reference_audios || 0)
+  return { imgs, vids, auds, total: imgs + vids + auds }
+})
+const maxRefs = computed(() => Math.min(20, refCaps.value.total))
+const supportsMediaRefs = computed(() => refCaps.value.vids > 0 || refCaps.value.auds > 0)
+const refFileAccept = computed(() => (supportsMediaRefs.value ? 'image/*,video/*,audio/*' : 'image/*'))
+const refCounts = computed(() => {
+  const imgs = refImages.value.filter((f) => !f.fileType || f.fileType === 'image').length
+  const vids = refImages.value.filter((f) => f.fileType === 'video').length
+  const auds = refImages.value.filter((f) => f.fileType === 'audio').length
+  return { imgs, vids, auds }
+})
 // 换类型/模型时重置参数默认值(和画图台一致)
 watch(() => gen.kind, () => {
   const first = kindModels.value[0]
@@ -576,7 +591,7 @@ function onPaste(e) {
 // ---- 参考图上传(与画图台一致:直接传文件,不再用选中节点) ----
 const refImages = ref([]) // { name, dataUrl }
 const refInput = ref(null)
-const MAX_REF_BYTES = 15 * 1024 * 1024
+const MAX_REF_BYTES = 20 * 1024 * 1024
 
 function fileToDataUrl(f) {
   return new Promise((resolve, reject) => {
@@ -587,23 +602,37 @@ function fileToDataUrl(f) {
   })
 }
 async function addRefFile(f) {
-  if (!f?.type?.startsWith('image/')) return
+  const t = f?.type || ''
+  const isImage = t.startsWith('image/')
+  const isVideo = t.startsWith('video/')
+  const isAudio = t.startsWith('audio/')
+  if (!isImage && !(supportsMediaRefs.value && (isVideo || isAudio))) return
   if (refImages.value.length >= maxRefs.value) {
-    genMsg.value = `参考图最多 ${maxRefs.value} 张`
+    genMsg.value = `参考文件最多 ${maxRefs.value} 个`
     return
   }
   if (f.size > MAX_REF_BYTES) {
-    genMsg.value = '单张参考图不能超过 15MB'
+    genMsg.value = '单个参考文件不能超过 20MB'
     return
   }
-  refImages.value.push({ name: f.name, dataUrl: await fileToDataUrl(f) })
+  const caps = refCaps.value
+  const counts = refCounts.value
+  const kind = isVideo ? 'video' : isAudio ? 'audio' : 'image'
+  if (isVideo && counts.vids >= caps.vids) { genMsg.value = `视频参考最多 ${caps.vids} 个`; return }
+  if (isAudio && counts.auds >= caps.auds) { genMsg.value = `音频参考最多 ${caps.auds} 个`; return }
+  if (isImage && counts.imgs >= caps.imgs) { genMsg.value = `图片参考最多 ${caps.imgs} 张`; return }
+  refImages.value.push({ name: f.name, dataUrl: await fileToDataUrl(f), fileType: kind })
 }
 // 画布图片节点 → 参考图(记录 nodeId,生成时自动连边标明来源)
 async function addNodeAsRef(n) {
   if (!n || n.type !== 'image' || !n.src) return
   if (refImages.value.some((r) => r.nodeId === n.id)) return
   if (refImages.value.length >= maxRefs.value) {
-    genMsg.value = `参考图最多 ${maxRefs.value} 张`
+    genMsg.value = `参考文件最多 ${maxRefs.value} 个`
+    return
+  }
+  if (refCounts.value.imgs >= refCaps.value.imgs) {
+    genMsg.value = `图片参考最多 ${refCaps.value.imgs} 张`
     return
   }
   try {
@@ -952,21 +981,22 @@ const saveLabel = computed(() => ({
           <div class="cv-composer">
             <div v-if="maxRefs > 0" class="cv-composer__refs">
               <div v-for="(r, i) in refImages" :key="i" class="cv-refthumb">
-                <img :src="r.dataUrl" :alt="r.name">
+                <img v-if="!r.fileType || r.fileType === 'image'" :src="r.dataUrl" :alt="r.name">
+                <span v-else class="cv-refthumb__media">{{ r.fileType === 'video' ? '🎬' : '🔊' }}</span>
                 <button type="button" class="cv-refthumb__x" title="移除" @click="removeRef(i)">✕</button>
               </div>
               <button
                 v-if="refImages.length < maxRefs"
                 type="button"
                 class="cv-refadd"
-                title="上传参考图"
+                :title="supportsMediaRefs ? '上传参考图/视频/音频' : '上传参考图'"
                 @click="refInput?.click()"
               >
                 <span class="cv-refadd__icon">＋</span>
                 <span>参考图</span>
                 <span class="cv-refadd__n">{{ refImages.length }}/{{ maxRefs }}</span>
               </button>
-              <input ref="refInput" type="file" accept="image/*" multiple hidden @change="onRefPicked">
+              <input ref="refInput" type="file" :accept="refFileAccept" multiple hidden @change="onRefPicked">
             </div>
             <textarea
               v-model="gen.prompt"
@@ -1339,6 +1369,13 @@ const saveLabel = computed(() => ({
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.cv-refthumb__media {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
 }
 .cv-refthumb__x {
   position: absolute;
