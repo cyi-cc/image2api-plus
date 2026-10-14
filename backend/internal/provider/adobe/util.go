@@ -117,38 +117,162 @@ func buildARKBlob() string {
 		arkHead + "|rid=" + strconv.Itoa(randomInt(1, 99)) + arkTail
 }
 
+// Per-token stable session identity: a real browser keeps sid / the ftr device
+// hex / bfp constant for the whole session, only the ftr timestamp advances.
+// Re-randomizing them every call is a bot signal, so they're cached per token
+// alongside the pid.
+var (
+	arpIdentMu sync.Mutex
+	arpIdent   = map[string]arpSessionIdent{}
+)
+
+type arpSessionIdent struct {
+	sid    string
+	devHex string
+	bfp    string
+	arp    string // cookie-derived value (sherlockToken), preferred over synthesis
+}
+
+// cookieValue extracts one cookie value from a raw cookie blob.
+func cookieValue(cookie, name string) string {
+	decoded, err := url.QueryUnescape(cookie)
+	if err != nil {
+		decoded = cookie
+	}
+	for _, part := range strings.Split(decoded, ";") {
+		part = strings.TrimSpace(part)
+		if k, v, ok := strings.Cut(part, "="); ok && k == name {
+			return v
+		}
+	}
+	return ""
+}
+
+// ARPFromCookie rebuilds x-arp-session-id from a browser cookie blob. The
+// sherlockToken cookie IS the arp value verbatim; when it's absent the same
+// {sid,ark,ftr,bfp} JSON is reassembled from the component cookies —
+// forterToken is the complete ftr (with the real Arkose payload), arkose the
+// ark blob, ff_session_guid the sid, bfp the fingerprint id. Returns "" when
+// no usable pieces are found.
+func ARPFromCookie(cookie string) string {
+	if st := cookieValue(cookie, "sherlockToken"); st != "" {
+		return st
+	}
+	ftr, ark := cookieValue(cookie, "forterToken"), cookieValue(cookie, "arkose")
+	if ftr == "" {
+		ftr = cookieValue(cookie, "forter")
+	}
+	if ftr == "" || ark == "" {
+		return ""
+	}
+	payload := map[string]any{"ftr": ftr, "ark": ark}
+	if v := cookieValue(cookie, "ff_session_guid"); v != "" {
+		payload["sid"] = v
+	}
+	if v := cookieValue(cookie, "bfp"); v != "" {
+		payload["bfp"] = v
+	}
+	b, _ := json.Marshal(payload)
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+// refreshARPTimestamp decodes a cookie-derived arp payload and bumps the ftr
+// timestamp field to now before re-encoding. ftr layout is
+// <devHex>_<unix_ms>_<pid>_<ver>_31ck_<arkose>_tt — a stale timestamp reads as
+// a dead session to the gateway; every other field stays verbatim so the
+// Forter/Arkose linkage is preserved. Returns arp unchanged on any shape
+// mismatch.
+func refreshARPTimestamp(arp string) string {
+	raw, err := base64.StdEncoding.DecodeString(arp)
+	if err != nil {
+		return arp
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return arp
+	}
+	ftr, _ := m["ftr"].(string)
+	parts := strings.Split(ftr, "_")
+	if len(parts) < 3 {
+		return arp
+	}
+	parts[1] = strconv.FormatInt(time.Now().UnixMilli(), 10)
+	m["ftr"] = strings.Join(parts, "_")
+	b, err := json.Marshal(m)
+	if err != nil {
+		return arp
+	}
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+// CacheARP stores a cookie-derived arp value for token so getARPSessionID
+// prefers the real (Arkose-bearing) value over the synthesized fallback.
+func CacheARP(token, arp string) {
+	token, arp = strings.TrimSpace(token), strings.TrimSpace(arp)
+	if token == "" || arp == "" {
+		return
+	}
+	arpIdentMu.Lock()
+	defer arpIdentMu.Unlock()
+	id := arpIdent[token]
+	id.arp = arp
+	arpIdent[token] = id
+}
+
 // buildARPSessionID returns the x-arp-session-id value: base64 of
-// {"sid","ark","ftr"}, shaped to match live firefly.adobe.com traffic:
+// {"sid","ark","ftr","bfp"}, shaped to match live firefly.adobe.com traffic:
 //
 //	ark: <17hex>.<10digits>|…|rid=<n>|…
-//	ftr: <32hex>_<unix_ms>_<pid>_UDF43-m4_31ck__tt
+//	ftr: <32hex>_<unix_ms>_<pid>_UDF43-mnf-a4_31ck__tt
 //
-// The pid is allocated per token (allocPID) so it stays stable across an
-// account's requests, the way a real browser session would.
+// pid, sid, the ftr device hex and bfp stay stable per token — a real browser
+// keeps them for the whole session and re-randomizing is a bot signal.
 //
 // The Arkose segment is left empty on purpose. In a real browser that slot
 // carries a "<b64>=-<4digits>-v2" payload emitted by Adobe's Arkose bot-manager
 // script; a synthesized one has the right shape but fails Adobe's server-side
 // validation, and 3p-images/generate-async rejects it with a misleading
 // {"error_code":"timeout_error","message":"system under load"}. Sending the
-// slot empty reads as "no Arkose payload yet" and is accepted.
+// slot empty reads as "no Arkose payload yet" and is accepted by the native
+// endpoints; 3p models may require the cookie-derived value (see CacheARP).
 func buildARPSessionID(token string) string {
 	ftr := strings.Join([]string{
-		randomHex(16), // 32 hex chars, matching the capture
+		arpIdentity(token).devHex,
 		strconv.FormatInt(time.Now().UnixMilli(), 10),
 		strconv.Itoa(allocPID(token)),
-		"UDF43-m4",
+		"UDF43-mnf-a4",
 		"31ck",
 		"",
 		"tt",
 	}, "_")
 
+	id := arpIdentity(token)
 	b, _ := json.Marshal(map[string]any{
-		"sid": uuid.NewString(),
+		"sid": id.sid,
 		"ark": buildARKBlob(),
 		"ftr": ftr,
+		"bfp": id.bfp,
 	})
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+// arpIdentity returns (creating on first use) the stable per-token identity
+// pieces, preferring a cached cookie-derived arp value when one exists.
+func arpIdentity(token string) arpSessionIdent {
+	arpIdentMu.Lock()
+	defer arpIdentMu.Unlock()
+	id, ok := arpIdent[token]
+	if !ok || id.sid == "" {
+		id.sid = uuid.NewString()
+	}
+	if !ok || id.devHex == "" {
+		id.devHex = randomHex(16)
+	}
+	if !ok || id.bfp == "" {
+		id.bfp = uuid.NewString()
+	}
+	arpIdent[token] = id
+	return id
 }
 
 // randomDigits returns n decimal digits with a non-zero leading digit, so the

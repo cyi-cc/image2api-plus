@@ -105,10 +105,14 @@ func NewClient(apiKey, proxy string) *Client {
 	}
 }
 
-// getARPSessionID returns a fresh ARP session id for this token. The value is
-// regenerated per call, but the embedded pid stays stable per token; see
-// buildARPSessionID for the wire format.
+// getARPSessionID returns the x-arp-session-id for this token. When a real,
+// cookie-derived value was captured during ExchangeCookie (CacheARP) it is
+// reused verbatim — it carries a genuine Arkose payload which the 3p endpoints
+// require. Otherwise a shaped value is synthesized (see buildARPSessionID).
 func (c *Client) getARPSessionID(token string) string {
+	if id := arpIdentity(token); strings.TrimSpace(id.arp) != "" {
+		return refreshARPTimestamp(id.arp)
+	}
 	return buildARPSessionID(token)
 }
 
@@ -1103,10 +1107,20 @@ func exchangeCookieWithTLSClient(ctx context.Context, sess *tlsSession, cookie s
 	// client_id=clio-playground-web with the creative_production scope, keyed by
 	// user_id, which IS entitled. Mint that here too (best-effort: if it fails we
 	// keep the Express token so the other models still work).
-	if uid := ExtractAccountID(token); uid != "" {
+	// A cookie without the IMS session (ims_sid) mints an anonymous guest
+	// token (no user_id) — generation rejects it with 401, so fail the
+	// exchange here instead of landing a dead account in the pool.
+	uid := ExtractAccountID(token)
+	if uid == "" {
+		return nil, errors.New("adobe cookie has no IMS session (ims_sid); minted token is anonymous")
+	}
+	arp := ARPFromCookie(cookie)
+	CacheARP(token, arp)
+	if uid != "" {
 		clioBody := "client_id=" + clioClientID + "&scope=" + strings.ReplaceAll(clioScopeValue, ",", "%2C") + "&user_id=" + url.QueryEscape(uid)
 		if clioPayload, err := doCookieExchange(ctx, sess, cookie, clioBody, "https://firefly.adobe.com"); err == nil {
 			if clioToken := strings.TrimSpace(stringValue(clioPayload["access_token"])); clioToken != "" {
+				CacheARP(clioToken, arp)
 				return &CookieExchangeResult{
 					AccessToken: clioToken,
 					ExpiresIn:   intValue(clioPayload["expires_in"]),
