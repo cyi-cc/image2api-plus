@@ -178,14 +178,13 @@ func (c *Client) vividPayload(ctx context.Context, baseURL, apiKey, model, promp
 	return payload, nil
 }
 
-// vividUploadRef runs the two-step upload: POST /v1/uploads {kind:"image",mime}
-// → PUT the bytes to the presigned url → returns the key for refs[].
+// vividUploadRef runs the two-step upload: POST /v1/uploads {kind,mime} → PUT
+// the bytes to the presigned url → returns the key for refs[]. kind is image /
+// video / audio, derived from the file magic (same classes the upstream
+// accepts: png/jpeg/webp · mp4/webm/mov · mp3/wav/m4a/ogg).
 func (c *Client) vividUploadRef(ctx context.Context, baseURL, apiKey string, data []byte) (string, error) {
-	mime := http.DetectContentType(data)
-	if mime == "" || mime == "application/octet-stream" {
-		mime = "image/png"
-	}
-	raw, _ := json.Marshal(map[string]any{"kind": "image", "mime": mime})
+	kind, mime := vividRefKindMime(data)
+	raw, _ := json.Marshal(map[string]any{"kind": kind, "mime": mime})
 	up, err := c.doJSON(ctx, http.MethodPost, baseURL+"/v1/uploads", apiKey, raw)
 	if err != nil {
 		return "", err
@@ -211,6 +210,58 @@ func (c *Client) vividUploadRef(ctx context.Context, baseURL, apiKey string, dat
 		return "", fmt.Errorf("%w: ref upload %d %s", ErrTemporaryUpstream, resp.StatusCode, clip(body, 120))
 	}
 	return key, nil
+}
+
+// vividRefKindMime classifies a reference blob into the vivid "kind" (image /
+// video / audio) plus a concrete mime. Magic bytes first (DetectContentType
+// misses mov/m4a/ogg-audio), then sniffing, then a png default.
+func vividRefKindMime(data []byte) (kind, mime string) {
+	n := len(data)
+	// ISOBMFF box: ftyp — mp4/mov/m4a share the container; the brand decides.
+	if n >= 12 && string(data[4:8]) == "ftyp" {
+		brand := string(data[8:12])
+		switch {
+		case strings.Contains(brand, "M4A"), strings.Contains(brand, "M4B"):
+			return "audio", "audio/mp4"
+		case strings.Contains(brand, "qt"):
+			return "video", "video/quicktime"
+		default:
+			return "video", "video/mp4"
+		}
+	}
+	// WebM/MKV EBML
+	if n >= 4 && data[0] == 0x1A && data[1] == 0x45 && data[2] == 0xDF && data[3] == 0xA3 {
+		return "video", "video/webm"
+	}
+	// MP3: ID3 tag or MPEG sync
+	if n >= 3 && string(data[:3]) == "ID3" {
+		return "audio", "audio/mpeg"
+	}
+	if n >= 2 && data[0] == 0xFF && (data[1]&0xE0) == 0xE0 {
+		return "audio", "audio/mpeg"
+	}
+	// WAV / OGG / FLAC
+	if n >= 4 && string(data[:4]) == "RIFF" {
+		return "audio", "audio/wav"
+	}
+	if n >= 4 && string(data[:4]) == "OggS" {
+		return "audio", "audio/ogg"
+	}
+	if n >= 4 && string(data[:4]) == "fLaC" {
+		return "audio", "audio/x-flac"
+	}
+	// Sniffed type (images land here; also catches anything odd above missed).
+	if m := http.DetectContentType(data); m != "" && m != "application/octet-stream" {
+		switch {
+		case strings.HasPrefix(m, "video/"):
+			return "video", m
+		case strings.HasPrefix(m, "audio/"), m == "application/ogg":
+			return "audio", m
+		case strings.HasPrefix(m, "image/"):
+			return "image", m
+		}
+	}
+	return "image", "image/png"
 }
 
 // vividGenerate POSTs /v1/generate and reads the NDJSON stream to the terminal

@@ -141,6 +141,56 @@ func TestVividErrorCodes(t *testing.T) {
 	}
 }
 
+func TestVividRefKindMime(t *testing.T) {
+	cases := []struct {
+		name string
+		data []byte
+		kind string
+	}{
+		{"png", []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4}, "image"},
+		{"jpeg", []byte{0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4, 5, 6}, "image"},
+		{"mp4", []byte{0, 0, 0, 0, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}, "video"},
+		{"mov", []byte{0, 0, 0, 0, 'f', 't', 'y', 'p', 'q', 't', ' ', ' '}, "video"},
+		{"webm", []byte{0x1A, 0x45, 0xDF, 0xA3, 1, 2, 3, 4}, "video"},
+		{"mp3-id3", []byte{'I', 'D', '3', 4, 0, 0, 1, 2}, "audio"},
+		{"mp3-sync", []byte{0xFF, 0xFB, 1, 2, 3, 4}, "audio"},
+		{"wav", []byte{'R', 'I', 'F', 'F', 1, 2, 3, 4, 'W', 'A', 'V', 'E'}, "audio"},
+		{"ogg", []byte{'O', 'g', 'g', 'S', 1, 2, 3, 4}, "audio"},
+		{"m4a", []byte{0, 0, 0, 0, 'f', 't', 'y', 'p', 'M', '4', 'A', ' '}, "audio"},
+		{"empty", []byte{}, "image"},
+	}
+	for _, tc := range cases {
+		kind, mime := vividRefKindMime(tc.data)
+		if kind != tc.kind {
+			t.Errorf("%s: kind=%s mime=%s", tc.name, kind, mime)
+		}
+	}
+}
+
+func TestVividUploadRefKindVideo(t *testing.T) {
+	var gotKind, gotMime string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/uploads" {
+			var req map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			gotKind, _ = req["kind"].(string)
+			gotMime, _ = req["mime"].(string)
+			fmt.Fprintf(w, `{"key":"k1","url":"http://%s/up"}`, r.Host)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	webm := []byte{0x1A, 0x45, 0xDF, 0xA3, 1, 2, 3, 4, 5, 6, 7, 8}
+	key, err := NewClient().vividUploadRef(context.Background(), srv.URL, "vk", webm)
+	if err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	if key != "k1" || gotKind != "video" || gotMime != "video/webm" {
+		t.Fatalf("key=%q kind=%q mime=%q", key, gotKind, gotMime)
+	}
+}
+
 func TestVividUploadRefFlow(t *testing.T) {
 	var putOK bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

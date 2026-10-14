@@ -401,6 +401,8 @@ func (s *AdminWriteService) CreateModel(ctx context.Context, body map[string]any
 		DurationPricesAgent: jsonMap(body["duration_prices_agent"]),
 		Durations:           jsonArray(body["durations"]),
 		MaxReferenceImages:  intValue(body["max_reference_images"]),
+		MaxReferenceVideos:  intValue(body["max_reference_videos"]),
+		MaxReferenceAudios:  intValue(body["max_reference_audios"]),
 		ReferenceMode:       defaultString(strings.TrimSpace(stringValue(body["reference_mode"])), "none"),
 		Weight:              intValue(body["weight"]),
 		CreatedAt:           time.Now(),
@@ -476,6 +478,12 @@ func (s *AdminWriteService) UpdateModel(ctx context.Context, modelID string, bod
 	}
 	if _, ok := body["max_reference_images"]; ok {
 		patch["max_reference_images"] = intValue(body["max_reference_images"])
+	}
+	if _, ok := body["max_reference_videos"]; ok {
+		patch["max_reference_videos"] = intValue(body["max_reference_videos"])
+	}
+	if _, ok := body["max_reference_audios"]; ok {
+		patch["max_reference_audios"] = intValue(body["max_reference_audios"])
 	}
 	if _, ok := body["reference_mode"]; ok {
 		patch["reference_mode"] = defaultString(strings.TrimSpace(stringValue(body["reference_mode"])), "none")

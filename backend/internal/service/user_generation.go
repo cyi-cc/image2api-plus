@@ -95,9 +95,10 @@ func (s *UserGenerationService) Generate(ctx context.Context, user *model.User, 
 	}
 }
 
-// validateReferenceMode mirrors the /v1 checks: the override must be "frame"
-// or "asset", the model must support references at all, and frame mode carries
-// at most 2 images (first+last frame).
+// validateReferenceMode mirrors the /v1 checks: the override must be "frame",
+// "asset" or "media", the model must support references at all, and frame mode
+// carries at most 2 images (first+last frame). "media" = 参考视频/音频 — refs
+// may be video or audio blobs (vivid-style upstreams that accept all kinds).
 func validateReferenceMode(rm string, modelItem *model.ModelConfig, refCount int) error {
 	rm = strings.TrimSpace(rm)
 	if rm == "" {
@@ -107,8 +108,8 @@ func validateReferenceMode(rm string, modelItem *model.ModelConfig, refCount int
 	if supported == "" || supported == "none" {
 		return fmt.Errorf("%w: reference_mode not supported for this model", ErrUnsupportedParams)
 	}
-	if rm != "frame" && rm != "asset" {
-		return fmt.Errorf("%w: reference_mode must be 'frame' or 'asset'", ErrUnsupportedParams)
+	if rm != "frame" && rm != "asset" && rm != "media" {
+		return fmt.Errorf("%w: reference_mode must be 'frame', 'asset' or 'media'", ErrUnsupportedParams)
 	}
 	if rm == "frame" && refCount > 2 {
 		return fmt.Errorf("%w: frame mode supports at most 2 reference images (first+last frame), got %d", ErrUnsupportedParams, refCount)

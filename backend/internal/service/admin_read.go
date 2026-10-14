@@ -102,6 +102,8 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 			"duration_prices_agent": map[string]any(item.DurationPricesAgent),
 			"durations":             repo.JSONStrings(item.Durations),
 			"max_reference_images":  item.MaxReferenceImages,
+			"max_reference_videos":  item.MaxReferenceVideos,
+			"max_reference_audios":  item.MaxReferenceAudios,
 			"reference_mode":        item.ReferenceMode,
 			"weight":                item.Weight,
 			"generation_count":      item.GenerationCount,

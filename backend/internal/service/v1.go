@@ -224,7 +224,7 @@ type V1VideoRequest struct {
 	AspectRatio     string
 	Resolution      string
 	ReferenceImages []string
-	ReferenceMode   string // "frame" or "asset", overrides model default
+	ReferenceMode   string // "frame", "asset" or "media", overrides model default
 	// BaseURL — see V1ImageRequest.BaseURL.
 	BaseURL string
 	// AccountID — see V1ImageRequest.AccountID.
@@ -1273,7 +1273,7 @@ func (s *V1Service) prepareImage(ctx context.Context, principal *APIPrincipal, i
 	}
 	refLimit := 0
 	if modelItem.ImageToImage {
-		refLimit = modelItem.MaxReferenceImages
+		refLimit = totalRefLimit(modelItem)
 		if refLimit <= 0 {
 			refLimit = 1
 		}
@@ -1362,7 +1362,7 @@ func (s *V1Service) prepareVideo(ctx context.Context, principal *APIPrincipal, i
 	} else if !ok {
 		return nil, "", "", "", 0, ErrNoProviderAccount
 	}
-	refLimit := modelItem.MaxReferenceImages
+	refLimit := totalRefLimit(modelItem)
 	if refLimit <= 0 {
 		refLimit = 10
 	}
@@ -2120,6 +2120,44 @@ func (s *V1Service) generateRunwayVideo(ctx context.Context, eventID string, mod
 	return nil, "", lastErr
 }
 
+// totalRefLimit is the aggregate reference-file cap across all media kinds.
+// Models with per-kind caps (max_reference_videos/audios) total them; legacy
+// models only have max_reference_images, so the sum degenerates correctly.
+func totalRefLimit(m *model.ModelConfig) int {
+	return m.MaxReferenceImages + m.MaxReferenceVideos + m.MaxReferenceAudios
+}
+
+// refKinds counts decoded refs by media class (image / video / audio) using the
+// same magic-byte detection the leonardo upload path relies on.
+func refKinds(refs [][]byte) (images, videos, audios int) {
+	for _, r := range refs {
+		switch detectMediaType(r) {
+		case "video":
+			videos++
+		case "audio":
+			audios++
+		default:
+			images++
+		}
+	}
+	return
+}
+
+// checkCustomRefCaps validates decoded refs against a custom model's per-kind
+// caps (Chinese messages mirror the leonardo spec errors).
+func checkCustomRefCaps(modelItem *model.ModelConfig, refs [][]byte) (images, videos, audios int, err error) {
+	images, videos, audios = refKinds(refs)
+	switch {
+	case videos > modelItem.MaxReferenceVideos:
+		err = fmt.Errorf("最多 %d 段视频参考", modelItem.MaxReferenceVideos)
+	case audios > modelItem.MaxReferenceAudios:
+		err = fmt.Errorf("最多 %d 段音频参考", modelItem.MaxReferenceAudios)
+	case images > modelItem.MaxReferenceImages:
+		err = fmt.Errorf("最多 %d 张图片参考", modelItem.MaxReferenceImages)
+	}
+	return
+}
+
 // customAccountServes reports whether a custom (upstream) account is usable for a
 // given model id: active, not dead, has a base_url, and its meta.models list (csv
 // of model ids it serves) contains the id. An empty models list serves ALL ids.
@@ -2201,7 +2239,11 @@ func (s *V1Service) generateCustomImage(ctx context.Context, eventID string, mod
 	if s.custom == nil {
 		return nil, "", errors.New("custom client not configured")
 	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
+	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, totalRefLimit(modelItem)))
+	if err != nil {
+		return nil, "", err
+	}
+	_, vids, auds, err := checkCustomRefCaps(modelItem, refs)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2229,10 +2271,17 @@ func (s *V1Service) generateCustomImage(ctx context.Context, eventID string, mod
 			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
 			_ = s.tokens.TouchLastUsed(ctx, token.ID)
 			baseURL := stringValue(token.Meta["base_url"])
+			vivid := strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid")
+			if !vivid && (vids > 0 || auds > 0) {
+				// OpenAI-protocol upstreams only accept image refs — skip this
+				// account; another vivid-protocol account may still serve.
+				lastErr = errors.New("upstream does not accept video/audio refs")
+				return false, true
+			}
 			var d []byte
 			var u string
 			var genErr error
-			if strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid") {
+			if vivid {
 				d, u, genErr = s.custom.GenerateVividImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), refs, !urlOnly)
 			} else {
 				d, u, genErr = s.custom.GenerateImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, quality, refs, !urlOnly)
@@ -2291,9 +2340,13 @@ func (s *V1Service) generateCustomVideo(ctx context.Context, eventID string, mod
 		return nil, "", ErrNoProviderAccount
 	}
 	size := upstreamVideoSize(aspectRatio, resolution)
-	// Optional reference frames (image-to-video / first-last frames) — forwarded
-	// to the upstream as multipart input_reference[] files.
-	frames, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
+	// Optional reference files (images / videos / audios for vivid upstreams;
+	// images only for OpenAI-protocol ones).
+	frames, err := decodeReferenceImages(in.ReferenceImages, max(1, totalRefLimit(modelItem)))
+	if err != nil {
+		return nil, "", err
+	}
+	_, vids, auds, err := checkCustomRefCaps(modelItem, frames)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2311,10 +2364,15 @@ func (s *V1Service) generateCustomVideo(ctx context.Context, eventID string, mod
 			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
 			_ = s.tokens.TouchLastUsed(ctx, token.ID)
 			baseURL := stringValue(token.Meta["base_url"])
+			vivid := strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid")
+			if !vivid && (vids > 0 || auds > 0) {
+				lastErr = errors.New("upstream does not accept video/audio refs")
+				return false, true
+			}
 			var d []byte
 			var url string
 			var genErr error
-			if strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid") {
+			if vivid {
 				d, url, genErr = s.custom.GenerateVividVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), durationSeconds, frames, downloadResult)
 			} else {
 				d, url, genErr = s.custom.GenerateVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, durationSeconds, frames, downloadResult)

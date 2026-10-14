@@ -15,10 +15,11 @@ export function mediaCaps(model, preset) {
   // creativefabrica 上游只收图片参考(VIDEO_FRAME_TYPE_REFERENCE),不收视频/音频;
   // 它虽然叫 seedance,但要排除,否则会错误地显示「视频 3 音频 3」。
   const isSeedance = /^seedance/.test(model?.id || '') && (model?.provider || '') !== 'creativefabrica'
-  const videos = declared(preset?.max_videos) ?? (isSeedance ? SEEDANCE_FALLBACK.videos : 0)
-  const audios = declared(preset?.max_audios) ?? (isSeedance ? SEEDANCE_FALLBACK.audios : 0)
+  // preset 优先;custom 上游模型直接在模型字段里声明(max_reference_videos/audios)。
+  const videos = declared(preset?.max_videos) ?? declared(model?.max_reference_videos) ?? (isSeedance ? SEEDANCE_FALLBACK.videos : 0)
+  const audios = declared(preset?.max_audios) ?? declared(model?.max_reference_audios) ?? (isSeedance ? SEEDANCE_FALLBACK.audios : 0)
   if (!videos && !audios) return null
-  return { images: declared(preset?.max_images) ?? 0, videos, audios }
+  return { images: declared(preset?.max_images) ?? declared(model?.max_reference_images) ?? 0, videos, audios }
 }
 
 // presetMap 把 /video-presets 的列表转成 key → preset，便于按模型 id 取预设。

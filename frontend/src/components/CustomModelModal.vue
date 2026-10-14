@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { api, jsonBody } from '../api'
 import Icon from './Icon.vue'
 import SelectMenu from './SelectMenu.vue'
@@ -19,7 +19,8 @@ const alias = ref('')
 const type = ref('image')
 const ratios = ref(['1:1', '16:9', '9:16'])
 const maxRefs = ref(0)
-const refMode = ref('none')
+const maxRefVids = ref(0)
+const maxRefAuds = ref(0)
 const weight = ref(0)
 // tier -> { price, agent } — blank price means the tier is NOT supported.
 const res = ref(Object.fromEntries(ALL_RES.map((r) => [r, { price: '', agent: '' }])))
@@ -52,12 +53,6 @@ const isVideo = computed(() => type.value === 'video')
 // Resolution tiers depend on type: image = 1K/2K/4K, video = 540p/720p/1080p/2K/4K.
 const resOpts = computed(() => (isVideo.value ? VID_RES : IMG_RES))
 
-// 首尾帧(frame) only has first+last slots → cap reference images at 2.
-const refsCap = computed(() => (refMode.value === 'frame' ? 2 : 99))
-watch([refMode, maxRefs], () => {
-  if (refMode.value === 'frame' && Number(maxRefs.value) > 2) maxRefs.value = 2
-})
-
 function toggleRatio(r) {
   const i = ratios.value.indexOf(r)
   if (i >= 0) ratios.value.splice(i, 1)
@@ -84,7 +79,6 @@ function collect(tiers, allowed) {
 async function save() {
   const mid = id.value.trim()
   if (!mid) { error.value = '请填写模型 id'; return }
-  if (refMode.value === 'frame' && Number(maxRefs.value) > 2) maxRefs.value = 2
   const r = collect(res.value, resOpts.value)
   if (!r.keys.length) { error.value = '请至少勾选一个分辨率并填价格'; return }
   const body = {
@@ -97,9 +91,12 @@ async function save() {
     prices_agent: r.agent,
     ratios: ratios.value.slice(),
     max_reference_images: Number(maxRefs.value) || 0,
-    reference_mode: refMode.value,
+    max_reference_videos: Number(maxRefVids.value) || 0,
+    max_reference_audios: Number(maxRefAuds.value) || 0,
+    // asset 语义 = 通用参考文件;vivid 上游按 refs[] 直传,模式字段不再做区分
+    reference_mode: (Number(maxRefs.value) + Number(maxRefVids.value) + Number(maxRefAuds.value)) > 0 ? 'asset' : 'none',
     weight: Number(weight.value) || 0,
-    image_to_image: (Number(maxRefs.value) || 0) > 0,
+    image_to_image: (Number(maxRefs.value) + Number(maxRefVids.value) + Number(maxRefAuds.value)) > 0,
   }
   if (isVideo.value) {
     body.resolutions = r.keys
@@ -192,14 +189,21 @@ async function save() {
           </div>
         </div>
 
-        <div class="flex gap-3">
-          <div class="flex-1">
-            <label class="text-xs text-slate-500 block mb-1">参考图张数<span v-if="refMode==='frame'" class="text-white/40">(首尾帧最多 2)</span></label>
-            <input v-model.number="maxRefs" type="number" min="0" :max="refsCap" class="field h-10" />
-          </div>
-          <div class="flex-1">
-            <label class="text-xs text-slate-500 block mb-1">参考模式</label>
-            <SelectMenu v-model="refMode" :options="[{value:'none',label:'无'},{value:'asset',label:'参考图'},{value:'frame',label:'首尾帧(视频)'}]" />
+        <div>
+          <label class="text-xs text-slate-500 block mb-1">参考文件上限(各类数量,vivid 上游支持三种;openai 协议只收图)</label>
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <label class="text-[11px] text-slate-400 block mb-1">参考图</label>
+              <input v-model.number="maxRefs" type="number" min="0" class="field h-10" placeholder="0" />
+            </div>
+            <div class="flex-1">
+              <label class="text-[11px] text-slate-400 block mb-1">参考视频</label>
+              <input v-model.number="maxRefVids" type="number" min="0" class="field h-10" placeholder="0" />
+            </div>
+            <div class="flex-1">
+              <label class="text-[11px] text-slate-400 block mb-1">参考音频</label>
+              <input v-model.number="maxRefAuds" type="number" min="0" class="field h-10" placeholder="0" />
+            </div>
           </div>
         </div>
 
