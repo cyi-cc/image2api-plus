@@ -14,7 +14,7 @@ export function mediaCaps(model, preset) {
   if ((model?.type || model?.kind) !== 'video') return null
   // creativefabrica 上游只收图片参考(VIDEO_FRAME_TYPE_REFERENCE),不收视频/音频;
   // 它虽然叫 seedance,但要排除,否则会错误地显示「视频 3 音频 3」。
-  const isSeedance = /^seedance/.test(model?.id || '') && (model?.provider || '') !== 'creativefabrica'
+  const isSeedance = /^seedance/.test(model?.id || '') && !['creativefabrica', 'custom'].includes(model?.provider || '')
   // preset 优先;custom 上游模型直接在模型字段里声明(max_reference_videos/audios)。
   const videos = declared(preset?.max_videos) ?? declared(model?.max_reference_videos) ?? (isSeedance ? SEEDANCE_FALLBACK.videos : 0)
   const audios = declared(preset?.max_audios) ?? declared(model?.max_reference_audios) ?? (isSeedance ? SEEDANCE_FALLBACK.audios : 0)
