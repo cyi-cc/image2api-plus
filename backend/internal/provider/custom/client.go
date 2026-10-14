@@ -6,6 +6,7 @@
 package custom
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -118,6 +119,253 @@ func (c *Client) GenerateImage(ctx context.Context, baseURL, apiKey, model, prom
 		return nil, "", e
 	}
 	return imageFromResponse(ctx, body, downloadResult)
+}
+
+// ── Vivid 协议 ──────────────────────────────────────────────────────────────
+// Vivid 上游用自家 API:POST /v1/generate 返回 application/x-ndjson 流 —— 首行
+// {"jobId":...,"status":"running"},等待期间每 25s 一个空行心跳,末行为终态
+// (succeeded 带 result 预签名 URL / failed 带 error)。参考素材走两步:
+// POST /v1/uploads {kind,mime} → PUT 直传预签名 URL → 拿 key 放进 refs。
+// 断流可携 jobId 重发重连。错误体为 {"error":{"code":"4011|4001|4002|4293|5001"}}。
+
+// GenerateVividImage submits an image job to a Vivid-protocol upstream.
+// quality is the tier string the upstream expects ("1K"/"2K"/"4K"), ratio the
+// "W:H" aspect. refs are pre-uploaded via /v1/uploads into key strings.
+func (c *Client) GenerateVividImage(ctx context.Context, baseURL, apiKey, model, prompt, ratio, quality string, refs [][]byte, downloadResult bool) ([]byte, string, error) {
+	payload, err := c.vividPayload(ctx, baseURL, apiKey, model, prompt, ratio, quality, 0, refs)
+	if err != nil {
+		return nil, "", err
+	}
+	return c.vividGenerate(ctx, baseURL, apiKey, payload, downloadResult)
+}
+
+// GenerateVividVideo submits a video job (duration required by ranged models)
+// to a Vivid-protocol upstream.
+func (c *Client) GenerateVividVideo(ctx context.Context, baseURL, apiKey, model, prompt, ratio, quality string, durationSeconds int, refs [][]byte, downloadResult bool) ([]byte, string, error) {
+	payload, err := c.vividPayload(ctx, baseURL, apiKey, model, prompt, ratio, quality, durationSeconds, refs)
+	if err != nil {
+		return nil, "", err
+	}
+	return c.vividGenerate(ctx, baseURL, apiKey, payload, downloadResult)
+}
+
+func (c *Client) vividPayload(ctx context.Context, baseURL, apiKey, model, prompt, ratio, quality string, durationSeconds int, refs [][]byte) (map[string]any, error) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" || apiKey == "" {
+		return nil, ErrAuth
+	}
+	payload := map[string]any{"model": model, "prompt": prompt}
+	if quality != "" {
+		payload["quality"] = quality
+	}
+	if ratio != "" {
+		payload["ratio"] = ratio
+	}
+	if durationSeconds > 0 {
+		payload["duration"] = durationSeconds
+	}
+	if len(refs) > 0 {
+		keys := make([]string, 0, len(refs))
+		for _, ref := range refs {
+			key, err := c.vividUploadRef(ctx, baseURL, apiKey, ref)
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, key)
+		}
+		payload["refs"] = keys
+	}
+	return payload, nil
+}
+
+// vividUploadRef runs the two-step upload: POST /v1/uploads {kind:"image",mime}
+// → PUT the bytes to the presigned url → returns the key for refs[].
+func (c *Client) vividUploadRef(ctx context.Context, baseURL, apiKey string, data []byte) (string, error) {
+	mime := http.DetectContentType(data)
+	if mime == "" || mime == "application/octet-stream" {
+		mime = "image/png"
+	}
+	raw, _ := json.Marshal(map[string]any{"kind": "image", "mime": mime})
+	up, err := c.doJSON(ctx, http.MethodPost, baseURL+"/v1/uploads", apiKey, raw)
+	if err != nil {
+		return "", err
+	}
+	putURL := strings.TrimSpace(stringValue(up["url"]))
+	key := strings.TrimSpace(stringValue(up["key"]))
+	if putURL == "" || key == "" {
+		return "", fmt.Errorf("%w: upload session missing url/key", ErrTemporaryUpstream)
+	}
+	req, err := http.NewRequest(http.MethodPut, putURL, bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	req = req.WithContext(ctx)
+	req.Header.Set("Content-Type", mime) // must match the signed mime exactly
+	resp, err := httpClient().Do(req)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", ErrTemporaryUpstream, sanitizeErr(err))
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("%w: ref upload %d %s", ErrTemporaryUpstream, resp.StatusCode, clip(body, 120))
+	}
+	return key, nil
+}
+
+// vividGenerate POSTs /v1/generate and reads the NDJSON stream to the terminal
+// frame. If the stream drops before terminal, it reconnects once with the
+// jobId (same-request resume — no new task, no double charge).
+func (c *Client) vividGenerate(ctx context.Context, baseURL, apiKey string, payload map[string]any, downloadResult bool) ([]byte, string, error) {
+	var last map[string]any
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			if sleepCtx(ctx, 2*time.Second) != nil {
+				return nil, "", ctx.Err()
+			}
+		}
+		term, err := c.vividStreamOnce(ctx, baseURL, apiKey, payload)
+		if err == nil && term != nil {
+			last = term
+			break
+		}
+		if err != nil && !errors.Is(err, ErrTemporaryUpstream) {
+			return nil, "", err
+		}
+		// Temporary error mid-stream: if we hold a jobId, reconnect mode retries
+		// without creating a new task.
+		if job := strings.TrimSpace(stringValue(payload["jobId"])); job != "" {
+			payload = map[string]any{"jobId": job}
+			continue
+		}
+		if attempt == 2 {
+			return nil, "", err
+		}
+	}
+	if last == nil {
+		return nil, "", fmt.Errorf("%w: no terminal frame", ErrTemporaryUpstream)
+	}
+	status := strings.ToLower(strings.TrimSpace(stringValue(last["status"])))
+	switch status {
+	case "succeeded", "completed", "success":
+		resultURL := strings.TrimSpace(stringValue(last["result"]))
+		if resultURL == "" {
+			return nil, "", fmt.Errorf("%w: succeeded frame missing result", ErrTemporaryUpstream)
+		}
+		if !downloadResult {
+			return nil, resultURL, nil
+		}
+		data, err := c.vividDownload(ctx, resultURL)
+		if err != nil {
+			return nil, "", err
+		}
+		return data, resultURL, nil
+	default:
+		reason := strings.TrimSpace(stringValue(last["error"]))
+		if reason == "" {
+			reason = "upstream job " + status
+		}
+		if isCreditError(reason) || strings.Contains(reason, "积分不足") || strings.Contains(reason, "余额") {
+			return nil, "", fmt.Errorf("%w: %s", ErrQuotaExhausted, clip([]byte(reason), 160))
+		}
+		return nil, "", errors.New("custom: " + clip([]byte(reason), 160))
+	}
+}
+
+// vividStreamOnce performs one /v1/generate request and scans the NDJSON body
+// to the last frame. Returns the terminal frame, or a temporary error on
+// transport failure (caller's reconnect logic decides what to do with jobId).
+func (c *Client) vividStreamOnce(ctx context.Context, baseURL, apiKey string, payload map[string]any) (map[string]any, error) {
+	raw, _ := json.Marshal(payload)
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/v1/generate", bytes.NewReader(raw))
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Wait-Seconds", "7200")
+	resp, err := httpClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrTemporaryUpstream, sanitizeErr(err))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, vividError(resp.StatusCode, body)
+	}
+	var last map[string]any
+	sc := bufio.NewScanner(resp.Body)
+	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for sc.Scan() {
+		line := bytes.TrimSpace(sc.Bytes())
+		if len(line) == 0 {
+			continue // 25s heartbeat empty line
+		}
+		var frame map[string]any
+		if json.Unmarshal(line, &frame) != nil {
+			continue
+		}
+		last = frame
+		// Remember the jobId for potential reconnect.
+		if job := strings.TrimSpace(stringValue(frame["jobId"])); job != "" {
+			payload["jobId"] = job
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrTemporaryUpstream, sanitizeErr(err))
+	}
+	return last, nil
+}
+
+// vividError maps the {"error":{"code":"NNNN"}} envelope to our error classes.
+func vividError(status int, body []byte) error {
+	var e struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	code := ""
+	msg := clip(body, 160)
+	if json.Unmarshal(body, &e) == nil {
+		code = strings.TrimSpace(e.Error.Code)
+		if m := strings.TrimSpace(e.Error.Message); m != "" {
+			msg = clip([]byte(m), 160)
+		}
+	}
+	switch code {
+	case "4011":
+		return fmt.Errorf("%w: %s", ErrAuth, msg)
+	case "4002":
+		return fmt.Errorf("%w: %s", ErrQuotaExhausted, msg)
+	case "4293", "5001":
+		return fmt.Errorf("%w: %s", ErrTemporaryUpstream, msg)
+	case "4001":
+		return errors.New("custom: " + msg) // 参数/业务拒绝 → 永久错,不换号
+	}
+	return mapStatus(status, body)
+}
+
+// vividDownload fetches the presigned result URL — no auth header (it's signed).
+func (c *Client) vividDownload(ctx context.Context, url string) ([]byte, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := httpClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrTemporaryUpstream, sanitizeErr(err))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("%w: result download %d", ErrTemporaryUpstream, resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("%w: empty result", ErrTemporaryUpstream)
+	}
+	return data, nil
 }
 
 // GenerateVideo drives the upstream Sora-style async video API:

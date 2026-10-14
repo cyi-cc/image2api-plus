@@ -9,6 +9,7 @@ const emit = defineEmits(['close', 'imported'])
 const isEdit = !!props.account
 const name = ref(props.account?.email || '')
 const baseUrl = ref(props.account?.base_url || '')
+const protocol = ref(props.account?.protocol === 'vivid' ? 'vivid' : 'openai')
 const key = ref('')            // edit: blank = keep existing key
 const allModels = ref([])      // existing models to pick from
 const selected = ref(props.account?.models ? String(props.account.models).split(',').map((x) => x.trim()).filter(Boolean) : [])
@@ -43,6 +44,7 @@ async function submit() {
       base_url: baseUrl.value.trim(),
       key: key.value.trim(),       // blank in edit = keep existing
       models: selected.value.join(','),
+      protocol: protocol.value,
       weight: Number(weight.value) || 0,
       concurrency: Number(concurrency.value) || 1,
     }))
@@ -65,7 +67,7 @@ async function submit() {
        @click.self="emit('close')">
     <div class="card !shadow-xl mt-14 mb-14 w-full max-w-lg">
       <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-        <h2 class="text-sm font-semibold">{{ isEdit ? '编辑上游' : '添加上游(自定义 OpenAI 兼容)' }}</h2>
+        <h2 class="text-sm font-semibold">{{ isEdit ? '编辑上游' : '添加上游' }}</h2>
         <button @click="emit('close')" class="text-slate-400 hover:text-slate-700 transition-colors">
           <Icon name="close" class="w-5 h-5" />
         </button>
@@ -78,6 +80,18 @@ async function submit() {
         <div>
           <label class="text-xs text-slate-500">备注名</label>
           <input v-model="name" class="field" placeholder="例如:我的中转 / xx-api" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-500">协议</label>
+          <div class="flex gap-2">
+            <button v-for="p in [{id:'openai',label:'OpenAI',desc:'/v1/images/* 标准格式'},{id:'vivid',label:'Vivid',desc:'/v1/generate NDJSON 流'}]" :key="p.id" type="button"
+                    @click="protocol = p.id"
+                    class="flex-1 rounded-lg ring-1 px-3 py-2 text-left transition-colors"
+                    :class="protocol === p.id ? 'ring-sky-400 bg-sky-500/10' : 'ring-slate-200 bg-white hover:ring-slate-300'">
+              <div class="text-xs font-medium" :class="protocol === p.id ? 'text-sky-700' : 'text-slate-700'">{{ p.label }}</div>
+              <div class="text-[11px] text-slate-400 font-mono mt-0.5">{{ p.desc }}</div>
+            </button>
+          </div>
         </div>
         <div>
           <label class="text-xs text-slate-500">v1 URL <span class="text-rose-500">*</span></label>

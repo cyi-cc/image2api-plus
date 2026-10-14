@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"backend/internal/service"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -141,6 +142,7 @@ func (h *ProviderAdminHandler) ImportCustomAccount(c *gin.Context) {
 		APIKey      string `json:"api_key"`
 		Models      string `json:"models"`
 		Name        string `json:"name"`
+		Protocol    string `json:"protocol"` // openai (default) | vivid
 		Weight      int    `json:"weight"`
 		Concurrency int    `json:"concurrency"`
 		ID          string `json:"id"`
@@ -157,7 +159,7 @@ func (h *ProviderAdminHandler) ImportCustomAccount(c *gin.Context) {
 	if key == "" {
 		key = body.APIKey
 	}
-	item, err := h.tokens.ImportCustomAccount(c.Request.Context(), baseURL, key, body.Models, body.Name, body.Weight, body.Concurrency, body.ID)
+	item, err := h.tokens.ImportCustomAccount(c.Request.Context(), baseURL, key, body.Models, body.Name, body.Protocol, body.Weight, body.Concurrency, body.ID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
 		return
@@ -395,13 +397,21 @@ func (h *ProviderAdminHandler) AccountsList(c *gin.Context) {
 			isFree := plan == "" || plan == "free"
 			switch planFilter {
 			case "vip":
-				if isFree { continue }
+				if isFree {
+					continue
+				}
 			case "free":
-				if !isFree { continue }
+				if !isFree {
+					continue
+				}
 			case "sub":
-				if !isSub { continue }
+				if !isSub {
+					continue
+				}
 			case "master":
-				if isFree || isSub { continue }
+				if isFree || isSub {
+					continue
+				}
 			}
 		}
 		if q != "" {

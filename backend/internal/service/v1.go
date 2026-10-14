@@ -23,8 +23,8 @@ import (
 	"backend/internal/model"
 	"backend/internal/provider/adobe"
 	"backend/internal/provider/chatgpt"
-	"backend/internal/provider/custom"
 	"backend/internal/provider/creativefabrica"
+	"backend/internal/provider/custom"
 	"backend/internal/provider/grok"
 	"backend/internal/provider/imagine"
 	"backend/internal/provider/krea"
@@ -32,6 +32,7 @@ import (
 	"backend/internal/provider/runway"
 	"backend/internal/repo"
 	"backend/internal/storage"
+
 	"gorm.io/gorm"
 )
 
@@ -2228,7 +2229,14 @@ func (s *V1Service) generateCustomImage(ctx context.Context, eventID string, mod
 			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
 			_ = s.tokens.TouchLastUsed(ctx, token.ID)
 			baseURL := stringValue(token.Meta["base_url"])
-			d, u, genErr := s.custom.GenerateImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, quality, refs, !urlOnly)
+			var d []byte
+			var u string
+			var genErr error
+			if strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid") {
+				d, u, genErr = s.custom.GenerateVividImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), refs, !urlOnly)
+			} else {
+				d, u, genErr = s.custom.GenerateImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, quality, refs, !urlOnly)
+			}
 			if genErr == nil {
 				_, _ = s.tokens.Update(ctx, "custom", token.ID, map[string]any{
 					"last_used_at": time.Now(), "success_total": gorm.Expr("success_total + 1"), "fails": 0,
@@ -2303,7 +2311,14 @@ func (s *V1Service) generateCustomVideo(ctx context.Context, eventID string, mod
 			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
 			_ = s.tokens.TouchLastUsed(ctx, token.ID)
 			baseURL := stringValue(token.Meta["base_url"])
-			d, url, genErr := s.custom.GenerateVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, durationSeconds, frames, downloadResult)
+			var d []byte
+			var url string
+			var genErr error
+			if strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid") {
+				d, url, genErr = s.custom.GenerateVividVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), durationSeconds, frames, downloadResult)
+			} else {
+				d, url, genErr = s.custom.GenerateVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, durationSeconds, frames, downloadResult)
+			}
 			if genErr == nil {
 				_, _ = s.tokens.Update(ctx, "custom", token.ID, map[string]any{
 					"last_used_at": time.Now(), "success_total": gorm.Expr("success_total + 1"), "fails": 0,
@@ -2399,6 +2414,16 @@ func upstreamVideoSize(aspectRatio, resolution string) string {
 		return fmt.Sprintf("%dx%d", short*w/h, short)
 	}
 	return fmt.Sprintf("%dx%d", short, short*h/w)
+}
+
+// vividQuality maps a resolution tier to the quality string a Vivid-protocol
+// upstream expects ("1K"/"2K"/"4K"); empty → "1K" (required field).
+func vividQuality(resolution string) string {
+	switch strings.ToUpper(strings.TrimSpace(resolution)) {
+	case "2K", "4K":
+		return strings.ToUpper(strings.TrimSpace(resolution))
+	}
+	return "1K"
 }
 
 // upstreamQuality maps a resolution tier to the OpenAI quality enum.
@@ -2975,8 +3000,8 @@ const leonardoPrivateSuffix = "-不卡人脸"
 type leonardoVideoSpec struct {
 	upstream string
 	// long/short 是长边/短边像素,按比例组合成 16:9 或 9:16。
-	long  int
-	short int
+	long      int
+	short     int
 	maxImages int
 	maxAudios int
 	maxVideos int
