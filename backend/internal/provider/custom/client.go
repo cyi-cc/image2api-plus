@@ -189,10 +189,10 @@ func (c *Client) vividUploadRef(ctx context.Context, baseURL, apiKey string, dat
 	if err != nil {
 		return "", err
 	}
-	putURL := strings.TrimSpace(stringValue(up["url"]))
-	key := strings.TrimSpace(stringValue(up["key"]))
+	putURL, key := vividUploadSession(up)
 	if putURL == "" || key == "" {
-		return "", fmt.Errorf("%w: upload session missing url/key", ErrTemporaryUpstream)
+		raw, _ := json.Marshal(up)
+		return "", fmt.Errorf("%w: upload session missing url/key (got %s)", ErrTemporaryUpstream, clip(raw, 200))
 	}
 	req, err := http.NewRequest(http.MethodPut, putURL, bytes.NewReader(data))
 	if err != nil {
@@ -210,6 +210,47 @@ func (c *Client) vividUploadRef(ctx context.Context, baseURL, apiKey string, dat
 		return "", fmt.Errorf("%w: ref upload %d %s", ErrTemporaryUpstream, resp.StatusCode, clip(body, 120))
 	}
 	return key, nil
+}
+
+// vividUploadSession extracts the presigned PUT url + object key from a
+// /v1/uploads response. Vivid-protocol implementations vary: some return the
+// pair at top level, others wrap it in {"data":{...}} / {"result":{...}}, and
+// field spellings differ (upload_url / presigned_url / put_url; key /
+// file_key / object_key). Search top level first, then one layer deep.
+func vividUploadSession(up map[string]any) (putURL, key string) {
+	urlKeys := []string{"url", "upload_url", "uploadUrl", "presigned_url", "presignedUrl", "put_url", "putUrl", "signed_url", "signedUrl"}
+	keyKeys := []string{"key", "file_key", "fileKey", "object_key", "objectKey", "upload_key", "uploadKey"}
+	pick := func(m map[string]any) (string, string) {
+		var u, k string
+		for _, f := range urlKeys {
+			if u = strings.TrimSpace(stringValue(m[f])); u != "" {
+				break
+			}
+		}
+		for _, f := range keyKeys {
+			if k = strings.TrimSpace(stringValue(m[f])); k != "" {
+				break
+			}
+		}
+		return u, k
+	}
+	levels := []map[string]any{up}
+	for _, nest := range []string{"data", "result", "upload", "session", "upload_session"} {
+		if sub, ok := up[nest].(map[string]any); ok {
+			levels = append(levels, sub)
+		}
+	}
+	// url 和 key 允许跨层出现(比如 url 在顶层、key 在 data 里)。
+	for _, m := range levels {
+		u, k := pick(m)
+		if putURL == "" {
+			putURL = u
+		}
+		if key == "" {
+			key = k
+		}
+	}
+	return putURL, key
 }
 
 // vividRefKindMime classifies a reference blob into the vivid "kind" (image /
