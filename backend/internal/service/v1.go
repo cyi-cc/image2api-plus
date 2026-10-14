@@ -2475,11 +2475,12 @@ func upstreamVideoSize(aspectRatio, resolution string) string {
 }
 
 // vividQuality maps a resolution tier to the quality string a Vivid-protocol
-// upstream expects ("1K"/"2K"/"4K"); empty → "1K" (required field).
+// upstream expects. Vivid passes the tier through verbatim — "1K"/"2K"/"4K"
+// for images, "720p"/"1080p"/"540p" for videos — so don't re-map to the OpenAI
+// enum; only default a blank to "1K" (the field is required).
 func vividQuality(resolution string) string {
-	switch strings.ToUpper(strings.TrimSpace(resolution)) {
-	case "2K", "4K":
-		return strings.ToUpper(strings.TrimSpace(resolution))
+	if q := strings.TrimSpace(resolution); q != "" {
+		return q
 	}
 	return "1K"
 }
