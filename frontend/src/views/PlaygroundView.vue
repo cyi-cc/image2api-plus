@@ -245,7 +245,10 @@ function openPicker() { fileInput.value && fileInput.value.click() }
 // of charging + failing upstream after the upload.
 const MAX_REF_BYTES = 20 * 1024 * 1024
 // seedance 参考图模式各类上限（预设可覆盖：Leonardo 私有 seedance 只吃 1 段音频）
-const maxImages = computed(() => Number(familyPreset.value?.max_images) || maxRefs.value)
+const maxImages = computed(() =>
+  Number(familyPreset.value?.max_images) ||
+  Number(model.value?.max_reference_images) ||
+  maxRefs.value)
 // 参考文件徽标:只列出上限 >0 的类别(图片总是显示)。
 const refKindsLabel = computed(() => {
   const parts = [`图片${refCounts.value.imgs}/${maxImages.value}`]
