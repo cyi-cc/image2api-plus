@@ -110,9 +110,11 @@ const maxRefs = computed(() => {
   if (mode.value === 'video') {
     const a = Number(familyPreset.value?.max_reference_images || 0)
     const b = Number(model.value?.max_reference_images || 0)
-    const raw = Math.max(a, b)
-    if (refMode.value === 'frame') return Math.min(raw, 2)
-    return raw
+    if (refMode.value === 'frame') return Math.min(Math.max(a, b), 2)
+    // preset 模型的 max_reference_images 已是各类资产合计;custom 上游模型
+    // 按类分别配置(图/视/音),总上限要相加。
+    const extra = familyPreset.value ? 0 : maxVideos.value + maxAudios.value
+    return Math.max(a, b) + extra
   }
   // Image-to-image: honor the model's configured max (gpt-image-2=3,
   // seedream-4.5=6, flux-klein-2=4 …). Fall back to 1 when image_to_image is on
@@ -126,14 +128,20 @@ const supportsBoth = computed(() => { const m = model.value; return m && m.refer
 const refMode = ref(refModeDefault.value)
 watch(refModeDefault, (v) => { refMode.value = v })
 
-// 预设里声明的音/视频参考上限（未声明 = null，走 seedance 默认值）
+// 预设里声明的音/视频参考上限;custom 上游模型直接读模型字段
+// (max_reference_videos/audios);两者都没声明 = null → 按模型类型回落
+// (seedance 默认 3,其它 0)。
 const maxVideosRaw = computed(() => {
-  const n = familyPreset.value?.max_videos
-  return n === undefined || n === null ? null : Number(n)
+  const p = familyPreset.value?.max_videos
+  if (p !== undefined && p !== null) return Number(p)
+  const m = Number(model.value?.max_reference_videos || 0)
+  return m > 0 ? m : null
 })
 const maxAudiosRaw = computed(() => {
-  const n = familyPreset.value?.max_audios
-  return n === undefined || n === null ? null : Number(n)
+  const p = familyPreset.value?.max_audios
+  if (p !== undefined && p !== null) return Number(p)
+  const m = Number(model.value?.max_reference_audios || 0)
+  return m > 0 ? m : null
 })
 // creativefabrica 上游只收图片参考,没有首尾帧/视频/音频,虽叫 seedance 也要排除。
 const isSeedanceModel = computed(() =>
@@ -236,8 +244,17 @@ function openPicker() { fileInput.value && fileInput.value.click() }
 const MAX_REF_BYTES = 20 * 1024 * 1024
 // seedance 参考图模式各类上限（预设可覆盖：Leonardo 私有 seedance 只吃 1 段音频）
 const maxImages = computed(() => Number(familyPreset.value?.max_images) || maxRefs.value)
-const maxVideos = computed(() => (maxVideosRaw.value === null ? 3 : maxVideosRaw.value))
-const maxAudios = computed(() => (maxAudiosRaw.value === null ? 3 : maxAudiosRaw.value))
+// 参考文件徽标:只列出上限 >0 的类别(图片总是显示)。
+const refKindsLabel = computed(() => {
+  const parts = [`图片${refCounts.value.imgs}/${maxImages.value}`]
+  if (maxVideos.value > 0) parts.push(`视频${refCounts.value.vids}/${maxVideos.value}`)
+  if (maxAudios.value > 0) parts.push(`音频${refCounts.value.auds}/${maxAudios.value}`)
+  return parts.join(' · ')
+})
+// 未声明时的回落只适用于 seedance 系(老协议默认 3/3);custom 等显式声明的
+// 模型没填 = 0,不再兜底成 3。
+const maxVideos = computed(() => (maxVideosRaw.value === null ? (isSeedanceModel.value ? 3 : 0) : maxVideosRaw.value))
+const maxAudios = computed(() => (maxAudiosRaw.value === null ? (isSeedanceModel.value ? 3 : 0) : maxAudiosRaw.value))
 // Leonardo 私有 seedance：单个视频参考 3-10 秒，总时长须短于 15 秒。
 // 服务端同样校验，这里只是提交前先拦一下，避免白跑一次生成。
 function videoRefDurationError() {
@@ -908,7 +925,7 @@ onUnmounted(() => {
         <label class="block text-xs font-medium text-slate-500 mb-1.5">
           {{ refMode === 'frame' && mode === 'video' ? '首尾帧' : '参考图' }}
           <span class="text-slate-400 font-normal">
-            (最多 {{ maxRefs }} 张{{ supportsMediaRefs && refMode !== 'frame' && mode === 'video' ? ` · 图片${refCounts.imgs}/${maxImages} · 视频${refCounts.vids}/${maxVideos} · 音频${refCounts.auds}/${maxAudios}` : '' }}{{ refMode === 'frame' && mode === 'video' ? (maxRefs >= 2 ? ' · 首帧/末帧' : ' · 首帧') : '' }} · 单文件 ≤20MB)
+            (最多 {{ maxRefs }} 张{{ supportsMediaRefs && refMode !== 'frame' && mode === 'video' ? ` · ${refKindsLabel}` : '' }}{{ refMode === 'frame' && mode === 'video' ? (maxRefs >= 2 ? ' · 首帧/末帧' : ' · 首帧') : '' }} · 单文件 ≤20MB)
           </span>
           <span v-if="refsRequired" class="text-rose-500">*</span>
         </label>
