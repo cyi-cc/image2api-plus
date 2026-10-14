@@ -10,8 +10,8 @@ const emit = defineEmits(['close', 'saved'])
 // the backend guessRatio() and the docs 对照表. 9:21 removed (no image provider accepts it).
 const RATIO_OPTS = ['1:1', '5:4', '4:3', '3:2', '16:9', '2:1', '21:9', '3:1', '4:1', '8:1', '4:5', '3:4', '2:3', '9:16', '1:3', '1:4', '1:8']
 const IMG_RES = ['1K', '2K', '4K']
-const VID_RES = ['720p', '1080p', '2K', '4K']
-const ALL_RES = ['1K', '2K', '4K', '720p', '1080p']
+const VID_RES = ['720p', '768p', '1080p', '2K', '4K']
+const ALL_RES = ['1K', '2K', '4K', '720p', '768p', '1080p']
 const DUR_OPTS = ['5s', '6s', '8s', '10s', '15s']
 
 const id = ref('')
@@ -50,7 +50,7 @@ function removeDur(key) {
 }
 
 const isVideo = computed(() => type.value === 'video')
-// Resolution tiers depend on type: image = 1K/2K/4K, video = 540p/720p/1080p/2K/4K.
+// Resolution tiers depend on type: image = 1K/2K/4K, video = 720p/768p/1080p/2K/4K.
 const resOpts = computed(() => (isVideo.value ? VID_RES : IMG_RES))
 
 function toggleRatio(r) {

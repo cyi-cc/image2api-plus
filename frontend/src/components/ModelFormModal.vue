@@ -15,6 +15,14 @@ const isEdit = computed(() => !!props.model)
 
 const REF_MODE_LABEL = { none: '无', frame: '首帧/首尾帧', asset: '参考图模式' }
 
+// provider=custom 的模型没有目录约束,档位由价格表本身决定——编辑时给出
+// 完整候选面板(与 CustomModelModal 的 VID_RES/IMG_RES/DUR_OPTS 保持一致),
+// 留空的档位 = 不支持。已存的自定义档(如 "540p"/"12s")也会并入显示。
+const CUSTOM_IMG_RES = ['1K', '2K', '4K']
+const CUSTOM_VID_RES = ['720p', '768p', '1080p', '2K', '4K']
+const CUSTOM_DUR = ['5s', '6s', '8s', '10s', '15s']
+const bySeconds = (a, b) => parseFloat(a) - parseFloat(b)
+
 const catalog = ref([])
 const loading = ref(true)
 const selectedId = ref(props.model?.id || '')
@@ -37,9 +45,21 @@ const entry = computed(() => {
   return catalog.value.find((e) => e.id === selectedId.value) || null
 })
 const isVideo = computed(() => entry.value?.type === 'video')
+const isCustom = computed(() => entry.value?.provider === 'custom')
 // Display tiers in canonical ascending order (720p before 1080p; 1K<2K<4K)
-// regardless of how the catalog/stored record happens to list them.
-const resolutions = computed(() => sortResolutions(entry.value?.resolutions || []))
+// regardless of how the catalog/stored record happens to list them. For
+// custom models the stored list is just the currently-priced subset — merge
+// in the full palette so the admin can light up a new tier (e.g. 768p) by
+// typing a price, or retire one by blanking it.
+const resolutions = computed(() => {
+  const stored = entry.value?.resolutions || []
+  if (!isCustom.value) return sortResolutions(stored)
+  const palette = isVideo.value ? CUSTOM_VID_RES : CUSTOM_IMG_RES
+  return sortResolutions([...new Set([...palette, ...stored])])
+})
+// Read-only summary shows what's actually supported (stored list), not the
+// offerable palette — for custom models the palette is just the input grid.
+const storedResolutions = computed(() => sortResolutions(entry.value?.resolutions || []))
 // 按秒计价的视频模型（一个 /s 价，实付 = 分辨率价 + 每秒价 × 秒数）。目录用
 // per_second 声明；已入库的模型则看它是否已存了 per_second 价。
 const isPerSecond = computed(() => {
@@ -53,7 +73,9 @@ const durationTiers = computed(() => {
   if (!e) return []
   if (isPerSecond.value) return ['per_second']
   const ds = e.durations || []
-  return ds.length ? ds : Object.keys(e.duration_prices || {})
+  const stored = ds.length ? ds : Object.keys(e.duration_prices || {})
+  if (e.provider !== 'custom') return stored
+  return [...new Set([...stored, ...CUSTOM_DUR])].sort(bySeconds)
 })
 
 // Dropdown options: catalog rows not already in the managed store.
@@ -71,14 +93,9 @@ function resetPrices(e) {
   if (!e) return
   // Both image and video price per resolution; video ALSO prices per duration
   // (real video price = resolution price + duration price).
-  for (const r of (e.resolutions || [])) { imagePrices.value[r] = ''; imagePricesAgent.value[r] = '' }
+  for (const r of resolutions.value) { imagePrices.value[r] = ''; imagePricesAgent.value[r] = '' }
   if (e.type === 'video') {
-    if (isPerSecond.value) {
-      videoPrices.value['per_second'] = ''
-      videoPricesAgent.value['per_second'] = ''
-    } else {
-      for (const d of (e.durations || [])) { videoPrices.value[d] = ''; videoPricesAgent.value[d] = '' }
-    }
+    for (const d of durationTiers.value) { videoPrices.value[d] = ''; videoPricesAgent.value[d] = '' }
   }
 }
 
@@ -94,20 +111,16 @@ onMounted(async () => {
     const m = props.model
     // Resolution prices apply to both; video additionally has duration prices.
     // Agent prices are an optional overlay (blank = follows the normal price).
-    for (const r of (m.resolutions || [])) {
+    // Iterate the DISPLAYED tier lists (for custom models that's the full
+    // palette ∪ stored), so unpriced-but-offerable tiers get blank inputs.
+    for (const r of resolutions.value) {
       imagePrices.value[r] = m.prices?.[r] ?? ''
       imagePricesAgent.value[r] = m.prices_agent?.[r] ?? ''
     }
     if (m.type === 'video') {
-      if (m.duration_prices?.per_second != null) {
-        videoPrices.value['per_second'] = m.duration_prices.per_second
-        videoPricesAgent.value['per_second'] = m.duration_prices_agent?.per_second ?? ''
-      } else {
-        const durs = (m.durations && m.durations.length) ? m.durations : Object.keys(m.duration_prices || {})
-        for (const d of durs) {
-          videoPrices.value[d] = m.duration_prices?.[d] ?? ''
-          videoPricesAgent.value[d] = m.duration_prices_agent?.[d] ?? ''
-        }
+      for (const d of durationTiers.value) {
+        videoPrices.value[d] = m.duration_prices?.[d] ?? ''
+        videoPricesAgent.value[d] = m.duration_prices_agent?.[d] ?? ''
       }
     }
   }
@@ -132,9 +145,9 @@ async function save() {
 
   let payload
   if (e.type === 'video') {
-    const prices = collect(imagePrices.value, e.resolutions || [])
+    const prices = collect(imagePrices.value, resolutions.value)
     const duration_prices = collect(videoPrices.value, durationTiers.value)
-    const prices_agent = collect(imagePricesAgent.value, e.resolutions || [])
+    const prices_agent = collect(imagePricesAgent.value, resolutions.value)
     const duration_prices_agent = collect(videoPricesAgent.value, durationTiers.value)
     if (!Object.keys(prices).length) { error.value = '至少填写一个分辨率价格'; return }
     if (!Object.keys(duration_prices).length) { error.value = '至少填写一个时长价格'; return }
@@ -142,9 +155,12 @@ async function save() {
       type: 'video',
       provider: e.provider,
       ratios: e.ratios || [],
-      resolutions: e.resolutions || [],
+      // catalog models keep their declared tier list; custom models' supported
+      // tiers ARE the priced keys — a blanked price retires the tier.
+      resolutions: isCustom.value ? sortResolutions(Object.keys(prices)) : (e.resolutions || []),
       prices,
-      durations: isPerSecond.value ? (e.durations || []) : Object.keys(duration_prices),
+      durations: isPerSecond.value ? (e.durations || [])
+        : (isCustom.value ? Object.keys(duration_prices).sort(bySeconds) : Object.keys(duration_prices)),
       duration_prices,
       prices_agent,
       duration_prices_agent,
@@ -154,8 +170,8 @@ async function save() {
       weight: Number(weight.value) || 0,
     }
   } else {
-    const prices = collect(imagePrices.value, e.resolutions || [])
-    const prices_agent = collect(imagePricesAgent.value, e.resolutions || [])
+    const prices = collect(imagePrices.value, resolutions.value)
+    const prices_agent = collect(imagePricesAgent.value, resolutions.value)
     if (!Object.keys(prices).length) { error.value = '至少填写一个画质价格'; return }
     payload = {
       type: 'image',
@@ -224,7 +240,7 @@ async function save() {
                 {{ isVideo ? '生视频' : '生图' }}
               </span>
               <span class="text-[11px] text-white/45 capitalize">{{ entry.provider }}</span>
-              <span class="ml-auto text-[10px] text-white/30">参数自动加载,不可改</span>
+              <span class="ml-auto text-[10px] text-white/30">{{ isCustom ? '档位由价格表决定 · 留空=不支持' : '参数自动加载,不可改' }}</span>
             </div>
 
             <div class="grid grid-cols-[3.5rem_1fr] gap-x-3 gap-y-1.5 text-[11px]">
@@ -237,8 +253,8 @@ async function save() {
               <template v-if="isVideo">
                 <span class="text-white/40">分辨率</span>
                 <div class="flex flex-wrap gap-1">
-                  <span v-for="r in resolutions" :key="r" class="ro-chip">{{ r }}</span>
-                  <span v-if="!resolutions.length" class="text-white/30">—</span>
+                  <span v-for="r in storedResolutions" :key="r" class="ro-chip">{{ r }}</span>
+                  <span v-if="!storedResolutions.length" class="text-white/30">—</span>
                 </div>
                 <span class="text-white/40">时长</span>
                 <div class="flex flex-wrap gap-1">
@@ -256,8 +272,8 @@ async function save() {
               <template v-else>
                 <span class="text-white/40">画质</span>
                 <div class="flex flex-wrap gap-1">
-                  <span v-for="r in resolutions" :key="r" class="ro-chip">{{ r }}</span>
-                  <span v-if="!resolutions.length" class="text-white/30">—</span>
+                  <span v-for="r in storedResolutions" :key="r" class="ro-chip">{{ r }}</span>
+                  <span v-if="!storedResolutions.length" class="text-white/30">—</span>
                 </div>
                 <span class="text-white/40">参考图</span>
                 <div class="text-white/70">{{ entry.max_reference_images > 0 ? `${entry.max_reference_images} 张` : (entry.image_to_image ? '支持' : '不支持') }}</div>
