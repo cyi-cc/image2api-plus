@@ -55,7 +55,7 @@ watch(() => route.path, () => {
         <Logo v-else :size="32" />
         <div class="leading-tight min-w-0">
           <div class="text-sm font-extrabold truncate tracking-tight text-[color:var(--fg)]">{{ site.title }}</div>
-          <div class="text-[11px] font-bold uppercase tracking-widest text-[color:var(--m-orange)] truncate">Admin</div>
+          <div class="admin-tag text-[11px] font-bold uppercase tracking-widest truncate">Admin</div>
         </div>
       </router-link>
 
@@ -118,7 +118,7 @@ watch(() => route.path, () => {
       </div>
 
       <header class="relative z-10 h-14 shrink-0 border-b border-b-[color:var(--ink-soft)] bg-[var(--app-bg)]/60 backdrop-blur-xl flex items-center px-8">
-        <div class="text-[10px] uppercase tracking-[0.25em] text-[color:var(--m-orange)] font-extrabold mr-3">Admin</div>
+        <div class="admin-badge text-[10px] uppercase tracking-[0.25em] font-extrabold mr-3 px-2.5 py-1 rounded-lg text-white select-none">Admin</div>
         <div class="text-[color:var(--fg-faint)] mr-3">/</div>
         <h1 class="text-sm font-semibold tracking-tight text-[color:var(--fg)]">{{ currentLabel }}</h1>
       </header>
@@ -137,6 +137,16 @@ watch(() => route.path, () => {
 </template>
 
 <style scoped>
+.admin-tag {
+  background: linear-gradient(120deg, #7c5cfc, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.admin-badge {
+  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 60%, #22d3ee 140%);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
 .admin-link {
   position: relative;
   display: flex;
