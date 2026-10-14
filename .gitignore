@@ -64,3 +64,8 @@ Thumbs.db
 
 # fast-deploy build artifact
 /frontend/dist.tar.gz
+
+# ad-hoc probe/test scratch files (cookies, tokens, live probes)
+_tmp_*
+_arp_*.txt
+zz_live_probe_test.go
