@@ -147,6 +147,7 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		authed.POST("/channels/delete", handlers.ChannelAdmin.Delete)
 		authed.POST("/channels/fetch-models", handlers.ChannelAdmin.FetchModels)
 		authed.POST("/channels/import-models", handlers.ChannelAdmin.ImportModels)
+		authed.POST("/channels/unbind-model", handlers.ChannelAdmin.UnbindModel)
 		authed.GET("/providers", handlers.AdminRead.Providers)
 		authed.GET("/images", handlers.AdminRead.Images)
 		authed.DELETE("/images", handlers.AdminRead.DeleteImage)

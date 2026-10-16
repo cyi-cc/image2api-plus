@@ -124,14 +124,11 @@ onMounted(loadModels)
         </button>
       </div>
       <div class="flex-1 min-w-[200px]">
-        <input v-model="search" class="field !py-1.5 text-xs" placeholder="搜索 模型 ID / 别名 / Provider…" />
+        <input v-model="search" class="field !py-1.5 text-xs" placeholder="搜索 模型 ID / 别名…" />
       </div>
       <button @click="loadModels" class="btn-soft">
         <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
       </button>
-      <router-link to="/admin/channels" class="btn-primary inline-flex items-center gap-1">
-        <Icon name="plug" class="w-3.5 h-3.5" /> 渠道导入模型
-      </router-link>
     </div>
 
     <!-- Table -->
@@ -139,7 +136,8 @@ onMounted(loadModels)
       <div v-if="loading && !models.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
       <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
         <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center"><Icon name="models" class="w-6 h-6" /></span>
-        <span class="text-sm">{{ models.length ? '没有匹配的模型' : '还没有模型,先到「渠道管理」拉取上游模型导入' }}</span>
+        <span v-if="models.length" class="text-sm">没有匹配的模型</span>
+        <router-link v-else to="/admin/channels" class="text-sm text-sky-300 underline underline-offset-2">还没有模型，先到「渠道管理」勾选上游模型自动导入</router-link>
       </div>
 
       <table v-else class="w-full text-sm table-fixed">

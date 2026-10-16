@@ -15,14 +15,11 @@ const form = ref(null)
 const saving = ref(false)
 const formErr = ref('')
 
-// fetch-models → pick → import
+// fetch-models → 勾选即绑定（选中自动导入到模型列表，取消即解绑）
 const fetchTarget = ref(null)   // channel snapshot being imported into
 const fetching = ref(false)
 const fetchErr = ref('')
 const specs = ref([])
-const picked = ref(new Set())
-const importing = ref(false)
-const managedIds = ref(new Set())
 
 async function load() {
   loading.value = true
@@ -31,11 +28,6 @@ async function load() {
   if (r.ok) channels.value = r.data?.data || []
   else err.value = r.data?.detail || '渠道加载失败'
   loading.value = false
-}
-
-async function loadManaged() {
-  const r = await api('/managed-models')
-  managedIds.value = new Set((r.data?.data || []).map((m) => m.id))
 }
 
 function modelSummary(c) {
@@ -100,7 +92,6 @@ function fetchFromForm() {
 async function openFetch(c) {
   fetchTarget.value = c
   specs.value = []
-  picked.value = new Set()
   fetchErr.value = ''
   fetching.value = true
   const r = await api('/channels/fetch-models', jsonBody('POST', {
@@ -108,15 +99,40 @@ async function openFetch(c) {
   }))
   fetching.value = false
   if (!r.ok) { fetchErr.value = r.data?.detail || '拉取失败'; return }
-  specs.value = (r.data?.data || []).map((s) => ({ ...s, alias: s.alias || '', imported: managedIds.value.has(s.id) }))
-  picked.value = new Set(specs.value.filter((s) => !s.imported).map((s) => s.id))
-  if (!picked.value.size) picked.value = new Set(specs.value.map((s) => s.id))
+  specs.value = (r.data?.data || []).map((s) => ({ ...s, alias: s.alias || '', busy: false }))
 }
 
-function togglePick(id) {
-  const next = new Set(picked.value)
-  next.has(id) ? next.delete(id) : next.add(id)
-  picked.value = next
+// 勾选 = 立即导入绑定；取消勾选 = 解绑（模型没有其他渠道接入时本地行一并删除）。
+// 新渠道尚未入库时，第一次勾选会先自动保存渠道再绑定。
+async function toggleBind(s) {
+  if (s.busy) return
+  s.busy = true
+  fetchErr.value = ''
+  try {
+    const target = fetchTarget.value
+    if (!s.bound) {
+      if (!target.id) {
+        const sr = await api('/channels', jsonBody('POST', {
+          id: '', name: target.name || target.base_url, base_url: target.base_url, api_key: target.api_key,
+          enabled: target.enabled !== false, concurrency: target.concurrency || 0, weight: target.weight || 1,
+        }))
+        if (!sr.ok) { fetchErr.value = sr.data?.detail || '渠道保存失败'; return }
+        target.id = sr.data?.id
+        form.value = null
+      }
+      const { bound, busy, ...rest } = s
+      const r = await api('/channels/import-models', jsonBody('POST', { id: target.id, models: [rest] }))
+      if (!r.ok) { fetchErr.value = r.data?.detail || '导入失败'; return }
+      s.bound = true
+    } else {
+      const r = await api('/channels/unbind-model', jsonBody('POST', { id: target.id, model: s.id }))
+      if (!r.ok) { fetchErr.value = r.data?.detail || '解绑失败'; return }
+      s.bound = false
+    }
+    load()
+  } finally {
+    s.busy = false
+  }
 }
 
 function specText(s) {
@@ -135,38 +151,7 @@ function specText(s) {
   return parts.join(' · ') || '-'
 }
 
-async function doImport() {
-  if (importing.value || !picked.value.size) return
-  const models = specs.value
-    .filter((s) => picked.value.has(s.id))
-    .map((s) => {
-      const { imported, ...rest } = s
-      return rest
-    })
-  const target = fetchTarget.value
-  importing.value = true
-  try {
-    if (!target.id) {
-      // 表单预览路径：渠道尚未入库，先按快照保存再绑定；失败中止不建孤儿。
-      const sr = await api('/channels', jsonBody('POST', {
-        id: '', name: target.name || target.base_url, base_url: target.base_url, api_key: target.api_key,
-        enabled: target.enabled !== false, concurrency: target.concurrency || 0, weight: target.weight || 1,
-      }))
-      if (!sr.ok) { fetchErr.value = sr.data?.detail || '渠道保存失败'; return }
-      target.id = sr.data?.id
-      form.value = null
-    }
-    const r = await api('/channels/import-models', jsonBody('POST', { id: target.id, models }))
-    if (!r.ok) { fetchErr.value = r.data?.detail || '导入失败'; return }
-    fetchTarget.value = null
-    load()
-    loadManaged()
-  } finally {
-    importing.value = false
-  }
-}
-
-onMounted(() => { load(); loadManaged() })
+onMounted(load)
 </script>
 
 <template>
@@ -297,7 +282,7 @@ onMounted(() => { load(); loadManaged() })
       </div>
     </div>
 
-    <!-- 拉取上游模型 → 勾选导入 -->
+    <!-- 拉取上游模型 → 勾选即导入绑定 -->
     <div v-if="fetchTarget" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4" @click.self="fetchTarget = null">
       <div class="card !shadow-2xl my-12 w-full max-w-2xl">
         <div class="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
@@ -306,15 +291,16 @@ onMounted(() => { load(); loadManaged() })
         </div>
         <div class="p-5">
           <div v-if="fetching" class="py-10 text-center text-white/40 text-sm">正在从上游拉取模型列表…</div>
-          <div v-else-if="fetchErr" class="py-10 text-center text-rose-300 text-sm">{{ fetchErr }}</div>
           <template v-else>
-            <p class="text-xs text-white/45 mb-3">勾选要导入的模型：能力参数随模型带入，导入后到「模型管理」配价上架。别名即本站模型标识（留空=与上游同名）；已导入的模型自动标记（重复导入会刷新参数）。</p>
+            <p class="text-xs text-white/45 mb-3">勾选即导入并绑定到本渠道，取消勾选即解绑（模型没有其他渠道接入时本地行一并删除）。能力参数随模型带入，导入后到「模型管理」配价上架。别名即本站模型标识（留空=与上游同名，绑定时生效）。</p>
+            <p v-if="fetchErr" class="text-xs text-rose-300 mb-3">{{ fetchErr }}</p>
             <div v-if="!specs.length" class="py-10 text-center text-white/40 text-sm">上游没有可售模型（模型需在上游已配价）</div>
             <div v-else class="space-y-1.5 max-h-[380px] overflow-y-auto">
-              <div v-for="s in specs" :key="s.id" @click="togglePick(s.id)"
+              <div v-for="s in specs" :key="s.id" @click="toggleBind(s)"
                    class="flex items-start gap-2.5 p-2.5 rounded-lg ring-1 ring-white/10 hover:bg-white/[0.04] cursor-pointer transition-colors"
-                   :class="!picked.has(s.id) && 'opacity-50'">
-                <input type="checkbox" :checked="picked.has(s.id)" @click.stop @change="togglePick(s.id)" class="mt-1 accent-sky-400" />
+                   :class="[!s.bound && 'opacity-50', s.busy && 'pointer-events-none']">
+                <span class="mt-1 inline-block h-3.5 w-3.5 shrink-0 rounded-full ring-1 transition-all"
+                      :class="s.bound ? 'bg-sky-400 ring-sky-300' : 'bg-transparent ring-white/25'"></span>
                 <div class="flex-1 min-w-0 space-y-1.5">
                   <div class="flex items-center gap-2 flex-wrap">
                     <code class="font-mono text-xs text-white/85">{{ s.id }}</code>
@@ -323,13 +309,14 @@ onMounted(() => { load(); loadManaged() })
                       {{ KIND_LABEL[s.kind] || s.kind }}
                     </span>
                     <span class="text-[11px] text-white/40">{{ specText(s) }}</span>
-                    <span v-if="s.imported" class="ml-auto px-1.5 py-0.5 rounded bg-emerald-400/15 text-emerald-300 text-[10px] font-semibold">已导入</span>
+                    <span v-if="s.busy" class="ml-auto text-[10px] text-white/40">处理中…</span>
+                    <span v-else-if="s.bound" class="ml-auto px-1.5 py-0.5 rounded bg-emerald-400/15 text-emerald-300 text-[10px] font-semibold">已接入</span>
                   </div>
                   <div class="flex items-center gap-2" @click.stop>
                     <span class="text-[11px] text-white/35 shrink-0">别名</span>
-                    <input v-model.trim="s.alias" type="text" maxlength="64" :disabled="!picked.has(s.id)"
+                    <input v-model.trim="s.alias" type="text" maxlength="64" :disabled="s.bound"
                            class="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-white/[0.04] ring-1 ring-white/10 text-xs text-white/80 disabled:opacity-40"
-                           placeholder="留空 = 与上游同名" />
+                           :placeholder="s.bound ? '已绑定，到模型管理改别名' : '留空 = 与上游同名'" />
                   </div>
                 </div>
               </div>
@@ -338,9 +325,6 @@ onMounted(() => { load(); loadManaged() })
         </div>
         <div class="px-5 py-4 border-t border-white/[0.06] flex justify-end gap-2">
           <button @click="fetchTarget = null" class="btn-ghost">关闭</button>
-          <button @click="doImport" :disabled="importing || !picked.size" class="btn-primary">
-            {{ importing ? '导入中…' : (fetchTarget?.id ? `导入选中（${picked.size}）` : `保存渠道并导入（${picked.size}）`) }}
-          </button>
         </div>
       </div>
     </div>

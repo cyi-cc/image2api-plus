@@ -95,6 +95,9 @@ type RemoteModel struct {
 	// Combined reference duration caps in seconds; 0 = unlimited.
 	RefVideoSeconds int64 `json:"refVideoSeconds,omitempty"`
 	RefAudioSeconds int64 `json:"refAudioSeconds,omitempty"`
+	// Bound is set by the admin fetch-models endpoint only: true when this
+	// upstream id is already bound to that channel locally.
+	Bound bool `json:"bound,omitempty"`
 }
 
 // RemoteDuration mirrors the duration spec of a vivid model item.

@@ -205,8 +205,9 @@ type FetchModelsDto struct {
 	APIKey  string `json:"api_key"`
 }
 
-// FetchModels lists the upstream's sellable models and flags which are already
-// imported locally.
+// FetchModels lists the upstream's sellable models; when a saved channel id is
+// given, items already bound to that channel are flagged Bound so the admin UI
+// can render them as a bound/unbound toggle.
 func (s *ChannelService) FetchModels(ctx context.Context, d FetchModelsDto) ([]upstream.RemoteModel, error) {
 	base, key, err := s.resolveCreds(ctx, d.ID, d.BaseURL, d.APIKey)
 	if err != nil {
@@ -216,7 +217,73 @@ func (s *ChannelService) FetchModels(ctx context.Context, d FetchModelsDto) ([]u
 	if err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(d.ID) != "" {
+		if bound, berr := s.channels.UpstreamModelMap(ctx, d.ID); berr == nil && len(bound) > 0 {
+			set := make(map[string]struct{}, len(bound))
+			for _, upID := range bound {
+				set[upID] = struct{}{}
+			}
+			for i := range items {
+				if _, ok := set[items[i].ID]; ok {
+					items[i].Bound = true
+				}
+			}
+		}
+	}
 	return items, nil
+}
+
+// UnbindModel detaches one upstream model from a channel; when the local model
+// row ends up bound to no channel at all it is deleted too (same orphan
+// semantics as deleting a whole channel).
+func (s *ChannelService) UnbindModel(ctx context.Context, channelID, upstreamModelID string) error {
+	upID := strings.TrimSpace(upstreamModelID)
+	if upID == "" {
+		return errors.New("model id required")
+	}
+	m, err := s.channels.UpstreamModelMap(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	var localID string
+	for mid, up := range m {
+		if up == upID {
+			localID = mid
+			break
+		}
+	}
+	if localID == "" {
+		return nil // not bound — idempotent
+	}
+	if err := s.channels.Unbind(ctx, channelID, localID); err != nil {
+		return err
+	}
+	if rest, _ := s.channels.ChannelIDsByModel(ctx, localID); len(rest) == 0 {
+		_, _ = s.models.Delete(ctx, localID)
+	}
+	return nil
+}
+
+// PurgeOrphanModels sweeps model_configs rows left over from the provider era:
+// an unbound model can never be routed, so any row that didn't come through a
+// channel import (provider != "channel") is deleted at startup. Channel-typed
+// orphans keep their pricing config for a later rebind.
+func (s *ChannelService) PurgeOrphanModels(ctx context.Context) (int, error) {
+	ids, err := s.channels.OrphanModelIDs(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, id := range ids {
+		m, gerr := s.models.Get(ctx, id)
+		if gerr != nil || m == nil || m.Provider == "channel" {
+			continue
+		}
+		if _, derr := s.models.Delete(ctx, id); derr == nil {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // ChannelModelSpec is one model the admin ticks for import (same shape as the

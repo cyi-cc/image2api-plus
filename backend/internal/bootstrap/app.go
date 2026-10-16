@@ -115,6 +115,13 @@ func NewApp(ctx context.Context) (*App, error) {
 		channelSecret = cfg.PostgresDSN
 	}
 	channelSvc := service.NewChannelService(channelRepo, modelRepo, upClient, channelSecret)
+	// Sweep provider-era model rows: anything not bound to a channel can never
+	// be routed under the channel scheduler.
+	if n, err := channelSvc.PurgeOrphanModels(ctx); err != nil {
+		log.Printf("purge orphan models: %v", err)
+	} else if n > 0 {
+		log.Printf("purged %d unbound model(s) left over from the provider era", n)
+	}
 	v1Svc := service.NewV1Service(cfg, modelRepo, userRepo, eventRepo, channelSvc, siteRepo, cgroupRepo, concSvc, rustfsClient)
 	siteSvc := service.NewSiteService(siteRepo, cfg.AppTitle)
 	showcaseSvc := service.NewShowcaseService(showcaseRepo)

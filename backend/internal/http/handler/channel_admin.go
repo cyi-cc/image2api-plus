@@ -106,6 +106,24 @@ func (h *ChannelAdminHandler) ImportModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// UnbindModel detaches one upstream model from a channel; the local model row
+// is deleted too when no other channel still binds it.
+func (h *ChannelAdminHandler) UnbindModel(c *gin.Context) {
+	var body struct {
+		ID    string `json:"id"`
+		Model string `json:"model"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.ID) == "" || strings.TrimSpace(body.Model) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "id and model required"})
+		return
+	}
+	if err := h.channels.UnbindModel(c.Request.Context(), body.ID, body.Model); err != nil {
+		writeUpstreamErr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 // writeUpstreamErr translates upstream-protocol errors into sensible admin
 // responses (auth → 400 with the upstream's message, temporary → 502).
 func writeUpstreamErr(c *gin.Context, err error) {
