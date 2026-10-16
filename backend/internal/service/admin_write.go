@@ -391,7 +391,6 @@ func (s *AdminWriteService) CreateModel(ctx context.Context, body map[string]any
 		Name:                defaultString(strings.TrimSpace(stringValue(body["name"])), modelID),
 		Alias:               alias,
 		Provider:            provider,
-		Enabled:             boolValueWithDefault(body["enabled"], true),
 		Ratios:              jsonArray(body["ratios"]),
 		Prices:              prices,
 		Resolutions:         resolutions,
@@ -439,13 +438,6 @@ func (s *AdminWriteService) UpdateModel(ctx context.Context, modelID string, bod
 		if provider != "" {
 			patch["provider"] = provider
 		}
-	}
-	// Only touch `enabled` when the caller explicitly sends a non-null value;
-	// mirrors Python models_store.update ("enabled" in fields and is not None).
-	// Without this guard a PATCH that omits the field would default it to false
-	// and silently disable the model.
-	if raw, ok := body["enabled"]; ok && raw != nil {
-		patch["enabled"] = boolValueWithDefault(raw, true)
 	}
 	if _, ok := body["ratios"]; ok {
 		patch["ratios"] = jsonArray(body["ratios"])

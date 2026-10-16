@@ -68,7 +68,7 @@ const displayItems = computed(() => [...tasks.value, ...history.value].slice(0, 
 
 // ---- derived ----
 const models = computed(() =>
-  allModels.value.filter((m) => m.enabled !== false && m.type === mode.value),
+  allModels.value.filter((m) => m.sellable && m.type === mode.value),
 )
 const modelOptions = computed(() =>
   models.value.map((m) => ({ value: m.id, label: m.alias || m.name || m.id })),
@@ -231,7 +231,7 @@ function setMode(m) {
   mode.value = m
   clearRefs()   // 切换生图/生视频清空参考文件
   // pick a default model of the new kind, if any
-  const first = allModels.value.find((x) => x.enabled !== false && x.type === m)
+  const first = allModels.value.find((x) => x.sellable && x.type === m)
   modelId.value = first?.id || ''
   applyModelDefaults()
 }
@@ -789,17 +789,17 @@ onMounted(async () => {
   if (qPrompt) prompt.value = qPrompt
   let selected = null
   if (qModel) {
-    selected = allModels.value.find((m) => m.id === qModel && m.enabled !== false)
+    selected = allModels.value.find((m) => m.id === qModel && m.sellable)
   }
   // If the draft already points at a still-available model AND no fresher
   // intent came in from the URL, keep the draft as-is. Otherwise fall back to
   // the first usable model.
   const draftModel = !qModel && modelId.value
-    ? allModels.value.find((m) => m.id === modelId.value && m.enabled !== false)
+    ? allModels.value.find((m) => m.id === modelId.value && m.sellable)
     : null
   if (!selected && !draftModel) {
-    selected = allModels.value.find((m) => m.enabled !== false && m.type === 'image')
-      || allModels.value.find((m) => m.enabled !== false)
+    selected = allModels.value.find((m) => m.sellable && m.type === 'image')
+      || allModels.value.find((m) => m.sellable)
   }
   // Always re-apply defaults — even when restoring the persisted draft model —
   // so a stale ratio/resolution that the model no longer supports (e.g. a saved

@@ -50,7 +50,7 @@ watch(genMsg, (v) => {
   if (v) genMsgTimer = setTimeout(() => { genMsg.value = '' }, 3500)
 })
 const kindModels = computed(() =>
-  (allModels.value || []).filter((m) => m.enabled !== false && m.type === gen.kind),
+  (allModels.value || []).filter((m) => m.sellable && m.type === gen.kind),
 )
 const model = computed(() => kindModels.value.find((m) => m.id === gen.modelId) || null)
 const ratios = computed(() => model.value?.ratios?.length ? model.value.ratios : ['1:1'])

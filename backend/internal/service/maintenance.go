@@ -20,23 +20,24 @@ type MaintenanceService struct {
 	users           *repo.UserRepository
 	settings        *repo.SiteSettingRepository
 	store           *storage.Client
-	inflight        *InflightRegistry
+	v1              *V1Service
 	showcase        *repo.ShowcaseRepository
 	orders          *repo.OrderRepository
 	interval        time.Duration
 	stalePending    time.Duration
 	stalePendingVid time.Duration
+	maxResumeAge    time.Duration
 	mediaPruneEvery time.Duration
 	lastMediaPrune  time.Time
 }
 
-func NewMaintenanceService(events *repo.EventRepository, users *repo.UserRepository, settings *repo.SiteSettingRepository, store *storage.Client, inflight *InflightRegistry, showcase *repo.ShowcaseRepository, orders *repo.OrderRepository) *MaintenanceService {
+func NewMaintenanceService(events *repo.EventRepository, users *repo.UserRepository, settings *repo.SiteSettingRepository, store *storage.Client, v1 *V1Service, showcase *repo.ShowcaseRepository, orders *repo.OrderRepository) *MaintenanceService {
 	return &MaintenanceService{
 		events:       events,
 		users:        users,
 		settings:     settings,
 		store:        store,
-		inflight:     inflight,
+		v1:           v1,
 		showcase:     showcase,
 		orders:       orders,
 		interval:     60 * time.Second,
@@ -44,6 +45,9 @@ func NewMaintenanceService(events *repo.EventRepository, users *repo.UserReposit
 		// 视频比图片慢得多，单条执行预算就是 30 分钟（videoGenBudget），用图片的
 		// 10 分钟去扫会在它出片前判死并退款。
 		stalePendingVid: 30 * time.Minute,
+		// 带上游 jobId 的逾期任务先尝试续等而不是判死；超过 3 小时总时限
+		// （vivid 同款）才放弃走判死退款。
+		maxResumeAge:    3 * time.Hour,
 		mediaPruneEvery: 60 * time.Second,
 	}
 }
@@ -75,10 +79,26 @@ func (m *MaintenanceService) tick(ctx context.Context) {
 		}
 	}
 
-	// 1. Fail long-pending events so they stop blocking the per-user gate, and
+	// 1a. Pending events with an upstream job id that outlived their local
+	//     goroutine (process restart) get resumed against the owning channel —
+	//     the upstream job keeps running even while we were down.
+	if m.v1 != nil {
+		if resumable, err := m.events.ResumableStale(ctx, m.stalePending, m.stalePendingVid, m.maxResumeAge); err != nil {
+			log.Printf("maintenance: resumable_stale: %v", err)
+		} else {
+			for _, e := range resumable {
+				m.v1.ResumeStaleJob(ctx, e)
+			}
+			if len(resumable) > 0 {
+				log.Printf("maintenance: resuming %d stale job(s) on their channels", len(resumable))
+			}
+		}
+	}
+
+	// 1b. Fail long-pending events so they stop blocking the per-user gate, and
 	//    refund the credits debited up-front for each abandoned generation (the
 	//    normal failure-refund path never ran for a process-restart orphan).
-	if purged, err := m.events.PurgeStale(ctx, m.stalePending, m.stalePendingVid); err != nil {
+	if purged, err := m.events.PurgeStale(ctx, m.stalePending, m.stalePendingVid, m.maxResumeAge); err != nil {
 		log.Printf("maintenance: purge_stale: %v", err)
 	} else if len(purged) > 0 {
 		refunded := 0
@@ -87,7 +107,7 @@ func (m *MaintenanceService) tick(ctx context.Context) {
 			// Stop the generation goroutine if it's still running, so it doesn't
 			// keep grinding for minutes and surface a late "success" on this
 			// just-abandoned event.
-			if m.inflight != nil && m.inflight.Cancel(e.ID) {
+			if m.v1 != nil && m.v1.Inflight().Cancel(e.ID) {
 				cancelled++
 			}
 			if e.UserID == "" || e.Cost <= 0 {

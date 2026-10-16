@@ -68,6 +68,10 @@ func NewApp(ctx context.Context) (*App, error) {
 		`ON cdk_codes (batch_id, redeemed_by) WHERE type = 'marketing' AND redeemed_by IS NOT NULL`).Error; err != nil {
 		return nil, fmt.Errorf("cdk marketing index: %w", err)
 	}
+	// 配价即上架（vivid 同款）：models 不再有启停开关，删遗留列。
+	if err := db.WithContext(ctx).Exec(`ALTER TABLE model_configs DROP COLUMN IF EXISTS enabled`).Error; err != nil {
+		return nil, fmt.Errorf("drop model_configs.enabled: %w", err)
+	}
 	if err := seedDefaults(ctx, db); err != nil {
 		return nil, fmt.Errorf("seed defaults: %w", err)
 	}
@@ -159,7 +163,7 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Background self-healing sweep (order expiry, stale-pending cleanup+refund,
 	// log/media retention).
-	maintenanceSvc := service.NewMaintenanceService(eventRepo, userRepo, siteRepo, rustfsClient, v1Svc.Inflight(), showcaseRepo, orderRepo)
+	maintenanceSvc := service.NewMaintenanceService(eventRepo, userRepo, siteRepo, rustfsClient, v1Svc, showcaseRepo, orderRepo)
 	loopCtx, loopCancel := context.WithCancel(context.Background())
 	go maintenanceSvc.Run(loopCtx)
 

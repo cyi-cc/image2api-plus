@@ -120,14 +120,17 @@ type SaveChannelDto struct {
 	Weight      int    `json:"weight"`
 }
 
-func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Channel, error) {
+// Save upserts a channel then auto-syncs its upstream models (same semantics
+// as vivid: upstream /v1/models is the truth). The returned warning is a
+// non-fatal sync message — "" means fully synced.
+func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Channel, string, error) {
 	name := strings.TrimSpace(d.Name)
 	base := strings.TrimRight(strings.TrimSpace(d.BaseURL), "/")
 	if base == "" {
-		return nil, errors.New("base_url required")
+		return nil, "", errors.New("base_url required")
 	}
 	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
-		return nil, errors.New("base_url must start with http:// or https://")
+		return nil, "", errors.New("base_url must start with http:// or https://")
 	}
 	weight := d.Weight
 	if weight < 1 {
@@ -135,11 +138,11 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 	}
 	if d.ID == "" {
 		if strings.TrimSpace(d.APIKey) == "" {
-			return nil, errors.New("api_key required")
+			return nil, "", errors.New("api_key required")
 		}
 		enc, err := s.encrypt(d.APIKey)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		ch := &model.Channel{
 			ID:          "ch-" + randomUpper(10),
@@ -153,7 +156,10 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 		if ch.Name == "" {
 			ch.Name = base
 		}
-		return ch, s.channels.Create(ctx, ch)
+		if err := s.channels.Create(ctx, ch); err != nil {
+			return nil, "", err
+		}
+		return ch, s.syncChannelModels(ctx, ch.ID), nil
 	}
 	patch := map[string]any{
 		"name":        name,
@@ -165,11 +171,95 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 	if key := strings.TrimSpace(d.APIKey); key != "" && !strings.Contains(key, "•") && !strings.Contains(key, "*") {
 		enc, err := s.encrypt(key)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		patch["api_key_enc"] = enc
 	}
-	return s.channels.Update(ctx, d.ID, patch)
+	ch, err := s.channels.Update(ctx, d.ID, patch)
+	if err != nil {
+		return nil, "", err
+	}
+	return ch, s.syncChannelModels(ctx, d.ID), nil
+}
+
+// syncChannelModels runs after Save: upstream /v1/models is the truth — every
+// sellable upstream model is upserted locally (alias = upstream id) and bound;
+// bindings on this channel not in the upstream list are removed, and orphan
+// local models are deleted. An unreachable upstream or empty/anomalous list
+// only produces a warning — the DB is left untouched.
+func (s *ChannelService) syncChannelModels(ctx context.Context, channelID string) string {
+	ch, err := s.channels.Get(ctx, channelID)
+	if err != nil {
+		return "模型自动同步失败：" + err.Error()
+	}
+	key := s.decrypt(ch.APIKeyEnc)
+	if key == "" {
+		return "模型自动同步失败：无法解密上游密钥"
+	}
+	fctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	models, err := s.up.Models(fctx, ch.BaseURL, key)
+	if err != nil {
+		return "模型自动同步失败：" + err.Error()
+	}
+	if len(models) == 0 {
+		return "上游未返回任何模型，已跳过同步"
+	}
+	specs := make([]ChannelModelSpec, 0, len(models))
+	upstreamIDs := make([]string, 0, len(models))
+	var skipped []string
+	for _, m := range models {
+		spec, serr := normalizeRemoteModel(m)
+		if serr != nil {
+			skipped = append(skipped, m.ID+"："+serr.Error())
+			continue
+		}
+		specs = append(specs, spec)
+		upstreamIDs = append(upstreamIDs, spec.ID)
+	}
+	if len(upstreamIDs) == 0 {
+		return fmt.Sprintf("上游模型均规格异常，已跳过同步：%s", strings.Join(skipped, "；"))
+	}
+	if err := s.ImportModels(ctx, channelID, specs); err != nil {
+		return "模型自动同步失败：" + err.Error()
+	}
+	if err := s.channels.UnbindExcept(ctx, channelID, upstreamIDs); err != nil {
+		return "模型自动同步失败：" + err.Error()
+	}
+	if orphans, oerr := s.channels.OrphanModelIDs(ctx); oerr == nil {
+		for _, mid := range orphans {
+			_, _ = s.models.Delete(ctx, mid)
+		}
+	}
+	if len(skipped) > 0 {
+		return fmt.Sprintf("已同步上游模型，跳过 %d 个异常项：%s", len(skipped), strings.Join(skipped, "；"))
+	}
+	return ""
+}
+
+// normalizeRemoteModel validates an upstream /v1/models item into an import
+// spec (alias = upstream id).
+func normalizeRemoteModel(m upstream.RemoteModel) (ChannelModelSpec, error) {
+	spec := ChannelModelSpec{
+		ID:              strings.TrimSpace(m.ID),
+		Kind:            strings.TrimSpace(m.Kind),
+		Qualities:       m.Qualities,
+		Duration:        m.Duration,
+		RefImages:       m.RefImages,
+		RefVideos:       m.RefVideos,
+		RefAudios:       m.RefAudios,
+		RefVideoSeconds: m.RefVideoSeconds,
+		RefAudioSeconds: m.RefAudioSeconds,
+	}
+	if spec.ID == "" {
+		return spec, errors.New("模型 id 为空")
+	}
+	switch spec.Kind {
+	case "image", "video", "text":
+	default:
+		return spec, fmt.Errorf("未知类型 %q", spec.Kind)
+	}
+	return spec, nil
 }
 
 // Delete removes a channel, its bindings, and any local model that ends up
@@ -348,7 +438,6 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 				Name:      localID,
 				Type:      spec.Kind,
 				Provider:  "channel",
-				Enabled:   true,
 				Ratios:    jsonArray([]string{"16:9"}),
 				Prices:    datatypes.JSONMap{},
 				CreatedAt: time.Now(),
@@ -459,6 +548,11 @@ func (s *ChannelService) ChannelsForModelAnyState(ctx context.Context, modelID s
 }
 
 // Decrypt exposes the upstream key for dispatch.
+// Get loads one channel row by id (resume path needs the owning channel).
+func (s *ChannelService) Get(ctx context.Context, id string) (*model.Channel, error) {
+	return s.channels.Get(ctx, id)
+}
+
 func (s *ChannelService) Decrypt(ch model.Channel) string { return s.decrypt(ch.APIKeyEnc) }
 
 // Upstream returns the shared protocol client (dispatch needs it for

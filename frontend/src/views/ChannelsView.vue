@@ -9,6 +9,7 @@ const KIND_LABEL = { image: '图像', video: '视频', text: '文本' }
 const channels = ref([])
 const loading = ref(false)
 const err = ref('')
+const warn = ref('')          // 保存后自动同步的非致命告警
 
 // create/edit form
 const form = ref(null)
@@ -59,6 +60,7 @@ async function save() {
   }))
   saving.value = false
   if (!r.ok) { formErr.value = r.data?.detail || '保存失败'; return }
+  warn.value = r.data?.warning || ''
   form.value = null
   load()
 }
@@ -70,7 +72,8 @@ async function toggle(c) {
     id: c.id, name: c.name, base_url: c.base_url, api_key: '',
     enabled: c.enabled, concurrency: c.concurrency || 0, weight: c.weight || 1,
   }))
-  if (!r.ok) { c.enabled = prev; err.value = r.data?.detail || '状态更新失败' }
+  if (!r.ok) { c.enabled = prev; err.value = r.data?.detail || '状态更新失败'; return }
+  warn.value = r.data?.warning || ''
 }
 
 async function del(c) {
@@ -117,6 +120,7 @@ async function toggleBind(s) {
           enabled: target.enabled !== false, concurrency: target.concurrency || 0, weight: target.weight || 1,
         }))
         if (!sr.ok) { fetchErr.value = sr.data?.detail || '渠道保存失败'; return }
+        if (sr.data?.warning) warn.value = sr.data.warning
         target.id = sr.data?.id
         form.value = null
       }
@@ -159,7 +163,7 @@ onMounted(load)
     <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
       <div>
         <div class="text-sm font-medium">渠道</div>
-        <p class="text-xs text-white/45 mt-0.5">同构 /v1 协议上游实例 · 模型经「拉取上游模型」导入 · 余额实时探测</p>
+        <p class="text-xs text-white/45 mt-0.5">同构 /v1 协议上游实例 · 保存时自动同步上游模型 · 余额实时探测</p>
       </div>
       <button @click="openAdd" class="btn-primary">
         <Icon name="plus" class="w-4 h-4" /> 添加渠道
@@ -167,6 +171,7 @@ onMounted(load)
     </div>
 
     <p v-if="err" class="text-xs text-rose-300">{{ err }}</p>
+    <p v-if="warn" class="text-xs text-amber-300">{{ warn }}</p>
 
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
@@ -292,7 +297,7 @@ onMounted(load)
         <div class="p-5">
           <div v-if="fetching" class="py-10 text-center text-white/40 text-sm">正在从上游拉取模型列表…</div>
           <template v-else>
-            <p class="text-xs text-white/45 mb-3">勾选即导入并绑定到本渠道，取消勾选即解绑（模型没有其他渠道接入时本地行一并删除）。能力参数随模型带入，导入后到「模型管理」配价上架。别名即本站模型标识（留空=与上游同名，绑定时生效）。</p>
+            <p class="text-xs text-white/45 mb-3">勾选即导入并绑定到本渠道，取消勾选即解绑（模型没有其他渠道接入时本地行一并删除）。能力参数随模型带入，导入后到「模型管理」配价上架。别名即本站模型标识（留空=与上游同名，绑定时生效）。注意：保存渠道会按上游清单全量重同步，手动解绑的模型若仍在上游列表中会被重新接入。</p>
             <p v-if="fetchErr" class="text-xs text-rose-300 mb-3">{{ fetchErr }}</p>
             <div v-if="!specs.length" class="py-10 text-center text-white/40 text-sm">上游没有可售模型（模型需在上游已配价）</div>
             <div v-else class="space-y-1.5 max-h-[380px] overflow-y-auto">

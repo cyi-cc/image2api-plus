@@ -430,12 +430,41 @@ const stalePendingWhere = "status = ? AND ((kind = ? AND ts < ?) OR (kind <> ? A
 
 // StaleEvent identifies a purged pending event so the caller can refund the
 // credits debited up-front AND attribute the failure to the account the
-// (now-abandoned) generation was using.
+// (now-abandoned) generation was using. UpstreamJob/Kind/Model/File/Source are
+// what the channel-resume path needs to pick the job back up.
 type StaleEvent struct {
-	ID        string  `gorm:"column:id"`
-	UserID    string  `gorm:"column:user_id"`
-	AccountID string  `gorm:"column:account_id"`
-	Cost      float64 `gorm:"column:cost"`
+	ID          string    `gorm:"column:id"`
+	UserID      string    `gorm:"column:user_id"`
+	AccountID   string    `gorm:"column:account_id"`
+	UpstreamJob string    `gorm:"column:upstream_job"`
+	Kind        string    `gorm:"column:kind"`
+	Model       string    `gorm:"column:model"`
+	File        string    `gorm:"column:file"`
+	Source      string    `gorm:"column:source"`
+	Cost        float64   `gorm:"column:cost"`
+	TS          time.Time `gorm:"column:ts"`
+}
+
+// ResumableStale returns pending events past their per-kind deadline that still
+// carry an upstream job id — a process restart orphaned the local goroutine but
+// the upstream job may still be running, so these get resumed (not purged).
+// Events older than maxResumeAge are excluded and fall through to PurgeStale.
+func (r *EventRepository) ResumableStale(ctx context.Context, maxAge, videoMaxAge, maxResumeAge time.Duration) ([]StaleEvent, error) {
+	if maxAge <= 0 {
+		maxAge = 600 * time.Second
+	}
+	if videoMaxAge <= 0 {
+		videoMaxAge = maxAge
+	}
+	cutoff := time.Now().Add(-maxAge)
+	videoCutoff := time.Now().Add(-videoMaxAge)
+	resumeFloor := time.Now().Add(-maxResumeAge)
+	var stale []StaleEvent
+	err := r.db.WithContext(ctx).Model(&model.EventLog{}).
+		Where(stalePendingWhere+" AND upstream_job <> '' AND ts >= ?", "pending", "video", videoCutoff, "video", cutoff, resumeFloor).
+		Select("id", "user_id", "account_id", "upstream_job", "kind", "model", "file", "source", "cost", "ts").
+		Scan(&stale).Error
+	return stale, err
 }
 
 // PurgeStale marks long-pending entries as failed/abandoned and RETURNS them so
@@ -446,7 +475,10 @@ type StaleEvent struct {
 //
 // videoMaxAge 单独给视频用：出片本来就慢（上游长镜头能跑二十多分钟），按图片的
 // 期限扫会在它出片前就判死并退款。
-func (r *EventRepository) PurgeStale(ctx context.Context, maxAge, videoMaxAge time.Duration) ([]StaleEvent, error) {
+//
+// Events carrying an upstream job id and younger than resumeFloor are skipped —
+// ResumableStale resumes them against the channel instead of killing them.
+func (r *EventRepository) PurgeStale(ctx context.Context, maxAge, videoMaxAge, maxResumeAge time.Duration) ([]StaleEvent, error) {
 	if maxAge <= 0 {
 		maxAge = 600 * time.Second
 	}
@@ -455,13 +487,14 @@ func (r *EventRepository) PurgeStale(ctx context.Context, maxAge, videoMaxAge ti
 	}
 	cutoff := time.Now().Add(-maxAge)
 	videoCutoff := time.Now().Add(-videoMaxAge)
+	resumeFloor := time.Now().Add(-maxResumeAge)
 	var stale []StaleEvent
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Snapshot who/what to refund BEFORE flipping status, so a concurrent
 		// sweep can't double-count (the UPDATE in the same tx removes them from
 		// the pending set).
 		if err := tx.Model(&model.EventLog{}).
-			Where(stalePendingWhere, "pending", "video", videoCutoff, "video", cutoff).
+			Where(stalePendingWhere+" AND (upstream_job IS NULL OR upstream_job = '' OR ts < ?)", "pending", "video", videoCutoff, "video", cutoff, resumeFloor).
 			Select("id", "user_id", "account_id", "cost").
 			Scan(&stale).Error; err != nil {
 			return err
@@ -470,7 +503,7 @@ func (r *EventRepository) PurgeStale(ctx context.Context, maxAge, videoMaxAge ti
 			return nil
 		}
 		return tx.Model(&model.EventLog{}).
-			Where(stalePendingWhere, "pending", "video", videoCutoff, "video", cutoff).
+			Where(stalePendingWhere+" AND (upstream_job IS NULL OR upstream_job = '' OR ts < ?)", "pending", "video", videoCutoff, "video", cutoff, resumeFloor).
 			Updates(map[string]any{
 				"status":     "failed",
 				"error":      gorm.Expr("COALESCE(NULLIF(error, ''), ?)", "abandoned (process restarted or request interrupted)"),

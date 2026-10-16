@@ -42,7 +42,7 @@ async function refresh() {
       api('/showcase'),
     ])
     stats.value = s.data || { generated_count: 0, recent: [] }
-    managed.value = (m.data?.data || []).filter((x) => x.enabled !== false)
+    managed.value = (m.data?.data || []).filter((x) => x.sellable)
     showcase.value = sc.data?.data || { hero: [], bento: [], work: [] }
     const top3 = (showcase.value.hero || []).slice(0, 3)
     const sameSet = heroDeck.value.length === top3.length
@@ -92,7 +92,7 @@ const avgLabel = computed(() => {
   return Math.round(avgElapsed.value / 1000) + 's'
 })
 
-// ---- capability cards, derived from the enabled models ----
+// ---- capability cards, derived from the sellable models ----
 function refs(m) { return m.image_to_image === true || Number(m.max_reference_images || 0) > 0 }
 const durationRange = computed(() => {
   const secs = []

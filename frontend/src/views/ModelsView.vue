@@ -14,7 +14,7 @@ const editing = ref(null) // null = add, object = edit
 const testing = ref(null) // model being tested, or null
 
 const kindFilter = ref('')      // '' | 'image' | 'video'
-const statusFilter = ref('')    // '' | 'enabled' | 'disabled'
+const saleFilter = ref('')      // '' | 'sellable' | 'unsellable'
 const search = ref('')
 
 const TYPE_LABEL = { image: '生图', video: '生视频' }
@@ -42,20 +42,6 @@ async function loadModels() {
 function openEdit(m) { editing.value = { ...m }; showForm.value = true }
 function onSaved() { showForm.value = false; loadModels() }
 
-async function toggleEnabled(m) {
-  // Optimistic: flip the switch instantly, persist in the background, revert on
-  // failure. Avoids the lag of awaiting the PATCH + a full table reload before
-  // the toggle visibly moves.
-  const cur = m.enabled !== false
-  const next = !cur
-  m.enabled = next
-  const r = await api(`/managed-models/${encodeURIComponent(m.id)}`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled: next }),
-  })
-  if (!r.ok) m.enabled = cur
-}
-
 async function remove(m) {
   if (!confirm(`确认删除模型 ${m.id}?`)) return
   await api(`/managed-models/${encodeURIComponent(m.id)}`, { method: 'DELETE' })
@@ -66,16 +52,16 @@ const stats = computed(() => {
   const total = models.value.length
   const image = models.value.filter((m) => m.type === 'image').length
   const video = models.value.filter((m) => m.type === 'video').length
-  const enabled = models.value.filter((m) => m.enabled !== false).length
-  return { total, image, video, enabled, disabled: total - enabled }
+  const sellable = models.value.filter((m) => m.sellable).length
+  return { total, image, video, sellable }
 })
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   return models.value.filter((m) => {
     if (kindFilter.value && m.type !== kindFilter.value) return false
-    if (statusFilter.value === 'enabled' && m.enabled === false) return false
-    if (statusFilter.value === 'disabled' && m.enabled !== false) return false
+    if (saleFilter.value === 'sellable' && !m.sellable) return false
+    if (saleFilter.value === 'unsellable' && m.sellable) return false
     if (q && !(m.id.toLowerCase().includes(q) || (m.alias || '').toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q))) return false
     return true
   })
@@ -101,8 +87,8 @@ onMounted(loadModels)
         <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.video }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">启用</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.enabled }}<span class="text-white/35 text-lg ml-1">/ {{ stats.total }}</span></div>
+        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">上架</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.sellable }}<span class="text-white/35 text-lg ml-1">/ {{ stats.total }}</span></div>
       </div>
     </div>
 
@@ -115,12 +101,12 @@ onMounted(loadModels)
       </div>
       <div class="w-px h-5 bg-white/10"></div>
       <div class="flex items-center gap-1">
-        <button @click="statusFilter = ''" class="fp" :class="statusFilter === '' && 'fp-on'">所有状态</button>
-        <button @click="statusFilter = 'enabled'" class="fp" :class="statusFilter === 'enabled' && 'fp-emerald'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>启用
+        <button @click="saleFilter = ''" class="fp" :class="saleFilter === '' && 'fp-on'">全部</button>
+        <button @click="saleFilter = 'sellable'" class="fp" :class="saleFilter === 'sellable' && 'fp-emerald'">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>上架
         </button>
-        <button @click="statusFilter = 'disabled'" class="fp" :class="statusFilter === 'disabled' && 'fp-white'">
-          <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>停用
+        <button @click="saleFilter = 'unsellable'" class="fp" :class="saleFilter === 'unsellable' && 'fp-white'">
+          <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>未上架
         </button>
       </div>
       <div class="flex-1 min-w-[200px]">
@@ -148,7 +134,7 @@ onMounted(loadModels)
           <col />                  <!-- capability -->
           <col class="w-20" />     <!-- weight -->
           <col class="w-24" />     <!-- generation count -->
-          <col class="w-20" />     <!-- status switch -->
+          <col class="w-20" />     <!-- sellable badge -->
           <col class="w-36" />     <!-- actions -->
         </colgroup>
         <thead>
@@ -159,7 +145,7 @@ onMounted(loadModels)
             <th class="text-left px-3 py-3 font-medium">能力</th>
             <th class="text-right px-3 py-3 font-medium">权重</th>
             <th class="text-right px-3 py-3 font-medium">生图次数</th>
-            <th class="text-left px-3 py-3 font-medium">状态</th>
+            <th class="text-left px-3 py-3 font-medium">上架</th>
             <th class="text-right px-5 py-3 font-medium">操作</th>
           </tr>
         </thead>
@@ -266,13 +252,15 @@ onMounted(loadModels)
               {{ (m.generation_count || 0).toLocaleString('en-US') }}
             </td>
 
-            <!-- Status as a real toggle so admins read it as on/off, not a
-                 button to delete or whatever. -->
+            <!-- 配价即上架（无开关）：全档位有价 + 绑定了启用渠道才显示「已上架」 -->
             <td class="px-3 py-3.5 align-middle">
-              <button class="sw" :class="m.enabled !== false && 'sw-on'"
-                      :aria-pressed="m.enabled !== false" @click="toggleEnabled(m)">
-                <span class="sw-thumb"></span>
-              </button>
+              <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
+                    :class="m.sellable
+                      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
+                      : 'bg-white/[0.05] text-white/40 ring-white/10'"
+                    :title="m.sellable ? '全部档位有价且有启用渠道,对前台可见' : '配齐全部档位价格并绑定启用渠道后自动上架'">
+                {{ m.sellable ? '已上架' : '未上架' }}
+              </span>
             </td>
 
             <!-- Actions — small soft buttons, danger variant for delete -->
@@ -375,27 +363,6 @@ onMounted(loadModels)
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
 }
-
-/* --- iOS-style toggle for 启用/停用 */
-.sw {
-  position: relative;
-  width: 2.25rem; height: 1.3rem;
-  border-radius: 9999px;
-  background: rgb(255 255 255 / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-  transition: background 0.18s ease;
-}
-.sw-thumb {
-  position: absolute;
-  top: 2px; left: 2px;
-  width: calc(1.3rem - 4px); height: calc(1.3rem - 4px);
-  border-radius: 9999px;
-  background: white;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.3);
-  transition: transform 0.18s ease;
-}
-.sw-on { background: rgb(16 185 129 / 0.7); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.5); }
-.sw-on .sw-thumb { transform: translateX(calc(2.25rem - 1.3rem)); }
 
 /* --- danger variant for 删除 (kept for any other .btn-soft callers) */
 .btn-soft.danger {

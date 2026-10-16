@@ -80,6 +80,15 @@ func (r *ChannelRepository) Unbind(ctx context.Context, channelID, modelID strin
 	return r.db.WithContext(ctx).Delete(&model.ChannelModel{}, "channel_id = ? AND model_id = ?", channelID, modelID).Error
 }
 
+// UnbindExcept removes every binding of a channel whose upstream model name is
+// NOT in the keep list (upstream_model, falling back to model_id for legacy
+// rows) — the "true sync" counterpart used after saving a channel.
+func (r *ChannelRepository) UnbindExcept(ctx context.Context, channelID string, upstreamIDs []string) error {
+	return r.db.WithContext(ctx).
+		Where("channel_id = ? AND NOT (COALESCE(NULLIF(upstream_model, ''), model_id) IN ?)", channelID, upstreamIDs).
+		Delete(&model.ChannelModel{}).Error
+}
+
 func (r *ChannelRepository) DeleteBindingsByChannel(ctx context.Context, channelID string) error {
 	return r.db.WithContext(ctx).Delete(&model.ChannelModel{}, "channel_id = ?", channelID).Error
 }
@@ -156,6 +165,22 @@ func (r *ChannelRepository) UpstreamModelMap(ctx context.Context, channelID stri
 		out[row.ModelID] = row.UpstreamModel
 	}
 	return out, nil
+}
+
+// RoutableModelIDs returns the set of local model ids bound to at least one
+// ENABLED channel — the "can actually dispatch" set behind the sellable flag.
+func (r *ChannelRepository) RoutableModelIDs(ctx context.Context) (map[string]struct{}, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Table("channel_models").
+		Select("DISTINCT channel_models.model_id").
+		Joins("JOIN channels ON channels.id = channel_models.channel_id AND channels.enabled = ?", true).
+		Scan(&ids).Error
+	out := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		out[id] = struct{}{}
+	}
+	return out, err
 }
 
 // ChannelIDsByModel lists channel ids bound to a model (any enabled state).

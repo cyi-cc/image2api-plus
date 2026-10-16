@@ -15,7 +15,7 @@ const models = ref([])
 const presets = ref({})   // /video-presets: key → 预设（参考资产分类上限的真源）
 onMounted(async () => {
   const [r, p] = await Promise.all([api('/managed-models'), api('/video-presets')])
-  if (r.ok) models.value = (r.data?.data || []).filter((m) => m.enabled !== false)
+  if (r.ok) models.value = (r.data?.data || []).filter((m) => m.sellable)
   if (p.ok) presets.value = presetMap(p.data?.data)
 })
 

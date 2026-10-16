@@ -159,6 +159,16 @@ func (r *InflightRegistry) Add(eventID string, cancel context.CancelFunc) {
 	}
 }
 
+// TryAdd registers an event only when nothing is tracked for it — the resume
+// sweep uses it so two ticks can't double-attach to the same upstream job.
+func (r *InflightRegistry) TryAdd(eventID string, cancel context.CancelFunc) bool {
+	if eventID == "" {
+		return false
+	}
+	_, loaded := r.m.LoadOrStore(eventID, cancel)
+	return !loaded
+}
+
 // Done deregisters an event (called on normal completion).
 func (r *InflightRegistry) Done(eventID string) { r.m.Delete(eventID) }
 
@@ -342,9 +352,9 @@ type V1ModelDur struct {
 	Options []int64 `json:"options,omitempty"`
 }
 
-// SellableModels — GET /v1/models. Only enabled models bound to at least one
-// enabled channel AND fully priced are sellable (a model with an unpriced tier
-// would charge-reject at submit time — hide it instead).
+// SellableModels — GET /v1/models. 配价即上架（无启停开关）：绑定到至少一个
+// enabled 渠道 AND 全部档位有价才是可售模型（缺价的档位提交时会扣费拒绝，
+// 直接不下发）。kind 不限——image/video/text 同构透出，下游才能连导。
 func (s *V1Service) SellableModels(ctx context.Context) ([]V1ModelItem, error) {
 	items, err := s.models.List(ctx)
 	if err != nil {
@@ -352,9 +362,6 @@ func (s *V1Service) SellableModels(ctx context.Context) ([]V1ModelItem, error) {
 	}
 	out := make([]V1ModelItem, 0, len(items))
 	for _, item := range items {
-		if !item.Enabled {
-			continue
-		}
 		if !s.modelSellable(ctx, &item) {
 			continue
 		}
@@ -393,6 +400,12 @@ func (s *V1Service) modelSellable(ctx context.Context, item *model.ModelConfig) 
 	if err != nil || len(channels) == 0 {
 		return false
 	}
+	return ModelFullyPriced(item)
+}
+
+// ModelFullyPriced — 上架门槛（无启停开关，配价即上架）：每个清晰度档位在
+// Prices 里有价；视频模型还要求时长有价（离散档逐档，或区间档按秒价）。
+func ModelFullyPriced(item *model.ModelConfig) bool {
 	for _, res := range repo.JSONStrings(item.Resolutions) {
 		if _, ok := jsonMapFloat(item.Prices, res); !ok {
 			return false
@@ -564,6 +577,10 @@ func (s *V1Service) generateOnChannel(ctx context.Context, eventID string, ch mo
 		if upstreamJob == "" {
 			upstreamJob = job
 			_ = s.events.SetUpstreamJob(ctx, eventID, job)
+			// Stamp the owning channel the moment the upstream accepts the job —
+			// a restart between submit and finish would otherwise leave a
+			// pending row that can't tell which channel to resume on.
+			_ = s.events.SetAccount(ctx, eventID, ch.ID, ch.Name)
 		}
 	})
 	if err != nil {
@@ -881,9 +898,6 @@ func (s *V1Service) CreateJob(ctx context.Context, principal *APIPrincipal, in V
 		}
 		return nil, err
 	}
-	if !modelItem.Enabled {
-		return nil, ErrUnknownModel
-	}
 	kind := modelItem.Type
 	if kind != "image" && kind != "video" {
 		return nil, ErrUnknownModel
@@ -1050,6 +1064,96 @@ func (s *V1Service) runV1Job(ctx context.Context, principal *APIPrincipal, event
 		_ = s.users.IncrementGenerationCount(ctx, principal.User.ID)
 	}
 	_ = s.maybeGrantInviteReward(ctx, principal)
+}
+
+// ResumeStaleJob re-attaches to an upstream job whose local goroutine died with
+// a process restart. Called by the maintenance sweep; TryAdd guards against
+// double-attach across ticks. Terminal failure (upstream job lost/failed,
+// channel gone or key broken) fails the event and refunds; transient failure
+// leaves it pending for the next sweep (events older than maxResumeAge get
+// purged instead of resumed).
+func (s *V1Service) ResumeStaleJob(ctx context.Context, ev repo.StaleEvent) {
+	if ev.UpstreamJob == "" || ev.AccountID == "" {
+		return
+	}
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), videoGenBudget)
+	if !s.inflight.TryAdd(ev.ID, cancel) {
+		cancel()
+		return
+	}
+	go s.resumeUpstreamJob(rctx, ev)
+}
+
+func (s *V1Service) resumeUpstreamJob(ctx context.Context, ev repo.StaleEvent) {
+	defer s.inflight.Done(ev.ID)
+	fail := func(msg string) {
+		s.refundStale(ctx, ev)
+		elapsed := int(time.Since(ev.TS).Milliseconds())
+		_ = s.events.UpdateStatus(ctx, ev.ID, "failed", msg, elapsed)
+	}
+	ch, err := s.channels.Get(ctx, ev.AccountID)
+	if err != nil || ch == nil {
+		fail("上游渠道已删除，任务无法续等")
+		return
+	}
+	apiKey := s.channels.Decrypt(*ch)
+	if apiKey == "" {
+		fail("上游渠道密钥不可用，任务无法续等")
+		return
+	}
+	base := strings.TrimRight(ch.BaseURL, "/")
+	resultURL, credits, err := s.up.Generate(ctx, base, apiKey, upstream.GenParams{JobID: ev.UpstreamJob}, int64(videoGenBudget/time.Second), nil)
+	if err != nil {
+		switch upstream.KindOf(err) {
+		case upstream.KindJobFailed, upstream.KindInvalid, upstream.KindAuth:
+			fail(upstreamUserError(err).Error())
+		default:
+			// Retryable/transport/timeout — the upstream job may still run;
+			// leave the event pending for the next sweep.
+			log.Printf("[v1] resume upstream job %s (event %s) retry later: %v", ev.UpstreamJob, ev.ID, err)
+		}
+		return
+	}
+	data, ct, err := s.up.Download(ctx, resultURL)
+	if err != nil {
+		log.Printf("[v1] resume download %s (event %s) retry later: %v", ev.UpstreamJob, ev.ID, err)
+		return
+	}
+	rel := strings.TrimSpace(ev.File)
+	if rel == "" {
+		rel = filepath.ToSlash(filepath.Join("tmp", ev.ID+"."+resultExt(ct, ev.Kind)))
+	}
+	if err := s.store.Put(ctx, rel, data, ct); err != nil {
+		fail("storage upload failed: " + err.Error())
+		return
+	}
+	_ = s.events.SetFile(ctx, ev.ID, rel)
+	if err := s.events.UpdateStatus(ctx, ev.ID, "success", "", int(time.Since(ev.TS).Milliseconds())); err != nil {
+		return
+	}
+	s.channels.BumpSuccess(ctx, ch.ID, float64(credits))
+	if ev.Model != "" {
+		_ = s.models.IncrementGenerationCount(ctx, ev.Model)
+	}
+	if ev.UserID != "" {
+		_ = s.users.IncrementGenerationCount(ctx, ev.UserID)
+	}
+	log.Printf("[v1] resumed upstream job %s → event %s succeeded", ev.UpstreamJob, ev.ID)
+}
+
+// refundStale returns the up-front charge for an abandoned/resume-dead event,
+// claimed exactly once via the refunded flag.
+func (s *V1Service) refundStale(ctx context.Context, ev repo.StaleEvent) {
+	if ev.UserID == "" || ev.Cost <= 0 {
+		return
+	}
+	claimed, err := s.events.MarkRefunded(ctx, ev.ID)
+	if err != nil || !claimed {
+		return
+	}
+	if _, err := s.users.RefundCredits(ctx, ev.UserID, ev.Cost); err != nil {
+		log.Printf("[v1] refund stale event %s (user %s, %.0f): %v", ev.ID, ev.UserID, ev.Cost, err)
+	}
 }
 
 func resultExt(contentType, kind string) string {
@@ -1300,7 +1404,7 @@ func (s *V1Service) prepareImage(ctx context.Context, principal *APIPrincipal, i
 		}
 		return nil, "", "", 0, err
 	}
-	if !modelItem.Enabled || modelItem.Type != "image" {
+	if modelItem.Type != "image" {
 		return nil, "", "", 0, ErrUnknownModel
 	}
 	// Fail fast before charging if no channel serves this model.
@@ -1361,7 +1465,7 @@ func (s *V1Service) prepareVideo(ctx context.Context, principal *APIPrincipal, i
 		}
 		return nil, "", "", "", 0, err
 	}
-	if !modelItem.Enabled || modelItem.Type != "video" {
+	if modelItem.Type != "video" {
 		return nil, "", "", "", 0, ErrUnknownModel
 	}
 	// Validate duration against the model's spec (options list or min/max range).

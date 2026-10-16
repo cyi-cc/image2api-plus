@@ -461,7 +461,7 @@ func (h *UserGenerationHandler) VideoPresets(c *gin.Context) {
 	}
 	out := make([]gin.H, 0, len(models))
 	for _, m := range models {
-		if m.Type != "video" || !m.Enabled {
+		if m.Type != "video" {
 			continue
 		}
 		out = append(out, modelPreset(m))
@@ -547,7 +547,7 @@ func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) 
 }
 
 // publicModels — GET /api/models for the public site (docs/landing pickers).
-// Enabled models only, in the same shape as before minus the provider id.
+// Fully-priced models only (配价即上架), same shape as before.
 func (h *UserGenerationHandler) publicModels(c *gin.Context) ([]gin.H, error) {
 	models, err := h.admin.Models(c.Request.Context())
 	if err != nil {
@@ -555,7 +555,8 @@ func (h *UserGenerationHandler) publicModels(c *gin.Context) ([]gin.H, error) {
 	}
 	items := make([]gin.H, 0, len(models))
 	for _, m := range models {
-		if !m.Enabled {
+		// 配价即上架：未配齐价的模型对前台不可见（绑定/配价都满足才进 /v1）。
+		if !service.ModelFullyPriced(&m) {
 			continue
 		}
 		items = append(items, gin.H{

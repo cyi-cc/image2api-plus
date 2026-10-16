@@ -38,7 +38,7 @@ func (h *ChannelAdminHandler) Save(c *gin.Context) {
 		return
 	}
 	body.BaseURL = strings.TrimSpace(body.BaseURL)
-	ch, err := h.channels.Save(c.Request.Context(), body)
+	ch, warning, err := h.channels.Save(c.Request.Context(), body)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"detail": "channel not found"})
@@ -47,7 +47,7 @@ func (h *ChannelAdminHandler) Save(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "id": ch.ID})
+	c.JSON(http.StatusOK, gin.H{"ok": true, "id": ch.ID, "warning": warning})
 }
 
 func (h *ChannelAdminHandler) Delete(c *gin.Context) {
