@@ -1,18 +1,32 @@
+// Package handler — /v1/* 消费者 HTTP 接口（vivid 协议同款）。
+// 这套接口同时是渠道上游契约：同构实例经相同的四个端点互相对接。
+//
+//	POST /v1/generate   创建生成任务（NDJSON 流：首帧 jobId → 终态帧；断流携 jobId 重发续等）
+//	POST /v1/uploads    参考素材预签名直传（返回 key 随 generate 的 refs 提交）
+//	GET  /v1/models     可售模型裸数组（启用 + 有渠道绑定 + 全部档位已配价）
+//	GET  /v1/balance    {balance}：余额积分
+//
+// 鉴权：Authorization: Bearer vk_...（用户 API Key，哈希落库）。
 package handler
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"backend/internal/model"
 	"backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
+
+// v1MaxWait 同步等待终态的上限。视频单渠道预算 30 分钟、最多换几个渠道，
+// 留足余量取 2 小时（与 vivid 一致）。
+const v1MaxWait = 2 * time.Hour
+
+const v1PollInterval = time.Second
 
 type V1Handler struct {
 	v1 *service.V1Service
@@ -22,385 +36,213 @@ func NewV1Handler(v1 *service.V1Service) *V1Handler {
 	return &V1Handler{v1: v1}
 }
 
-func (h *V1Handler) Models(c *gin.Context) {
+func (h *V1Handler) auth(c *gin.Context) (*service.APIPrincipal, bool) {
 	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
 	if err != nil {
-		h.writeAuthError(c, err)
-		return
+		v1Err(c, http.StatusUnauthorized, "4011", "无效的 API Key")
+		return nil, false
 	}
-	_ = principal
+	return principal, true
+}
 
-	items, err := h.v1.ListModels(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load models"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   items,
+// v1Err writes the {"error":{"code","message"}} envelope — the wire shape every
+// vivid-protocol caller parses.
+func v1Err(c *gin.Context, httpStatus int, code, msg string) {
+	c.JSON(httpStatus, gin.H{
+		"error": gin.H{"code": code, "message": msg},
 	})
 }
 
-// UserBalance — GET /v1/user/balance. 返回 API Key 所属用户的账户级余额
-// （剩余 / 累计已用），与具体令牌无关。
-func (h *V1Handler) UserBalance(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
-		return
+// v1Fail maps a service error to the vivid code/HTTP status pair.
+func v1Fail(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrMissingAPIKey), errors.Is(err, service.ErrInvalidAPIKey):
+		v1Err(c, http.StatusUnauthorized, "4011", "无效的 API Key")
+	case errors.Is(err, service.ErrInsufficientFunds):
+		v1Err(c, http.StatusBadRequest, "4002", "积分不足，请先充值")
+	case errors.Is(err, service.ErrConcurrencyFull), errors.Is(err, service.ErrUserConcurrencyFull):
+		v1Err(c, http.StatusTooManyRequests, "4293", "当前并发已满，请稍后重试")
+	case errors.Is(err, service.ErrVideoJobNotFound):
+		v1Err(c, http.StatusBadRequest, "4001", "任务不存在")
+	case errors.Is(err, service.ErrReferenceTooLarge):
+		v1Err(c, http.StatusRequestEntityTooLarge, "4001", "参考素材超过大小上限")
+	case errors.Is(err, service.ErrUnknownModel):
+		v1Err(c, http.StatusBadRequest, "4001", "模型不存在或未启用")
+	case errors.Is(err, service.ErrNoProviderAccount):
+		v1Err(c, http.StatusBadRequest, "4001", "模型无可用渠道")
+	case errors.Is(err, service.ErrBannedPrompt):
+		v1Err(c, http.StatusBadRequest, "4001", "提示词包含违禁内容")
+	case errors.Is(err, service.ErrUnsupportedParams):
+		v1Err(c, http.StatusBadRequest, "4001", err.Error())
+	case errors.Is(err, service.ErrProviderTemporary), errors.Is(err, service.ErrProviderExecution),
+		errors.Is(err, service.ErrProviderAuth):
+		v1Err(c, http.StatusInternalServerError, "5001", "生成暂时不可用，积分已退还")
+	default:
+		v1Err(c, http.StatusBadRequest, "4001", err.Error())
 	}
-	resp, err := h.v1.UserBalance(c.Request.Context(), principal)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load balance"})
-		return
-	}
-	c.JSON(http.StatusOK, resp)
 }
 
-// ImageGenerations — OpenAI POST /v1/images/generations (text-to-image only).
-// Accepts exactly OpenAI's fields; size→aspect ratio and quality→resolution tier
-// are mapped server-side. Returns {created, data:[{b64_json}]}.
-func (h *V1Handler) ImageGenerations(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
+// ---- POST /v1/generate ----
+
+func (h *V1Handler) Generate(c *gin.Context) {
+	principal, ok := h.auth(c)
+	if !ok {
 		return
 	}
-
-	var body struct {
-		Model          string `json:"model"`
-		Prompt         string `json:"prompt"`
-		N              int    `json:"n"`
-		Size           string `json:"size"`
-		Quality        string `json:"quality"`
-		ResponseFormat string `json:"response_format"`
-		Background     string `json:"background"`
-		OutputFormat   string `json:"output_format"`
-		User           string `json:"user"`
-	}
+	var body service.V1JobRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "invalid request body"})
+		v1Err(c, http.StatusBadRequest, "4001", "请求体不是合法 JSON")
 		return
 	}
-
-	resp, err := h.v1.PrepareImageRequest(c.Request.Context(), principal, service.V1ImageRequest{
-		Model:   body.Model,
-		Prompt:  body.Prompt,
-		N:       body.N,
-		Size:    body.Size,
-		BaseURL: requestBaseURL(c),
-	})
-	if err != nil {
-		h.writeV1Error(c, err, resp)
-		return
-	}
-	c.JSON(http.StatusOK, openaiImageResponse(resp))
-}
-
-// ImageEdits — OpenAI POST /v1/images/edits (image-to-image). multipart/form-data
-// only: image / image[] file uploads (+ optional mask), prompt, model, n, size,
-// quality. Files become reference images. Returns {created, data:[{b64_json}]}.
-func (h *V1Handler) ImageEdits(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
-		return
-	}
-	if !strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "images/edits requires multipart/form-data"})
-		return
-	}
-	if err := c.Request.ParseMultipartForm(64 << 20); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "invalid multipart form"})
-		return
-	}
-	refs := readMultipartImages(c, "image", "image[]")
-	if len(refs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "images/edits requires at least one image file"})
-		return
-	}
-	n, _ := strconv.Atoi(strings.TrimSpace(c.PostForm("n")))
-	resp, err := h.v1.PrepareImageRequest(c.Request.Context(), principal, service.V1ImageRequest{
-		Model:           c.PostForm("model"),
-		Prompt:          c.PostForm("prompt"),
-		N:               n,
-		Size:            c.PostForm("size"),
-		ReferenceImages: refs,
-		BaseURL:         requestBaseURL(c),
-	})
-	if err != nil {
-		h.writeV1Error(c, err, resp)
-		return
-	}
-	c.JSON(http.StatusOK, openaiImageResponse(resp))
-}
-
-// CreateVideo — OpenAI POST /v1/videos. Creates an async job and returns the
-// video object immediately ({id, status:"queued"}). Accepts JSON {model, prompt,
-// seconds, size} or multipart (with an input_reference file). size→ratio+
-// resolution, seconds→duration.
-func (h *V1Handler) CreateVideo(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
-		return
-	}
-	var modelID, prompt, seconds, size, referenceMode string
-	var refs []string
-	if strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {
-		if err := c.Request.ParseMultipartForm(256 << 20); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"detail": "invalid multipart form"})
-			return
-		}
-		modelID = c.PostForm("model")
-		prompt = c.PostForm("prompt")
-		seconds = c.PostForm("seconds")
-		size = c.PostForm("size")
-		referenceMode = c.PostForm("reference_mode")
-		refs = readMultipartImages(c, "input_reference", "input_reference[]")
+	var ev *model.EventLog
+	var err error
+	// 重连模式：只带 jobId → 不建新任务，回读该任务并等待终态。
+	if body.JobID != nil && strings.TrimSpace(*body.JobID) != "" {
+		ev, err = h.v1.JobForUser(c.Request.Context(), principal, *body.JobID)
 	} else {
-		var body struct {
-			Model           string          `json:"model"`
-			Prompt          string          `json:"prompt"`
-			Seconds         json.RawMessage `json:"seconds"`
-			Size            string          `json:"size"`
-			ReferenceMode   string          `json:"reference_mode"`
-			InputReference  []string        `json:"input_reference"`
-			ReferenceImages []string        `json:"reference_images"`
+		ev, err = h.v1.CreateJob(c.Request.Context(), principal, body)
+	}
+	if err != nil {
+		v1Fail(c, err)
+		return
+	}
+
+	wait := 300 * time.Second
+	if h := strings.TrimSpace(c.GetHeader("X-Wait-Seconds")); h != "" {
+		if sec, serr := strconv.Atoi(h); serr == nil && sec > 0 && time.Duration(sec)*time.Second <= v1MaxWait {
+			wait = time.Duration(sec) * time.Second
 		}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"detail": "invalid request body"})
-			return
+	}
+
+	c.Writer.Header().Set("Content-Type", "application/x-ndjson")
+	c.Writer.Header().Set("Cache-Control", "no-cache, no-transform")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.WriteHeader(http.StatusOK)
+	flusher, _ := c.Writer.(http.Flusher)
+
+	writeFrame := func(v *model.EventLog) bool {
+		frame, _ := json.Marshal(v1JobBody(h.v1, v))
+		if _, werr := c.Writer.Write(append(frame, '\n')); werr != nil {
+			return false
 		}
-		modelID, prompt, size = body.Model, body.Prompt, body.Size
-		seconds = rawToString(body.Seconds)
-		referenceMode = strings.TrimSpace(body.ReferenceMode)
-		refs = append(body.InputReference, body.ReferenceImages...)
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return true
 	}
-	duration := strings.TrimSpace(seconds)
-	if duration != "" && !strings.HasSuffix(duration, "s") {
-		duration += "s"
-	}
-	aspect, resolution := videoSizeToInternal(size)
-	resp, err := h.v1.StartVideoJob(c.Request.Context(), principal, service.V1VideoRequest{
-		Model:           modelID,
-		Prompt:          prompt,
-		Duration:        duration,
-		AspectRatio:     aspect,
-		Resolution:      resolution,
-		ReferenceImages: refs,
-		ReferenceMode:   referenceMode,
-		BaseURL:         requestBaseURL(c),
-	})
-	if err != nil {
-		h.writeV1Error(c, err, nil)
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
 
-// GetVideo — OpenAI GET /v1/videos/{id}. Returns the job status object.
-func (h *V1Handler) GetVideo(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
+	// 已终态：直接回终态帧关流。
+	if st := service.JobStatus(ev); st == "succeeded" || st == "failed" {
+		writeFrame(ev)
 		return
 	}
-	resp, err := h.v1.VideoJob(c.Request.Context(), principal, c.Param("id"))
-	if err != nil {
-		h.writeV1Error(c, err, nil)
+	// 连上即回执 jobId（断流后携它重发的凭据）。
+	if !writeFrame(ev) {
 		return
 	}
-	c.JSON(http.StatusOK, resp)
-}
 
-// GetVideoContent — OpenAI GET /v1/videos/{id}/content. Streams the rendered mp4
-// by proxying the stored upstream URL (downloaded on demand, never persisted).
-func (h *V1Handler) GetVideoContent(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
-		return
-	}
-	body, contentType, err := h.v1.OpenVideoContent(c.Request.Context(), principal, c.Param("id"))
-	if err != nil {
-		h.writeV1Error(c, err, nil)
-		return
-	}
-	defer body.Close()
-	c.Header("Content-Type", contentType)
-	c.Status(http.StatusOK)
-	_, _ = io.Copy(c.Writer, body)
-}
-
-// GetImageContent — GET /v1/images/{id}/content. Streams a no-store image by
-// proxying its stored (possibly auth-gated) upstream URL. Never persisted.
-func (h *V1Handler) GetImageContent(c *gin.Context) {
-	principal, err := h.v1.Authenticate(c.Request.Context(), c.GetHeader("Authorization"))
-	if err != nil {
-		h.writeAuthError(c, err)
-		return
-	}
-	body, contentType, err := h.v1.OpenImageContent(c.Request.Context(), principal, c.Param("id"))
-	if err != nil {
-		h.writeV1Error(c, err, nil)
-		return
-	}
-	defer body.Close()
-	c.Header("Content-Type", contentType)
-	c.Status(http.StatusOK)
-	_, _ = io.Copy(c.Writer, body)
-}
-
-// readMultipartImages reads the given file fields and returns each as base64.
-func readMultipartImages(c *gin.Context, keys ...string) []string {
-	var out []string
-	form := c.Request.MultipartForm
-	if form == nil {
-		return out
-	}
-	for _, key := range keys {
-		for _, fh := range form.File[key] {
-			f, e := fh.Open()
-			if e != nil {
+	deadline := time.Now().Add(wait)
+	poll := time.NewTicker(v1PollInterval)
+	heartbeat := time.NewTicker(25 * time.Second)
+	defer poll.Stop()
+	defer heartbeat.Stop()
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return // client gone — the job keeps running; caller may reconnect with jobId
+		case <-poll.C:
+			latest, lerr := h.v1.JobForUser(c.Request.Context(), principal, ev.ID)
+			if lerr != nil || latest == nil {
 				continue
 			}
-			b, _ := io.ReadAll(io.LimitReader(f, 20<<20+1))
-			f.Close()
-			if len(b) > 0 {
-				out = append(out, base64.StdEncoding.EncodeToString(b))
+			ev = latest
+			if st := service.JobStatus(ev); st == "succeeded" || st == "failed" {
+				writeFrame(ev)
+				return
 			}
+		case <-heartbeat.C:
+			if _, werr := c.Writer.WriteString("\n"); werr != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		case <-time.After(time.Until(deadline)):
+			writeFrame(ev) // snapshot; client reconnects with jobId
+			return
 		}
 	}
-	return out
 }
 
-// rawToString accepts OpenAI's `seconds` whether sent as a JSON string or number.
-func rawToString(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
+// v1JobBody assembles one NDJSON frame (running receipt and terminal frame
+// share the shape; succeeded adds result+creditsCharged, failed adds error).
+func v1JobBody(v1 *service.V1Service, ev *model.EventLog) map[string]any {
+	body := map[string]any{"jobId": ev.ID, "status": service.JobStatus(ev)}
+	switch service.JobStatus(ev) {
+	case "succeeded":
+		body["result"] = v1.JobResultURL(ev)
+		body["creditsCharged"] = ev.Cost
+	case "failed":
+		body["error"] = ev.Error
+		body["refunded"] = true
 	}
-	var s string
-	if json.Unmarshal(raw, &s) == nil {
-		return s
-	}
-	var n json.Number
-	if json.Unmarshal(raw, &n) == nil {
-		return n.String()
-	}
-	return strings.Trim(string(raw), `"`)
+	return body
 }
 
-// videoSizeToInternal maps OpenAI's "WxH" size to our aspect ratio + resolution
-// tier. An absent/unparsable size leaves the resolution empty so the caller can
-// fall back to whatever tier the model actually prices — hardcoding 720p here
-// rejects models that only offer 1440p.
-func videoSizeToInternal(size string) (ratio, resolution string) {
-	var w, h int
-	if s := strings.TrimSpace(strings.ToLower(size)); s != "" {
-		_, _ = fmt.Sscanf(s, "%dx%d", &w, &h)
+// ---- POST /v1/uploads ----
+
+func (h *V1Handler) Uploads(c *gin.Context) {
+	principal, ok := h.auth(c)
+	if !ok {
+		return
 	}
-	if w == 0 || h == 0 {
-		return "16:9", ""
+	var body struct {
+		Kind string `json:"kind"`
+		Mime string `json:"mime"`
 	}
-	// The "p" resolution is the SHORT edge (720p = 1280×720, 1080p = 1920×1080),
-	// so a standard 1280×720 must read as 720p — not 1080p off the long edge.
-	resolution = "720p"
-	switch {
-	case min(w, h) >= 1440:
-		resolution = "1440p"
-	case min(w, h) >= 1080:
-		resolution = "1080p"
+	if err := c.ShouldBindJSON(&body); err != nil {
+		v1Err(c, http.StatusBadRequest, "4001", "请求体不是合法 JSON")
+		return
 	}
-	return guessRatioWH(w, h), resolution
+	view, err := h.v1.PresignRefUpload(c.Request.Context(), principal, body.Kind, body.Mime)
+	if err != nil {
+		v1Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
-func guessRatioWH(w, h int) string {
-	if w == h {
-		return "1:1"
+// ---- GET /v1/models ----
+
+func (h *V1Handler) Models(c *gin.Context) {
+	if _, ok := h.auth(c); !ok {
+		return
 	}
-	r := float64(w) / float64(h)
-	cands := []struct {
-		name string
-		v    float64
-	}{{"16:9", 16.0 / 9}, {"9:16", 9.0 / 16}, {"4:3", 4.0 / 3}, {"3:4", 3.0 / 4}, {"1:1", 1}}
-	best, bestD := "16:9", 1e9
-	for _, cd := range cands {
-		d := r - cd.v
-		if d < 0 {
-			d = -d
-		}
-		if d < bestD {
-			best, bestD = cd.name, d
-		}
+	items, err := h.v1.SellableModels(c.Request.Context())
+	if err != nil {
+		v1Err(c, http.StatusInternalServerError, "5001", "模型加载失败")
+		return
 	}
-	return best
+	c.JSON(http.StatusOK, items)
 }
 
-// openaiImageResponse strips our rich internal map down to OpenAI's image shape.
-func openaiImageResponse(m map[string]any) gin.H {
-	out := gin.H{"created": m["created"]}
-	if d, ok := m["data"]; ok && d != nil {
-		out["data"] = d
-	} else {
-		out["data"] = []any{}
-	}
-	return out
-}
+// ---- GET /v1/balance ----
 
-func (h *V1Handler) writeAuthError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, service.ErrMissingAPIKey):
-		c.JSON(http.StatusUnauthorized, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrInvalidAPIKey):
-		c.JSON(http.StatusUnauthorized, gin.H{"detail": err.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to validate api key"})
+func (h *V1Handler) UserBalance(c *gin.Context) {
+	principal, ok := h.auth(c)
+	if !ok {
+		return
 	}
-}
-
-func (h *V1Handler) writeV1Error(c *gin.Context, err error, payload map[string]any) {
-	switch {
-	case errors.Is(err, service.ErrUnknownModel):
-		c.JSON(http.StatusNotFound, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrUnsupportedParams), errors.Is(err, service.ErrBannedPrompt):
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrInsufficientFunds):
-		c.JSON(http.StatusPaymentRequired, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrReferenceTooLarge):
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrNoProviderAccount):
-		c.JSON(http.StatusServiceUnavailable, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrProviderAuth):
-		c.JSON(http.StatusServiceUnavailable, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrProviderQuota):
-		// Match the Python contract: provider quota exhaustion maps to 401
-		// (QuotaExhaustedError is handled alongside AuthError in routes.py).
-		c.JSON(http.StatusUnauthorized, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrProviderTemporary):
-		c.JSON(http.StatusServiceUnavailable, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrConcurrencyFull), errors.Is(err, service.ErrUserConcurrencyFull):
-		c.JSON(http.StatusTooManyRequests, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrVideoJobNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrVideoNotReady):
-		c.JSON(http.StatusConflict, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrProviderUnsupported):
-		c.JSON(http.StatusNotImplemented, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrProviderExecution):
-		c.JSON(http.StatusBadGateway, gin.H{"detail": err.Error()})
-	case errors.Is(err, service.ErrGenerationPending):
-		c.JSON(http.StatusNotImplemented, payload)
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+	bal, err := h.v1.UserBalance(c.Request.Context(), principal)
+	if err != nil {
+		v1Err(c, http.StatusInternalServerError, "5001", "余额查询失败")
+		return
 	}
+	c.JSON(http.StatusOK, gin.H{"balance": bal})
 }
 
 // requestBaseURL derives the scheme+host of the inbound request so the service
-// layer can build absolute, directly-downloadable output URLs. Honors
-// X-Forwarded-Proto (reverse-proxy / TLS termination) before falling back to
-// the connection's TLS state. Returns "" when the host is unknown, which makes
-// the service fall back to a relative path.
+// layer can build absolute /images URLs for the session path.
 func requestBaseURL(c *gin.Context) string {
 	host := c.Request.Host
 	if host == "" {

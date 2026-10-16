@@ -41,7 +41,7 @@ async function loadKey() {
 onMounted(loadKey)
 
 // Uniform mask for the hidden / persisted state — always "***" so the just-minted
-// preview and the server-stored preview read the same (no sk-xxx…yyyy mismatch).
+// preview and the server-stored preview read the same (no vk_xxx…yyyy mismatch).
 const maskedKey = computed(() => (apiKey.value || keyPreview.value) ? '***' : '')
 
 async function generateKey() {

@@ -11,7 +11,7 @@ const route = useRoute()
 const tabs = [
   { label: '概览',    to: '/admin/overview', icon: 'overview' },
   { label: '模型管理', to: '/admin/models',   icon: 'models' },
-  { label: '账号管理', to: '/admin/accounts', icon: 'plug' },
+  { label: '渠道管理', to: '/admin/channels', icon: 'plug' },
   { label: '用户管理', to: '/admin/users',    icon: 'accounts' },
   { label: '并发分组', to: '/admin/concurrency', icon: 'shield' },
   { label: '违禁词管理', icon: 'ban', children: [

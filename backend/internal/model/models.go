@@ -97,17 +97,18 @@ type EventLog struct {
 	DeAI       bool           `gorm:"not null;default:false"` // 去AI特征 was applied (image only)
 	RefFiles   datatypes.JSON `gorm:"type:jsonb"`             // relative paths of saved reference images, for回显 on reload
 	Source     string         `gorm:"size:32;index"`
-	// AccountID is the provider token/account chosen to fulfil this generation,
-	// stamped when the upstream call begins. Drives the accounts view's live
-	// in-flight count (pending events per account) and lets an abandoned-event
-	// purge attribute the failure back to the account it was using.
+	// AccountID is the channel chosen to fulfil this generation, stamped when
+	// the upstream call begins. (Field name kept from the pre-channel schema.)
 	AccountID string `gorm:"size:64;index"`
-	// AccountEmail denormalizes the account's email at stamp time, so log rows
-	// keep showing which mailbox fulfilled the generation even after the account
-	// is deleted or re-imported under a different ID.
-	AccountEmail string  `gorm:"size:255"`
-	UserID       string  `gorm:"size:32;index"`
-	Cost         float64 `gorm:"not null;default:0"`
+	// AccountEmail denormalizes the channel's display name at stamp time, so log
+	// rows keep showing which channel fulfilled the generation even after the
+	// channel is deleted or renamed.
+	AccountEmail string `gorm:"size:255"`
+	// UpstreamJob is the job id assigned by the upstream vivid instance (from
+	// the NDJSON stream's jobId field) — kept for cross-instance debugging.
+	UpstreamJob string  `gorm:"size:64"`
+	UserID      string  `gorm:"size:32;index"`
+	Cost        float64 `gorm:"not null;default:0"`
 	// Refunded marks that this event's up-front charge has already been credited
 	// back, so the normal failure path and the abandoned-purge sweep can never
 	// double-refund the same generation.
@@ -138,16 +139,20 @@ type ModelConfig struct {
 	PricesAgent         datatypes.JSONMap `gorm:"type:jsonb;column:prices_agent"`
 	DurationPricesAgent datatypes.JSONMap `gorm:"type:jsonb;column:duration_prices_agent"`
 	Durations           datatypes.JSON    `gorm:"type:jsonb"`
-	MaxReferenceImages  int               `gorm:"not null;default:0"`
-	// Per-kind reference caps for upstreams that accept video/audio refs
-	// (vivid-protocol custom upstreams). 0 = that kind is not accepted.
-	MaxReferenceVideos int    `gorm:"not null;default:0"`
-	MaxReferenceAudios int    `gorm:"not null;default:0"`
+	// DurationMin/DurationMax bound a free-form duration (seconds) for models
+	// whose duration spec is a range rather than discrete options. 0 = unset.
+	DurationMin        int `gorm:"not null;default:0"`
+	DurationMax        int `gorm:"not null;default:0"`
+	MaxReferenceImages int `gorm:"not null;default:0"`
+	// Per-kind reference caps for upstreams that accept video/audio refs.
+	// 0 = that kind is not accepted.
+	MaxReferenceVideos int `gorm:"not null;default:0"`
+	MaxReferenceAudios int `gorm:"not null;default:0"`
+	// MaxRefVideoSeconds/MaxRefAudioSeconds cap the combined duration of
+	// reference videos/audios. 0 = unlimited.
+	MaxRefVideoSeconds int    `gorm:"not null;default:0"`
+	MaxRefAudioSeconds int    `gorm:"not null;default:0"`
 	ReferenceMode      string `gorm:"size:32;not null;default:'none'"`
-	// Custom-upstream models (provider="custom"): UpstreamModel is the model name
-	// sent to the upstream OpenAI-compatible API; the base_url + key live on the
-	// matching custom account (pool="custom", meta.base_url). Empty for built-ins.
-	UpstreamModel string `gorm:"size:255;not null;default:''"`
 	// Weight controls display order in the model dropdown / admin list: higher
 	// weight floats to the top (matches ShowcaseItem.Weight semantics). Ties fall
 	// back to created_at desc. Default 0.
@@ -180,55 +185,37 @@ type CDKCode struct {
 	UpdatedAt  time.Time
 }
 
-type TokenAccount struct {
-	ID                    string            `gorm:"primaryKey;size:64"`
-	Pool                  string            `gorm:"size:64;index;not null"`
-	Value                 string            `gorm:"type:text"`
-	Status                string            `gorm:"size:32;index;not null"`
-	Fails                 int               `gorm:"not null;default:0"`
-	FailTotal             int               `gorm:"not null;default:0"`
-	SuccessTotal          int               `gorm:"not null;default:0"`
-	Dead                  bool              `gorm:"not null;default:false"`
-	Meta                  datatypes.JSONMap `gorm:"type:jsonb"`
-	AddedAt               *time.Time
-	LastUsedAt            *time.Time
-	CachedQuotaResetAfter string `gorm:"size:128"`
-	QuotaRecoverAt        *time.Time
-	// Adobe quota is tracked separately for image vs video. An account only
-	// enters the shared "quota" waiting status when BOTH are limited; a single
-	// limit leaves the account usable for the other kind. Recovery time is shared
-	// (QuotaRecoverAt / CachedQuotaResetAfter) since Adobe resets both at once.
-	ImageLimited       bool   `gorm:"not null;default:false"`
-	VideoLimited       bool   `gorm:"not null;default:false"`
-	AccountEmail       string `gorm:"size:255"`
-	AccountDisplayName string `gorm:"size:255"`
-	// Weight biases scheduling order for ANY account — higher weight is picked
-	// first within its pool (ties fall back to round-robin). Default 0.
-	Weight int `gorm:"not null;default:0"`
-	// Concurrency is the max simultaneous jobs for THIS account. Only custom
-	// (upstream) accounts honor it; built-in pools use their system default
-	// (1 per account, grok 10). 0 = use the system default.
+// Channel is one upstream vivid-protocol instance this gateway routes
+// generation to. Replaces the old per-provider token account pool: a channel
+// is just a base_url + api_key plus routing knobs (enabled/weight/concurrency)
+// and local usage counters. ApiKey is stored AES-GCM encrypted.
+type Channel struct {
+	ID        string `gorm:"primaryKey;size:40"`
+	Name      string `gorm:"size:255;not null"`
+	BaseURL   string `gorm:"size:500;not null"`
+	APIKeyEnc string `gorm:"type:text;not null"` // AES-GCM encrypted upstream API key
+	Enabled   bool   `gorm:"not null;default:true;index"`
+	// Concurrency caps simultaneous in-flight jobs on this channel. 0 = default.
 	Concurrency int `gorm:"not null;default:0"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Weight biases weighted-random channel order: weight 2 is picked first at
+	// roughly 2x the rate of weight 1.
+	Weight       int     `gorm:"not null;default:1"`
+	SuccessTotal int64   `gorm:"not null;default:0"` // locally-tracked successful generations
+	UsedCredits  float64 `gorm:"not null;default:0"` // upstream credits spent (reported by the upstream)
+	LastUsedAt   *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
-type RefreshProfile struct {
-	ID                  string `gorm:"primaryKey;size:64"`
-	Name                string `gorm:"size:255;not null"`
-	Pool                string `gorm:"size:64;index;not null"`
-	Kind                string `gorm:"size:64;index;not null"`
-	Cookie              string `gorm:"type:text"`
-	Enabled             bool   `gorm:"not null;default:true"`
-	IntervalSeconds     int    `gorm:"not null;default:54000"`
-	ImportedAt          *time.Time
-	LastAttemptAt       *time.Time
-	LastSuccessAt       *time.Time
-	LastError           string `gorm:"type:text"`
-	NextRetryAt         *time.Time
-	ConsecutiveFailures int `gorm:"not null;default:0"`
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+// ChannelModel binds a local model_configs row to a channel and records the
+// upstream model name to send on the wire (the local row's alias stays the
+// user-facing name).
+type ChannelModel struct {
+	ChannelID     string `gorm:"primaryKey;size:40"`
+	ModelID       string `gorm:"primaryKey;size:255;index"`
+	UpstreamModel string `gorm:"size:255;not null"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type SiteSetting struct {
@@ -248,8 +235,8 @@ func AutoMigrateModels() []any {
 		&EventLog{},
 		&ModelConfig{},
 		&CDKCode{},
-		&TokenAccount{},
-		&RefreshProfile{},
+		&Channel{},
+		&ChannelModel{},
 		&SiteSetting{},
 		&StatCounter{},
 		&ConcurrencyGroup{},

@@ -24,7 +24,7 @@ const DocsView = () => import('./views/DocsView.vue')
 const AboutView = () => import('./views/AboutView.vue')
 const OverviewView = () => import('./views/OverviewView.vue')
 const ModelsView = () => import('./views/ModelsView.vue')
-const AccountsView = () => import('./views/AccountsView.vue')
+const ChannelsView = () => import('./views/ChannelsView.vue')
 const UsersView = () => import('./views/UsersView.vue')
 const ConcurrencyView = () => import('./views/ConcurrencyView.vue')
 const BannedWordsView = () => import('./views/BannedWordsView.vue')
@@ -61,7 +61,7 @@ const routes = [
       { path: '', redirect: '/admin/overview' },
       { path: 'overview', component: OverviewView, meta: { label: '概览' } },
       { path: 'models',   component: ModelsView,   meta: { label: '模型管理' } },
-      { path: 'accounts', component: AccountsView, meta: { label: '账号管理' } },
+      { path: 'channels', component: ChannelsView, meta: { label: '渠道管理' } },
       { path: 'users',    component: UsersView,    meta: { label: '用户管理' } },
       { path: 'concurrency', component: ConcurrencyView, meta: { label: '并发分组' } },
       { path: 'banned-words', component: BannedWordsView, meta: { label: '违禁词列表' } },
@@ -81,7 +81,7 @@ const routes = [
   { path: '/overview',     redirect: '/admin/overview' },
   { path: '/models',       redirect: '/admin/models' },
   { path: '/video-models', redirect: '/admin/models' },
-  { path: '/accounts',     redirect: '/admin/accounts' },
+  { path: '/accounts',     redirect: '/admin/channels' },
   // NOTE: /images is the generated-artifact path (served by the backend), so the
   // old "/images → /admin/images" shortcut is gone. Use /files for that shortcut.
   { path: '/files',        redirect: '/admin/images' },

@@ -75,12 +75,12 @@ const cdk = computed(() => dash.value?.cdk || {})
 const invites = computed(() => dash.value?.invites || {})
 const checkin = computed(() => dash.value?.checkin || {})
 
-// ---- token / model / provider summaries (from /providers + /managed-models) ----
+// ---- channel / model summaries (from /providers — now a channel summary — + /managed-models) ----
 const tokens = computed(() => {
   let active = 0, total = 0
   for (const p of providers.value) {
-    active += p.tokens_active || 0
-    total += (p.tokens_active || 0) + (p.tokens_disabled || 0) + (p.tokens_quota || 0)
+    total += 1
+    if (p.enabled) active += 1
   }
   return { active, total }
 })
@@ -93,20 +93,19 @@ const modelTypes = computed(() => {
 
 const providerHealth = computed(() =>
   providers.value.map((p) => {
-    const total = (p.tokens_active || 0) + (p.tokens_disabled || 0) + (p.tokens_quota || 0)
     let status = 'down'
-    if ((p.tokens_active || 0) > 0) status = 'healthy'
-    else if (total > 0) status = 'warning'
-    return { ...p, status, total }
+    if (p.enabled && (p.model_count || 0) > 0) status = 'healthy'
+    else if (p.enabled) status = 'warning'
+    return { ...p, status }
   })
 )
 
-// One-glance system health badge derived from provider token availability.
+// One-glance system health badge derived from channel availability.
 const overallHealth = computed(() => {
   const list = providerHealth.value
-  if (!list.length) return { label: '未配置 Provider', tone: 'down' }
-  if (list.some((p) => p.status === 'down')) return { label: 'Provider 异常', tone: 'down' }
-  if (list.some((p) => p.status === 'warning')) return { label: 'Provider 告警', tone: 'warning' }
+  if (!list.length) return { label: '未配置渠道', tone: 'down' }
+  if (list.some((p) => p.status === 'down')) return { label: '渠道停用', tone: 'down' }
+  if (list.some((p) => p.status === 'warning')) return { label: '渠道未绑定模型', tone: 'warning' }
   return { label: '系统健康', tone: 'healthy' }
 })
 
@@ -272,13 +271,13 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </div>
       <div class="card p-4">
-        <div class="text-xs text-white/55">Token</div>
+        <div class="text-xs text-white/55">渠道</div>
         <div class="text-xl font-semibold tabular-nums mt-2 flex items-baseline gap-1">
           <span class="text-emerald-300">{{ tokens.active }}</span>
           <span class="text-white/30">/</span>
           <span>{{ tokens.total }}</span>
         </div>
-        <div class="text-[11px] text-white/45 mt-1">活跃 / 已配置</div>
+        <div class="text-[11px] text-white/45 mt-1">启用 / 已配置</div>
       </div>
       <div class="card p-4">
         <div class="text-xs text-white/55">模型</div>
@@ -353,7 +352,7 @@ onUnmounted(() => clearInterval(timer))
     <div class="grid lg:grid-cols-2 gap-3">
       <div class="card">
         <div class="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
-          <h2 class="text-sm font-semibold">Provider 健康</h2>
+          <h2 class="text-sm font-semibold">渠道健康</h2>
           <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                 :class="statusPill(overallHealth.tone)">
             <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(overallHealth.tone)"></span>
@@ -361,16 +360,15 @@ onUnmounted(() => clearInterval(timer))
           </span>
         </div>
         <div class="p-3">
-          <div v-if="!providerHealth.length" class="text-center text-xs text-white/40 py-8">未注册 Provider</div>
+          <div v-if="!providerHealth.length" class="text-center text-xs text-white/40 py-8">未配置渠道</div>
           <div v-else class="space-y-0.5">
-            <div v-for="p in providerHealth" :key="p.name"
+            <div v-for="p in providerHealth" :key="p.id"
                  class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium capitalize truncate">{{ p.name }}</div>
-                <div class="text-[11px] text-white/45 mt-0.5">
-                  {{ p.model_count }} 模型 · token {{ p.tokens_active }}/{{ p.total || 0 }} 活跃
-                  <span v-if="p.tokens_quota"> · {{ p.tokens_quota }} 限额</span>
-                  <span v-if="p.tokens_disabled"> · {{ p.tokens_disabled }} 停用</span>
+                <div class="text-sm font-medium truncate">{{ p.name }}</div>
+                <div class="text-[11px] text-white/45 mt-0.5 truncate">
+                  {{ p.model_count }} 模型 · 成功 {{ p.success_total || 0 }}
+                  <span v-if="p.upstream_balance != null"> · 余额 {{ p.upstream_balance }}</span>
                 </div>
               </div>
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 tabular-nums"

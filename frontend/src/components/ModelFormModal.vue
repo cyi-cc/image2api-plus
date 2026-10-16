@@ -61,11 +61,12 @@ const resolutions = computed(() => {
 // offerable palette — for custom models the palette is just the input grid.
 const storedResolutions = computed(() => sortResolutions(entry.value?.resolutions || []))
 // 按秒计价的视频模型（一个 /s 价，实付 = 分辨率价 + 每秒价 × 秒数）。目录用
-// per_second 声明；已入库的模型则看它是否已存了 per_second 价。
+// per_second 声明；已入库的模型则看它是否已存了 per_second 价。渠道导入的
+// duration range 模型（duration_min/max，无固定档）也只能走 per_second。
 const isPerSecond = computed(() => {
   const e = entry.value
   if (!e) return false
-  return !!e.per_second || e.duration_prices?.per_second != null
+  return !!e.per_second || e.duration_prices?.per_second != null || (e.type === 'video' && (e.duration_max || 0) > 0 && !(e.durations || []).length)
 })
 
 const durationTiers = computed(() => {
@@ -221,7 +222,7 @@ async function save() {
                         placeholder="选择一个支持的模型" />
             <div v-else class="field font-mono !cursor-default opacity-90">{{ entry?.id }}</div>
             <p v-if="!isEdit && !addOptions.length" class="text-[11px] text-amber-300/80 mt-1.5">
-              所有支持的模型都已添加。
+              模型经「渠道管理 → 拉取上游模型」导入。
             </p>
           </div>
 
@@ -259,7 +260,8 @@ async function save() {
                 <span class="text-white/40">时长</span>
                 <div class="flex flex-wrap gap-1">
                   <span v-for="d in (entry.durations || [])" :key="d" class="ro-chip">{{ d }}</span>
-                  <span v-if="!(entry.durations || []).length" class="text-white/30">—</span>
+                  <span v-if="!(entry.durations || []).length && (entry.duration_max || 0) > 0" class="ro-chip">{{ entry.duration_min }}–{{ entry.duration_max }}s（区间）</span>
+                  <span v-if="!(entry.durations || []).length && !(entry.duration_max || 0)" class="text-white/30">—</span>
                 </div>
                 <span class="text-white/40">参考图</span>
                 <div class="text-white/70">

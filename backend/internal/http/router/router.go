@@ -11,25 +11,25 @@ import (
 )
 
 type Handlers struct {
-	Health        *handler.HealthHandler
-	Images        *handler.ImageHandler
-	V1            *handler.V1Handler
-	Site          *handler.SiteHandler
-	Showcase      *handler.ShowcaseHandler
-	Auth          *handler.AuthHandler
-	SiteSettings  *handler.SiteSettingsHandler
-	AppSettings   *handler.AppSettingsHandler
-	AdminRead     *handler.AdminReadHandler
-	AdminWrite    *handler.AdminWriteHandler
-	CDK           *handler.CDKHandler
-	UserTools     *handler.UserToolsHandler
-	UserGen       *handler.UserGenerationHandler
-	ProviderAdmin *handler.ProviderAdminHandler
-	ConcGroups    *handler.ConcurrencyGroupHandler
-	Announcement  *handler.AnnouncementHandler
-	Payment       *handler.PaymentHandler
-	BannedWords   *handler.BannedWordsHandler
-	Canvas        *handler.CanvasHandler
+	Health       *handler.HealthHandler
+	Images       *handler.ImageHandler
+	V1           *handler.V1Handler
+	Site         *handler.SiteHandler
+	Showcase     *handler.ShowcaseHandler
+	Auth         *handler.AuthHandler
+	SiteSettings *handler.SiteSettingsHandler
+	AppSettings  *handler.AppSettingsHandler
+	AdminRead    *handler.AdminReadHandler
+	AdminWrite   *handler.AdminWriteHandler
+	CDK          *handler.CDKHandler
+	UserTools    *handler.UserToolsHandler
+	UserGen      *handler.UserGenerationHandler
+	ChannelAdmin *handler.ChannelAdminHandler
+	ConcGroups   *handler.ConcurrencyGroupHandler
+	Announcement *handler.AnnouncementHandler
+	Payment      *handler.PaymentHandler
+	BannedWords  *handler.BannedWordsHandler
+	Canvas       *handler.CanvasHandler
 }
 
 func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.Engine {
@@ -59,16 +59,12 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 
 	engine.GET("/health", handlers.Health.Handle)
 	engine.GET("/images/:user/:name", handlers.Images.Serve)
+	// vivid-protocol public API — same four endpoints a vivid instance exposes,
+	// which is what lets this service act as a channel upstream itself.
+	engine.POST("/v1/generate", handlers.V1.Generate)
+	engine.POST("/v1/uploads", handlers.V1.Uploads)
 	engine.GET("/v1/models", handlers.V1.Models)
-	engine.GET("/v1/user/balance", handlers.V1.UserBalance)
-	engine.POST("/v1/images/generations", handlers.V1.ImageGenerations)
-	engine.POST("/v1/images/edits", handlers.V1.ImageEdits)
-	// OpenAI Sora-style async video: create job → poll → stream content.
-	engine.POST("/v1/videos", handlers.V1.CreateVideo)
-	engine.GET("/v1/videos/:id", handlers.V1.GetVideo)
-	engine.GET("/v1/videos/:id/content", handlers.V1.GetVideoContent)
-	// No-store image content proxy (auth-gated upstream URLs, e.g. chatgpt).
-	engine.GET("/v1/images/:id/content", handlers.V1.GetImageContent)
+	engine.GET("/v1/balance", handlers.V1.UserBalance)
 
 	publicAdmin := engine.Group("/admin/api")
 	{
@@ -79,7 +75,6 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		// owner names is admin-only, see /stats/recent below.
 		publicAdmin.GET("/stats", handlers.AdminRead.Stats)
 		publicAdmin.GET("/video-presets", handlers.UserGen.VideoPresets)
-		publicAdmin.GET("/catalog", handlers.UserGen.Catalog)
 		publicAdmin.GET("/models", handlers.UserGen.Models)
 		publicAdmin.GET("/deai-pricing", handlers.AppSettings.DeAIGet)
 		// 易支付 async notify — called server-to-server by the pay platform, no auth.
@@ -147,23 +142,11 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		authed.POST("/cdks", handlers.CDK.Create)
 		authed.POST("/cdks/delete-bulk", handlers.CDK.DeleteBulk)
 		authed.DELETE("/cdks/:code", handlers.CDK.Delete)
-		authed.GET("/tokens", handlers.ProviderAdmin.TokensList)
-		authed.POST("/tokens", handlers.ProviderAdmin.TokensCreate)
-		authed.POST("/tokens/import-chatgpt-token", handlers.ProviderAdmin.ImportChatGPTToken)
-		authed.POST("/tokens/import-adobe-cookie", handlers.ProviderAdmin.ImportAdobeCookie)
-		authed.POST("/tokens/import-creativefabrica-cookie", handlers.ProviderAdmin.ImportCreativeFabricaCookie)
-		authed.POST("/tokens/import-runway-token", handlers.ProviderAdmin.ImportRunwayToken)
-		authed.POST("/tokens/import-leonardo-cookie", handlers.ProviderAdmin.ImportLeonardoCookie)
-		authed.POST("/tokens/import-krea-cookie", handlers.ProviderAdmin.ImportKreaCookie)
-		authed.POST("/tokens/import-imagine-token", handlers.ProviderAdmin.ImportImagineToken)
-		authed.POST("/tokens/import-grok-token", handlers.ProviderAdmin.ImportGrokToken)
-		authed.POST("/tokens/import-custom-account", handlers.ProviderAdmin.ImportCustomAccount)
-		authed.POST("/tokens/delete-bulk", handlers.ProviderAdmin.TokenDeleteBulk)
-		authed.PATCH("/tokens/:pool/:id", handlers.ProviderAdmin.TokenUpdate)
-		authed.DELETE("/tokens/:pool/:id", handlers.ProviderAdmin.TokenDelete)
-		authed.GET("/accounts", handlers.ProviderAdmin.AccountsList)
-		authed.GET("/accounts/:pool/:id/quota", handlers.ProviderAdmin.AccountQuota)
-		authed.GET("/accounts/:pool/:id/email", handlers.ProviderAdmin.AccountEmail)
+		authed.GET("/channels", handlers.ChannelAdmin.List)
+		authed.POST("/channels", handlers.ChannelAdmin.Save)
+		authed.POST("/channels/delete", handlers.ChannelAdmin.Delete)
+		authed.POST("/channels/fetch-models", handlers.ChannelAdmin.FetchModels)
+		authed.POST("/channels/import-models", handlers.ChannelAdmin.ImportModels)
 		authed.GET("/providers", handlers.AdminRead.Providers)
 		authed.GET("/images", handlers.AdminRead.Images)
 		authed.DELETE("/images", handlers.AdminRead.DeleteImage)
@@ -172,10 +155,6 @@ func New(cfg *config.Config, auth *service.AuthService, handlers Handlers) *gin.
 		authed.POST("/banned-words/import", handlers.BannedWords.Import)
 		authed.DELETE("/banned-words/:id", handlers.BannedWords.Delete)
 		authed.GET("/banned-word-hits", handlers.BannedWords.Hits)
-		authed.GET("/refresh/profiles", handlers.ProviderAdmin.RefreshProfiles)
-		authed.POST("/refresh/profiles/:profile_id/refresh-now", handlers.ProviderAdmin.RefreshNow)
-		authed.PATCH("/refresh/profiles/:profile_id", handlers.ProviderAdmin.RefreshUpdate)
-		authed.DELETE("/refresh/profiles/:profile_id", handlers.ProviderAdmin.RefreshDelete)
 		authed.POST("/managed-models", handlers.AdminWrite.CreateModel)
 		authed.PATCH("/managed-models/:model_id", handlers.AdminWrite.UpdateModel)
 		authed.DELETE("/managed-models/:model_id", handlers.AdminWrite.DeleteModel)

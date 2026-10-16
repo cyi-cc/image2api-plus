@@ -241,7 +241,7 @@ const sourcePill = (s) => ({
             <th class="text-center px-4 py-3 font-medium">预览</th>
             <th class="text-left px-4 py-3 font-medium">时间</th>
             <th class="text-left px-3 py-3 font-medium">状态</th>
-            <th class="text-left px-3 py-3 font-medium">用户 / 账号</th>
+            <th class="text-left px-3 py-3 font-medium">用户 / 渠道</th>
             <th class="text-left px-3 py-3 font-medium">模型</th>
             <th class="text-left px-3 py-3 font-medium">提示词 / 错误</th>
             <th class="text-left px-3 py-3 font-medium">参数</th>

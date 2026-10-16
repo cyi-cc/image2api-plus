@@ -16,11 +16,16 @@ const isVideo = props.model.type === 'video'
 // (core/video_models.FAMILIES), not the user-edited managed-model record
 // which may have stale max_reference_images / reference_mode values.
 const familyPreset = ref(null)
+const channels = ref([])      // 渠道 pin 候选（空 = 自动调度）
+const channelId = ref('')
 onMounted(async () => {
-  if (!isVideo) return
-  const r = await api('/video-presets')
-  const list = r.data?.data || []
-  familyPreset.value = list.find((p) => p.key === props.model.id) || null
+  if (isVideo) {
+    const r = await api('/video-presets')
+    const list = r.data?.data || []
+    familyPreset.value = list.find((p) => p.key === props.model.id) || null
+  }
+  const cr = await api('/channels')
+  channels.value = (cr.data?.data || []).filter((c) => c.enabled)
 })
 
 const ratios = (props.model.ratios && props.model.ratios.length)
@@ -137,6 +142,7 @@ async function run() {
     // Backend accepts raw base64 only — strip the "data:...;base64," prefix.
     payload.reference_images = refImages.value.map((r) => r.dataUrl.replace(/^data:[^,]*,/, ''))
   }
+  if (channelId.value) payload.channel_id = channelId.value
   recoverSubmitTs = Date.now()
   const r = await api('/test', jsonBody('POST', payload))
   if (r.ok && r.data?.url) {
@@ -237,6 +243,15 @@ async function recover() {
             <button v-for="d in durations" :key="d" type="button" @click="duration = d"
                     class="opt" :class="duration === d && 'opt-on'">{{ d }}</button>
           </div>
+        </div>
+
+        <!-- 渠道 pin：默认自动调度，选定了就只走该渠道（不故障转移） -->
+        <div v-if="channels.length > 0">
+          <label class="lbl">渠道</label>
+          <select v-model="channelId" class="field">
+            <option value="">自动调度</option>
+            <option v-for="c in channels" :key="c.id" :value="c.id">{{ c.name }}（{{ c.base_url }}）</option>
+          </select>
         </div>
 
         <!-- reference images -->

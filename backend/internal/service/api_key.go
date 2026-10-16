@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -109,8 +110,15 @@ func (s *APIKeyService) DeleteOne(ctx context.Context, userID, keyID string) err
 	return s.keys.DeleteByID(ctx, userID, keyID)
 }
 
+// generatePlainAPIKey mints a vivid-shaped key: vk_ + 48 lowercase hex chars
+// (upstream channel api_keys use the same shape, so one key format rules
+// everything — no per-direction prefixes).
 func generatePlainAPIKey() (string, error) {
-	return "sk-" + randomUpper(38), nil
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "vk_" + hex.EncodeToString(b), nil
 }
 
 func previewAPIKey(plain string) string {

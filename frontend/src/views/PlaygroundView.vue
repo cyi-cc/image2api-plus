@@ -143,11 +143,8 @@ const maxAudiosRaw = computed(() => {
   const m = Number(model.value?.max_reference_audios || 0)
   return m > 0 ? m : null
 })
-// creativefabrica 上游只收图片参考,没有首尾帧/视频/音频,虽叫 seedance 也要排除。
-// custom 上游模型 id 也可以 seedance 开头(管理员自定义命名),它们的上限
-// 由模型字段显式声明,不走 seedance 默认 3/3。
-const isSeedanceModel = computed(() =>
-  /^seedance/.test(model.value?.id || '') && !['creativefabrica', 'custom'].includes(model.value?.provider || ''))
+// seedance 系兜底 3/3 参考上限（模型字段显式声明的上限优先,见 maxVideosRaw）。
+const isSeedanceModel = computed(() => /^seedance/.test(model.value?.id || ''))
 // 支持图片以外的参考资产（视频/音频）的模型：seedance 系 + 预设声明了音视频上限的
 const supportsMediaRefs = computed(() =>
   isSeedanceModel.value || maxVideosRaw.value > 0 || maxAudiosRaw.value > 0)
@@ -260,17 +257,17 @@ const refKindsLabel = computed(() => {
 // 模型没填 = 0,不再兜底成 3。
 const maxVideos = computed(() => (maxVideosRaw.value === null ? (isSeedanceModel.value ? 3 : 0) : maxVideosRaw.value))
 const maxAudios = computed(() => (maxAudiosRaw.value === null ? (isSeedanceModel.value ? 3 : 0) : maxAudiosRaw.value))
-// Leonardo 私有 seedance：单个视频参考 3-10 秒，总时长须短于 15 秒。
-// 服务端同样校验，这里只是提交前先拦一下，避免白跑一次生成。
+// 参考视频/音频累计秒数上限（渠道导入的能力规格 max_video_seconds /
+// max_audio_seconds）。服务端同样校验，这里只是提交前先拦一下。
 function videoRefDurationError() {
-  if (mode.value !== 'video' || familyPreset.value?.provider !== 'leonardo') return ''
-  const vids = refImages.value.filter((r) => r.fileType === 'video')
-  for (const v of vids) {
-    if (v.duration && (v.duration < 3 || v.duration > 10))
-      return `单个视频参考需 3-10 秒：${v.name} 为 ${v.duration.toFixed(1)} 秒`
+  if (mode.value !== 'video') return ''
+  const videoLimit = Number(familyPreset.value?.max_video_seconds) || 0
+  if (videoLimit > 0) {
+    const vTotal = refImages.value
+      .filter((r) => r.fileType === 'video')
+      .reduce((n, v) => n + (v.duration || 0), 0)
+    if (vTotal > videoLimit) return `视频参考总时长 ${vTotal.toFixed(1)} 秒，最多 ${videoLimit} 秒`
   }
-  const vTotal = vids.reduce((n, v) => n + (v.duration || 0), 0)
-  if (vids.length && vTotal >= 15) return `视频参考总时长 ${vTotal.toFixed(1)} 秒，需短于 15 秒`
   const audioLimit = Number(familyPreset.value?.max_audio_seconds) || 0
   if (audioLimit > 0) {
     const aTotal = refImages.value

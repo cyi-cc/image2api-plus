@@ -5,25 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"backend/internal/config"
 	"backend/internal/http/handler"
 	"backend/internal/http/router"
 	"backend/internal/model"
-	"backend/internal/provider/adobe"
-	"backend/internal/provider/chatgpt"
-	"backend/internal/provider/custom"
-	"backend/internal/provider/creativefabrica"
-	"backend/internal/provider/grok"
-	"backend/internal/provider/imagine"
-	"backend/internal/provider/krea"
-	"backend/internal/provider/leonardo"
-	"backend/internal/provider/runway"
 	"backend/internal/repo"
 	"backend/internal/service"
 	"backend/internal/storage"
+	"backend/internal/upstream"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -51,9 +42,9 @@ func NewApp(ctx context.Context) (*App, error) {
 		return nil, fmt.Errorf("create generated root %s: %w", cfg.GeneratedRoot, err)
 	}
 
-	// TranslateError: 把驱动层错误(如 Postgres 23505 唯一冲突)翻译成 gorm.ErrDuplicatedKey,
-	// 否则各 import-*（krea/adobe/leonardo/runway）里的 errors.Is(err, gorm.ErrDuplicatedKey)
-	// 兜底命不中,重复导入会直接抛原始错误 → 400,而不是按预期 Update 已有行。
+	// TranslateError: 把驱动层错误(如 Postgres 23505 唯一冲突)翻译成
+	// gorm.ErrDuplicatedKey,否则 errors.Is(err, gorm.ErrDuplicatedKey) 兜底命不中,
+	// 重复导入会直接抛原始错误 → 400,而不是按预期 Update 已有行。
 	db, err := gorm.Open(postgres.Open(cfg.PostgresDSN), &gorm.Config{TranslateError: true})
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
@@ -97,8 +88,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	eventRepo := repo.NewEventRepository(db)
 	cdkRepo := repo.NewCDKRepository(db)
 	apiKeyRepo := repo.NewAPIKeyRepository(db)
-	tokenRepo := repo.NewTokenRepository(db)
-	refreshRepo := repo.NewRefreshProfileRepository(db)
+	channelRepo := repo.NewChannelRepository(db)
 	cgroupRepo := repo.NewConcurrencyGroupRepository(db)
 	// Seed the "默认并发" group (cap 10) and bind any ungrouped users to it.
 	if err := cgroupRepo.EnsureDefault(ctx); err != nil {
@@ -117,32 +107,21 @@ func NewApp(ctx context.Context) (*App, error) {
 	authSvc := service.NewAuthService(userRepo, siteRepo, sessionSvc, emailCodeSvc, smtpSvc, cgroupRepo)
 	appSettingsSvc := service.NewAppSettingsService(siteRepo, eventRepo, smtpSvc, rustfsClient)
 	imageAccessSvc := service.NewImageAccessService(cfg.GeneratedRoot, showcaseRepo, authSvc)
-	adobeClient := adobe.NewClient("projectx_webapp", "")
-	chatGPTClient := chatgpt.NewClient("")
-	runwayClient := runway.NewClient("")
-	leonardoClient := leonardo.NewClient("")
-	kreaClient := krea.NewClient("")
-	imagineClient := imagine.NewClient("")
-	grokClient := grok.NewClient("")
-	// Keep grok's x-statsig-id anti-bot recipe current by reading grok's own
-	// headless-browser signer output. Event-driven: seed from the persisted
-	// recipe, capture once at startup, then re-capture only on an anti-bot 403
-	// (a reship made the recipe stale). No polling.
-	startGrokStatsigRefresh(siteRepo)
-	customClient := custom.NewClient()
-	cfClient := creativefabrica.NewClient("")
-	v1Svc := service.NewV1Service(cfg, modelRepo, userRepo, eventRepo, tokenRepo, siteRepo, cgroupRepo, concSvc, adobeClient, chatGPTClient, runwayClient, leonardoClient, kreaClient, imagineClient, grokClient, customClient, cfClient, rustfsClient)
+	upClient := upstream.NewClient()
+	channelSecret := cfg.ChannelSecret
+	if channelSecret == "" {
+		// Stable fallback so a restarted process can still decrypt existing
+		// rows when CHANNEL_SECRET isn't set.
+		channelSecret = cfg.PostgresDSN
+	}
+	channelSvc := service.NewChannelService(channelRepo, modelRepo, upClient, channelSecret)
+	v1Svc := service.NewV1Service(cfg, modelRepo, userRepo, eventRepo, channelSvc, siteRepo, cgroupRepo, concSvc, rustfsClient)
 	siteSvc := service.NewSiteService(siteRepo, cfg.AppTitle)
 	showcaseSvc := service.NewShowcaseService(showcaseRepo)
-	adminReadSvc := service.NewAdminReadService(cfg, userRepo, modelRepo, eventRepo, siteRepo, tokenRepo, cdkRepo, rustfsClient, showcaseRepo)
-	adminWriteSvc := service.NewAdminWriteService(userRepo, showcaseRepo, modelRepo, eventRepo, apiKeyRepo, tokenRepo, orderRepo)
+	adminReadSvc := service.NewAdminReadService(cfg, userRepo, modelRepo, eventRepo, siteRepo, channelRepo, cdkRepo, rustfsClient, showcaseRepo)
+	adminWriteSvc := service.NewAdminWriteService(userRepo, showcaseRepo, modelRepo, eventRepo, apiKeyRepo, channelRepo, orderRepo)
 	cdkSvc := service.NewCDKService(cdkRepo, userRepo, siteRepo, orderRepo)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo)
-	tokenSvc := service.NewTokenService(tokenRepo, refreshRepo, eventRepo, siteRepo, adobeClient, chatGPTClient, runwayClient, leonardoClient, kreaClient, imagineClient, grokClient, cfClient)
-	refreshSvc := service.NewRefreshProfileService(refreshRepo, tokenRepo, adobeClient)
-	// Enable refresh-then-retry on a mid-request Adobe 401 (re-mint access token
-	// from the cookie). Wired post-construction to avoid a ctor init cycle.
-	v1Svc.SetRefresh(refreshSvc)
 	bannedWordRepo := repo.NewBannedWordRepository(db)
 	v1Svc.SetBannedWords(bannedWordRepo)
 	userGenSvc := service.NewUserGenerationService(v1Svc, eventRepo, userRepo, modelRepo)
@@ -150,30 +129,30 @@ func NewApp(ctx context.Context) (*App, error) {
 	canvasSvc := service.NewCanvasService(canvasRepo)
 
 	engine := router.New(cfg, authSvc, router.Handlers{
-		Health:        handler.NewHealthHandler(),
-		Images:        handler.NewImageHandler(cfg, imageAccessSvc, rustfsClient),
-		V1:            handler.NewV1Handler(v1Svc),
-		Site:          handler.NewSiteHandler(siteSvc),
-		Showcase:      handler.NewShowcaseHandler(showcaseSvc),
-		Auth:          handler.NewAuthHandler(cfg, authSvc, rateLimitSvc),
-		SiteSettings:  handler.NewSiteSettingsHandler(siteSvc),
-		AppSettings:   handler.NewAppSettingsHandler(appSettingsSvc),
-		AdminRead:     handler.NewAdminReadHandler(adminReadSvc),
-		AdminWrite:    handler.NewAdminWriteHandler(adminWriteSvc),
-		CDK:           handler.NewCDKHandler(cdkSvc),
-		UserTools:     handler.NewUserToolsHandler(apiKeySvc, cdkSvc),
-		UserGen:       handler.NewUserGenerationHandler(userGenSvc, adminReadSvc),
-		ProviderAdmin: handler.NewProviderAdminHandler(tokenSvc, refreshSvc),
-		ConcGroups:    handler.NewConcurrencyGroupHandler(cgroupSvc),
-		Announcement:  handler.NewAnnouncementHandler(announcementSvc),
-		Payment:       handler.NewPaymentHandler(paymentSvc),
-		BannedWords:   handler.NewBannedWordsHandler(bannedWordRepo),
-		Canvas:        handler.NewCanvasHandler(canvasSvc),
+		Health:       handler.NewHealthHandler(),
+		Images:       handler.NewImageHandler(cfg, imageAccessSvc, rustfsClient),
+		V1:           handler.NewV1Handler(v1Svc),
+		Site:         handler.NewSiteHandler(siteSvc),
+		Showcase:     handler.NewShowcaseHandler(showcaseSvc),
+		Auth:         handler.NewAuthHandler(cfg, authSvc, rateLimitSvc),
+		SiteSettings: handler.NewSiteSettingsHandler(siteSvc),
+		AppSettings:  handler.NewAppSettingsHandler(appSettingsSvc),
+		AdminRead:    handler.NewAdminReadHandler(adminReadSvc),
+		AdminWrite:   handler.NewAdminWriteHandler(adminWriteSvc),
+		CDK:          handler.NewCDKHandler(cdkSvc),
+		UserTools:    handler.NewUserToolsHandler(apiKeySvc, cdkSvc),
+		UserGen:      handler.NewUserGenerationHandler(userGenSvc, adminReadSvc),
+		ChannelAdmin: handler.NewChannelAdminHandler(channelSvc),
+		ConcGroups:   handler.NewConcurrencyGroupHandler(cgroupSvc),
+		Announcement: handler.NewAnnouncementHandler(announcementSvc),
+		Payment:      handler.NewPaymentHandler(paymentSvc),
+		BannedWords:  handler.NewBannedWordsHandler(bannedWordRepo),
+		Canvas:       handler.NewCanvasHandler(canvasSvc),
 	})
 
-	// Background self-healing sweep (quota recovery, cookie refresh, stale-pending
-	// cleanup, log retention) — the Go equivalent of the Python daemon thread.
-	maintenanceSvc := service.NewMaintenanceService(tokenRepo, tokenSvc, eventRepo, userRepo, refreshSvc, siteRepo, rustfsClient, v1Svc.Inflight(), showcaseRepo, orderRepo)
+	// Background self-healing sweep (order expiry, stale-pending cleanup+refund,
+	// log/media retention).
+	maintenanceSvc := service.NewMaintenanceService(eventRepo, userRepo, siteRepo, rustfsClient, v1Svc.Inflight(), showcaseRepo, orderRepo)
 	loopCtx, loopCancel := context.WithCancel(context.Background())
 	go maintenanceSvc.Run(loopCtx)
 
@@ -184,33 +163,6 @@ func NewApp(ctx context.Context) (*App, error) {
 		Engine:            engine,
 		maintenanceCancel: loopCancel,
 	}, nil
-}
-
-// startGrokStatsigRefresh wires grok's headless x-statsig-id refresher to the
-// site-settings store (persisted across restarts) with an app-lifetime context.
-func startGrokStatsigRefresh(siteRepo *repo.SiteSettingRepository) {
-	const kHeader, kSuffix, kTrailer = "grok.statsig.header", "grok.statsig.suffix", "grok.statsig.trailer"
-	grok.StartStatsigAutoRefresh(context.Background(), 0,
-		func(ctx context.Context) (string, string, int, bool) {
-			h, _ := siteRepo.GetValue(ctx, kHeader)
-			s, _ := siteRepo.GetValue(ctx, kSuffix)
-			tv, _ := siteRepo.GetValue(ctx, kTrailer)
-			if h == "" || s == "" {
-				return "", "", 0, false
-			}
-			t, _ := strconv.Atoi(tv)
-			return h, s, t, true
-		},
-		func(ctx context.Context, h, s string, t int) {
-			if err := siteRepo.UpsertValues(ctx, map[string]string{
-				kHeader:  h,
-				kSuffix:  s,
-				kTrailer: strconv.Itoa(t),
-			}); err != nil {
-				log.Printf("grok statsig: persist recipe failed: %v", err)
-			}
-		},
-	)
 }
 
 func (a *App) Close() error {

@@ -28,18 +28,18 @@ type AdminWriteService struct {
 	models   *repo.ModelRepository
 	events   *repo.EventRepository
 	apiKeys  *repo.APIKeyRepository
-	tokens   *repo.TokenRepository
+	channels *repo.ChannelRepository
 	orders   *repo.OrderRepository
 }
 
-func NewAdminWriteService(users *repo.UserRepository, showcase *repo.ShowcaseRepository, models *repo.ModelRepository, events *repo.EventRepository, apiKeys *repo.APIKeyRepository, tokens *repo.TokenRepository, orders *repo.OrderRepository) *AdminWriteService {
+func NewAdminWriteService(users *repo.UserRepository, showcase *repo.ShowcaseRepository, models *repo.ModelRepository, events *repo.EventRepository, apiKeys *repo.APIKeyRepository, channels *repo.ChannelRepository, orders *repo.OrderRepository) *AdminWriteService {
 	return &AdminWriteService{
 		users:    users,
 		showcase: showcase,
 		models:   models,
 		events:   events,
 		apiKeys:  apiKeys,
-		tokens:   tokens,
+		channels: channels,
 		orders:   orders,
 	}
 }
@@ -371,7 +371,7 @@ func (s *AdminWriteService) CreateModel(ctx context.Context, body map[string]any
 		return nil, errors.New("type must be image or video")
 	}
 	if provider == "" {
-		return nil, errors.New("provider required")
+		provider = "channel"
 	}
 	if err := s.validateModelNameSpace(ctx, "", modelID, alias); err != nil {
 		return nil, err
@@ -436,10 +436,9 @@ func (s *AdminWriteService) UpdateModel(ctx context.Context, modelID string, bod
 	}
 	if _, ok := body["provider"]; ok {
 		provider := strings.TrimSpace(stringValue(body["provider"]))
-		if provider == "" {
-			return nil, errors.New("provider required")
+		if provider != "" {
+			patch["provider"] = provider
 		}
-		patch["provider"] = provider
 	}
 	// Only touch `enabled` when the caller explicitly sends a non-null value;
 	// mirrors Python models_store.update ("enabled" in fields and is not None).
@@ -488,6 +487,18 @@ func (s *AdminWriteService) UpdateModel(ctx context.Context, modelID string, bod
 	if _, ok := body["reference_mode"]; ok {
 		patch["reference_mode"] = defaultString(strings.TrimSpace(stringValue(body["reference_mode"])), "none")
 	}
+	if _, ok := body["duration_min"]; ok {
+		patch["duration_min"] = intValue(body["duration_min"])
+	}
+	if _, ok := body["duration_max"]; ok {
+		patch["duration_max"] = intValue(body["duration_max"])
+	}
+	if _, ok := body["max_ref_video_seconds"]; ok {
+		patch["max_ref_video_seconds"] = intValue(body["max_ref_video_seconds"])
+	}
+	if _, ok := body["max_ref_audio_seconds"]; ok {
+		patch["max_ref_audio_seconds"] = intValue(body["max_ref_audio_seconds"])
+	}
 	if _, ok := body["weight"]; ok {
 		patch["weight"] = intValue(body["weight"])
 	}
@@ -532,50 +543,12 @@ func (s *AdminWriteService) DeleteModel(ctx context.Context, modelID string) err
 	if rows == 0 {
 		return ErrNotFound
 	}
-	// Clean up: strip this model id from every custom upstream account's
-	// supported-models list so no orphan reference is left behind.
-	s.removeModelFromUpstreams(ctx, modelID)
+	// Clean up: drop every channel binding pointing at the deleted model so no
+	// orphan reference is left behind.
+	if s.channels != nil {
+		_ = s.channels.DeleteBindingsByModel(ctx, modelID)
+	}
 	return nil
-}
-
-// removeModelFromUpstreams drops modelID from the CSV in each custom account's
-// Meta["models"]. Best-effort — a failure here doesn't undo the model delete.
-func (s *AdminWriteService) removeModelFromUpstreams(ctx context.Context, modelID string) {
-	if s.tokens == nil {
-		return
-	}
-	items, err := s.tokens.ListByPool(ctx, "custom")
-	if err != nil {
-		return
-	}
-	for _, it := range items {
-		raw, _ := it.Meta["models"].(string)
-		if strings.TrimSpace(raw) == "" {
-			continue
-		}
-		kept := make([]string, 0, len(strings.Split(raw, ",")))
-		changed := false
-		for _, p := range strings.Split(raw, ",") {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				continue
-			}
-			if p == modelID {
-				changed = true
-				continue
-			}
-			kept = append(kept, p)
-		}
-		if !changed {
-			continue
-		}
-		meta := datatypes.JSONMap{}
-		for k, v := range it.Meta {
-			meta[k] = v
-		}
-		meta["models"] = strings.Join(kept, ",")
-		_, _ = s.tokens.Update(ctx, "custom", it.ID, map[string]any{"meta": meta})
-	}
 }
 
 func (s *AdminWriteService) ClearLogs(ctx context.Context) (int64, error) {

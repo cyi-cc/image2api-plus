@@ -26,6 +26,9 @@ type Config struct {
 	RustFSBucket      string
 	RustFSAccessKey   string
 	RustFSSecretKey   string
+	// ChannelSecret encrypts channel upstream API keys at rest (AES-GCM).
+	// Optional — when empty a stable key is derived from the Postgres DSN.
+	ChannelSecret string
 }
 
 func Load() (*Config, error) {
@@ -60,6 +63,7 @@ func Load() (*Config, error) {
 		RustFSBucket:    envString("RUSTFS_BUCKET", ""),
 		RustFSAccessKey: envString("RUSTFS_ACCESS_KEY", ""),
 		RustFSSecretKey: envString("RUSTFS_SECRET_KEY", ""),
+		ChannelSecret:   envString("CHANNEL_SECRET", ""),
 	}
 
 	return cfg, nil

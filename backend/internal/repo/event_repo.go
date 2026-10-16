@@ -24,8 +24,8 @@ type EventListFilter struct {
 	UserID        string
 	UserIDs       []string // when set, keep ONLY rows whose user_id is in this list (admin 用户搜索)
 	Query         string   // free-text search over prompt / model / error (server-side, 跨页)
-	ExcludeSource string // when set, omit rows with this source (e.g. hide API-key "v1" usage from the customer logs page)
-	Source        string // when set, keep ONLY rows with this source (admin 来源 filter): "v1" (API key) / "user" (前台) / "admin" (测试模型)
+	ExcludeSource string   // when set, omit rows with this source (e.g. hide API-key "v1" usage from the customer logs page)
+	Source        string   // when set, keep ONLY rows with this source (admin 来源 filter): "v1" (API key) / "user" (前台) / "admin" (测试模型)
 	HasFile       bool     // when true, keep ONLY rows with a non-empty file (the 创作记录 gallery — paginates over real media)
 	ExcludeFiles  []string // when set, omit rows whose file is in this list (e.g. hide homepage showcase media from user galleries)
 	MediaOnly     bool     // when true, keep only rows that are pending or have a stored file — the 画图台 grid, so deleted works don't eat a slot
@@ -618,9 +618,16 @@ func (r *EventRepository) MarkRefunded(ctx context.Context, eventID string) (boo
 	return res.RowsAffected == 1, nil
 }
 
-// SetAccount stamps which provider account is fulfilling an in-flight event.
-// Called when generation commits to a token, so the accounts view can count
-// pending events per account and an abandoned-event purge can attribute back.
+// SetUpstreamJob records the job id the upstream assigned (NDJSON jobId frame)
+// for cross-instance debugging. Best-effort.
+func (r *EventRepository) SetUpstreamJob(ctx context.Context, eventID, jobID string) error {
+	return r.db.WithContext(ctx).
+		Model(&model.EventLog{}).
+		Where("id = ?", eventID).
+		Update("upstream_job", jobID).Error
+}
+
+// SetAccount stamps which channel is fulfilling an in-flight event.
 func (r *EventRepository) SetAccount(ctx context.Context, eventID, accountID, accountEmail string) error {
 	return r.db.WithContext(ctx).
 		Model(&model.EventLog{}).

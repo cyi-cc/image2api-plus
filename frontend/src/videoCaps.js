@@ -1,9 +1,6 @@
 // 视频模型的参考资产分类上限（图片 / 视频 / 音频）。
-// 单一真源是后端 /video-presets 的 max_images / max_videos / max_audios（服务端
-// leonardoVideoSpecs 校验的就是这套数），预设没声明音视频上限的 seedance 系回落
-// 到 3 / 3，与画图台 (PlaygroundView) 的判定保持一致。
-const SEEDANCE_FALLBACK = { videos: 3, audios: 3 }
-
+// 单一真源是后端 /video-presets 的 max_videos / max_audios（渠道导入时从上游
+// 模型规格带入）；预设没声明的回落到模型行自己的 max_reference_videos/audios。
 function declared(v) {
   return v === undefined || v === null ? null : Number(v)
 }
@@ -12,12 +9,8 @@ function declared(v) {
 // 参考资产时返回 null。model 兼容 /managed-models(type) 与 /models(kind) 两种字段。
 export function mediaCaps(model, preset) {
   if ((model?.type || model?.kind) !== 'video') return null
-  // creativefabrica 上游只收图片参考(VIDEO_FRAME_TYPE_REFERENCE),不收视频/音频;
-  // 它虽然叫 seedance,但要排除,否则会错误地显示「视频 3 音频 3」。
-  const isSeedance = /^seedance/.test(model?.id || '') && !['creativefabrica', 'custom'].includes(model?.provider || '')
-  // preset 优先;custom 上游模型直接在模型字段里声明(max_reference_videos/audios)。
-  const videos = declared(preset?.max_videos) ?? declared(model?.max_reference_videos) ?? (isSeedance ? SEEDANCE_FALLBACK.videos : 0)
-  const audios = declared(preset?.max_audios) ?? declared(model?.max_reference_audios) ?? (isSeedance ? SEEDANCE_FALLBACK.audios : 0)
+  const videos = declared(preset?.max_videos) ?? declared(model?.max_reference_videos) ?? 0
+  const audios = declared(preset?.max_audios) ?? declared(model?.max_reference_audios) ?? 0
   if (!videos && !audios) return null
   return { images: declared(preset?.max_images) ?? declared(model?.max_reference_images) ?? 0, videos, audios }
 }

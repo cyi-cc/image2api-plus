@@ -40,8 +40,8 @@ type UserGenerateRequest struct {
 	// DeAI applies 去AI特征 post-processing to the generated image (image only)
 	// and charges the per-tier surcharge on top of the model price.
 	DeAI bool
-	// AccountID pins an admin test to one specific provider account (账号生图测试).
-	AccountID string
+	// ChannelID pins an admin test to one specific channel (渠道生图测试).
+	ChannelID string
 }
 
 func (s *UserGenerationService) Generate(ctx context.Context, user *model.User, in UserGenerateRequest) (map[string]any, error) {
@@ -138,7 +138,7 @@ func (s *UserGenerationService) AdminTest(ctx context.Context, user *model.User,
 			AspectRatio:     in.Ratio,
 			Resolution:      in.Resolution,
 			ReferenceImages: in.ReferenceImages,
-			AccountID:       in.AccountID,
+			ChannelID:       in.ChannelID,
 		})
 	default:
 		return s.v1.prepareAdminTestImage(ctx, principal, V1ImageRequest{
@@ -147,7 +147,7 @@ func (s *UserGenerationService) AdminTest(ctx context.Context, user *model.User,
 			AspectRatio:     in.Ratio,
 			Resolution:      in.Resolution,
 			ReferenceImages: in.ReferenceImages,
-			AccountID:       in.AccountID,
+			ChannelID:       in.ChannelID,
 		})
 	}
 }

@@ -5,25 +5,19 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"backend/internal/model"
 	"backend/internal/repo"
 	"backend/internal/storage"
 )
 
-// MaintenanceService runs the periodic self-healing sweep that the Python
-// original did via a 60s daemon thread plus read-time lazy cleanup. Without it
-// the Go token pool only ever loses capacity: tokens never re-activate after a
-// quota reset, cookies never auto-renew, stale pending events permanently block
-// a user's generation gate, and old media/logs accumulate unbounded.
+// MaintenanceService runs the periodic self-healing sweep. Without it stale
+// pending events permanently block a user's generation gate, and old media /
+// logs / temp objects accumulate unbounded. Token-pool and cookie-refresh
+// upkeep is gone — channels are stateless upstream credentials.
 type MaintenanceService struct {
-	tokens          *repo.TokenRepository
-	tokenSvc        *TokenService
 	events          *repo.EventRepository
 	users           *repo.UserRepository
-	refresh         *RefreshProfileService
 	settings        *repo.SiteSettingRepository
 	store           *storage.Client
 	inflight        *InflightRegistry
@@ -36,20 +30,17 @@ type MaintenanceService struct {
 	lastMediaPrune  time.Time
 }
 
-func NewMaintenanceService(tokens *repo.TokenRepository, tokenSvc *TokenService, events *repo.EventRepository, users *repo.UserRepository, refresh *RefreshProfileService, settings *repo.SiteSettingRepository, store *storage.Client, inflight *InflightRegistry, showcase *repo.ShowcaseRepository, orders *repo.OrderRepository) *MaintenanceService {
+func NewMaintenanceService(events *repo.EventRepository, users *repo.UserRepository, settings *repo.SiteSettingRepository, store *storage.Client, inflight *InflightRegistry, showcase *repo.ShowcaseRepository, orders *repo.OrderRepository) *MaintenanceService {
 	return &MaintenanceService{
-		tokens:          tokens,
-		tokenSvc:        tokenSvc,
-		events:          events,
-		users:           users,
-		refresh:         refresh,
-		settings:        settings,
-		store:           store,
-		inflight:        inflight,
-		showcase:        showcase,
-		orders:          orders,
-		interval:        60 * time.Second,
-		stalePending:    600 * time.Second,
+		events:       events,
+		users:        users,
+		settings:     settings,
+		store:        store,
+		inflight:     inflight,
+		showcase:     showcase,
+		orders:       orders,
+		interval:     60 * time.Second,
+		stalePending: 600 * time.Second,
 		// 视频比图片慢得多，单条执行预算就是 30 分钟（videoGenBudget），用图片的
 		// 10 分钟去扫会在它出片前判死并退款。
 		stalePendingVid: 30 * time.Minute,
@@ -63,10 +54,6 @@ func NewMaintenanceService(tokens *repo.TokenRepository, tokenSvc *TokenService,
 func (m *MaintenanceService) Run(ctx context.Context) {
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
-	// The leonardo session keep-alive gets its own loop: one tick() can take tens
-	// of minutes (219 adobe cookie profiles alone), which would stretch a 5-minute
-	// keep-alive to the tick's real duration.
-	go m.runLeonardoKeepalive(ctx)
 	m.tick(ctx)
 	for {
 		select {
@@ -76,55 +63,6 @@ func (m *MaintenanceService) Run(ctx context.Context) {
 			m.tick(ctx)
 		}
 	}
-}
-
-// runLeonardoKeepalive re-checks every minute which leonardo accounts are due for
-// a session renewal (the 5-minute due-ness itself is read per account from the DB,
-// so a restart can't skip one).
-func (m *MaintenanceService) runLeonardoKeepalive(ctx context.Context) {
-	if m.tokenSvc == nil {
-		return
-	}
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for {
-		m.tokenSvc.RefreshLeonardoSessions(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
-// syncRecoveredQuota re-probes each just-recovered account so its displayed
-// balance reflects the post-reset value (these providers only sync quota when
-// accessed). krea additionally needs /app (Activate) to actually grant the daily
-// free balance before billing-data reports it. Bounded concurrency avoids a
-// thundering herd at the daily reset.
-func (m *MaintenanceService) syncRecoveredQuota(accs []model.TokenAccount) {
-	sem := make(chan struct{}, 4)
-	var wg sync.WaitGroup
-	for _, acc := range accs {
-		switch acc.Pool {
-		case "chatgpt", "leonardo", "krea", "imagine":
-		default:
-			continue
-		}
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(a model.TokenAccount) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-			defer cancel()
-			if a.Pool == "krea" && m.tokenSvc.krea != nil {
-				m.tokenSvc.krea.Activate(ctx, a.Value)
-			}
-			_, _ = m.tokenSvc.Quota(ctx, a.Pool, a.ID)
-		}(acc)
-	}
-	wg.Wait()
 }
 
 func (m *MaintenanceService) tick(ctx context.Context) {
@@ -137,74 +75,7 @@ func (m *MaintenanceService) tick(ctx context.Context) {
 		}
 	}
 
-	// 1. Re-activate quota-exhausted tokens whose reset time has passed, then
-	//    auto-sync their real balance — these providers only refresh quota when
-	//    accessed, so recovery alone would leave a stale 0/—. For krea the sync
-	//    must first load /app (Activate) to grant the daily free balance.
-	if recovered, err := m.tokens.RecoverQuota(ctx); err != nil {
-		log.Printf("maintenance: recover_quota: %v", err)
-	} else if len(recovered) > 0 {
-		log.Printf("maintenance: recovered %d quota token(s)", len(recovered))
-		if m.tokenSvc != nil {
-			go m.syncRecoveredQuota(recovered)
-		}
-	}
-
-	// 1a. Roll the 恢复时间 marker of ACTIVE daily-reset accounts forward to the next
-	//     future reset (same time-of-day, +1 day) so the column never shows a stale
-	//     past time. Limited accounts are intentionally skipped (RecoverQuota owns
-	//     their marker). adobe/leonardo/krea/imagine all renew daily.
-	if _, err := m.tokens.RollResetMarkers(ctx, []string{"adobe", "leonardo", "krea", "imagine"}); err != nil {
-		log.Printf("maintenance: roll_reset: %v", err)
-	}
-
-	// 1b. Runway tokens have no refresh — once the JWT expiry marker passes the
-	//     token can only 401, so flip it to disabled+dead proactively instead of
-	//     leaving a doomed account "active". Grok is intentionally NOT swept here:
-	//     its reset marker is billingPeriodEnd (a credits-renewal date), not a
-	//     death deadline — a grok sso keeps working past billingPeriodEnd, so
-	//     expiring on it kills live accounts. Grok death is caught for real by the
-	//     import-time FetchSession check and by marking dead on a 401 at use.
-	for _, pool := range []string{"runway"} {
-		if n, err := m.tokens.ExpireByReset(ctx, pool); err != nil {
-			log.Printf("maintenance: expire_%s: %v", pool, err)
-		} else if n > 0 {
-			log.Printf("maintenance: expired %d %s token(s)", n, pool)
-		}
-	}
-
-	// 1c. Proactively renew krea/imagine sessions ~10min before expiry so a
-	//     dormant account's rotating refresh_token never lapses (a dead token
-	//     can't be recovered and, for krea, blocks the daily free-credit meter
-	//     from being re-created). Only near-expiry accounts hit the network.
-	if m.tokenSvc != nil {
-		m.tokenSvc.RefreshExpiringTokens(ctx)
-		// 1d. Once-per-day krea /app activation for accounts not yet synced since the
-		//     daily reset — krea only grants the free balance after /app loads, so an
-		//     always-active account (never went 限额) would otherwise read 0 / 402
-		//     after each reset. Self-guarded + background; no-op once all are done.
-		m.tokenSvc.ActivateKreaDue(ctx)
-		// 1e. Re-validate grok accounts: an empty /rest/subscriptions (or 401)
-		//     means the membership lapsed → disable+dead; otherwise re-sync the
-		//     credits balance and 恢复时间 (from the credits' weekly reset).
-		m.tokenSvc.RefreshGrokLiveness(ctx)
-	}
-
-	// 2. Auto-renew Adobe cookies whose refresh interval has elapsed.
-	if m.refresh != nil {
-		if m.settings != nil {
-			if proxy, err := m.settings.GetValue(ctx, "proxy.url"); err == nil && proxy != "" {
-				m.refresh.SetProxy(proxy)
-			}
-		}
-		if n, err := m.refresh.RefreshDue(ctx); err != nil {
-			log.Printf("maintenance: refresh_due: %v", err)
-		} else if n > 0 {
-			log.Printf("maintenance: refreshed %d cookie profile(s)", n)
-		}
-	}
-
-	// 3. Fail long-pending events so they stop blocking the per-user gate, and
+	// 1. Fail long-pending events so they stop blocking the per-user gate, and
 	//    refund the credits debited up-front for each abandoned generation (the
 	//    normal failure-refund path never ran for a process-restart orphan).
 	if purged, err := m.events.PurgeStale(ctx, m.stalePending, m.stalePendingVid); err != nil {
@@ -218,13 +89,6 @@ func (m *MaintenanceService) tick(ctx context.Context) {
 			// just-abandoned event.
 			if m.inflight != nil && m.inflight.Cancel(e.ID) {
 				cancelled++
-			}
-			// Attribute the abandoned failure back to the account it was using
-			// (the normal markTokenFailure path never ran for an orphaned job).
-			if e.AccountID != "" {
-				if err := m.tokens.IncrementFail(ctx, e.AccountID); err != nil {
-					log.Printf("maintenance: fail-count abandoned event %s (account %s): %v", e.ID, e.AccountID, err)
-				}
 			}
 			if e.UserID == "" || e.Cost <= 0 {
 				continue
@@ -248,10 +112,11 @@ func (m *MaintenanceService) tick(ctx context.Context) {
 		log.Printf("maintenance: marked %d stale pending event(s) failed, refunded %d, cancelled %d in-flight", len(purged), refunded, cancelled)
 	}
 
-	// 4. Enforce the admin-configured log retention window.
+	// 2. Enforce the admin-configured log retention window.
 	m.pruneLogs(ctx)
 
-	// 5. Enforce the media retention window. Runs every 60s like the log prune;
+	// 3. Enforce the media retention window + sweep expired tmp/ (v1 API job
+	//    results) and stale refs/ objects. Runs every 60s like the log prune;
 	//    mediaPruneEvery still gates it in case the interval is ever shortened.
 	if time.Since(m.lastMediaPrune) >= m.mediaPruneEvery {
 		m.pruneMedia(ctx)
@@ -274,10 +139,11 @@ func (m *MaintenanceService) pruneMedia(ctx context.Context) {
 		return
 	}
 	days := m.retentionDays(ctx, "media.retention_days")
-	if days <= 0 {
-		return
-	}
 	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	// tmp/ holds /v1 job results: presigned for 30 min, pruned shortly after.
+	tmpCutoff := time.Now().Add(-40 * time.Minute)
+	// <uid>/refs/ holds uploaded reference material: live for the presign TTL.
+	refCutoff := time.Now().Add(-2 * PresignTTL)
 	objs, err := m.store.List(ctx, "")
 	if err != nil {
 		log.Printf("maintenance: list media: %v", err)
@@ -303,10 +169,20 @@ func (m *MaintenanceService) pruneMedia(ctx context.Context) {
 	removed, skipped := 0, 0
 	var clearedKeys []string
 	for _, o := range objs {
-		if !o.LastModified.Before(cutoff) {
+		key := strings.TrimLeft(o.Key, "/")
+		expired := false
+		switch {
+		case strings.HasPrefix(key, "tmp/"):
+			expired = o.LastModified.Before(tmpCutoff)
+		case strings.Contains(key, "/refs/"):
+			expired = o.LastModified.Before(refCutoff)
+		case days > 0:
+			expired = o.LastModified.Before(cutoff)
+		}
+		if !expired {
 			continue
 		}
-		if _, ok := pinned[strings.TrimLeft(o.Key, "/")]; ok {
+		if _, ok := pinned[key]; ok {
 			skipped++
 			continue
 		}

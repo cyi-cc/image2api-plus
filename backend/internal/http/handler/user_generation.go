@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -13,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"backend/internal/model"
+	"backend/internal/repo"
 	"backend/internal/service"
 	"github.com/gin-gonic/gin"
 	_ "golang.org/x/image/webp"
@@ -248,7 +251,7 @@ func (h *UserGenerationHandler) Test(c *gin.Context) {
 		Resolution      string   `json:"resolution"`
 		Duration        string   `json:"duration"`
 		ReferenceImages []string `json:"reference_images"`
-		AccountID       string   `json:"account_id"`
+		ChannelID       string   `json:"channel_id"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"detail": "invalid request body"})
@@ -262,7 +265,7 @@ func (h *UserGenerationHandler) Test(c *gin.Context) {
 		Resolution:      body.Resolution,
 		Duration:        body.Duration,
 		ReferenceImages: body.ReferenceImages,
-		AccountID:       body.AccountID,
+		ChannelID:       body.ChannelID,
 	})
 	if err != nil {
 		switch {
@@ -451,161 +454,19 @@ func (h *UserGenerationHandler) Logs(c *gin.Context) {
 }
 
 func (h *UserGenerationHandler) VideoPresets(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"data": []gin.H{
-			{
-				"key":                  "gemini-veo31",
-				"label":                "Veo31 Fast",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"4s", "6s", "8s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p", "1080p"},
-				"max_reference_images": 9,
-				"reference_mode":       "frame",
-			},
-			{
-				"key":                  "gemini-veo3.1-fast",
-				"label":                "Veo 3.1 Fast",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"4s", "6s", "8s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p", "1080p"},
-				"max_reference_images": 9,
-				"reference_mode":       "frame",
-			},
-			{
-				"key":         "gemini-veo3.1",
-				"label":       "Veo 3.1",
-				"type":        "video",
-				"provider":    "adobe",
-				"durations":   []string{"4s", "6s", "8s"},
-				"ratios":      []string{"16:9", "9:16"},
-				"resolutions": []string{"720p", "1080p"},
-			},
-			{
-				"key":                  "adobe-seedance-2.0-fast",
-				"label":                "Seedance 2.0 Fast",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p"},
-				"max_reference_images": 9,
-				"reference_mode":       "style",
-			},
-			{
-				"key":                  "adobe-seedance-2.0",
-				"label":                "Seedance 2.0",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p", "1080p"},
-				"max_reference_images": 9,
-				"reference_mode":       "style",
-			},
-			{
-				"key":         "seedance-2.0-fast",
-				"label":       "Seedance 2.0 Fast (Creative Fabrica)",
-				"type":        "video",
-				"provider":    "creativefabrica",
-				"durations":   []string{"14s"},
-				"ratios":      []string{"16:9", "9:16"},
-				"resolutions": []string{"720p"},
-				// Creative Fabrica 上游只有普通参考图(VIDEO_FRAME_TYPE_REFERENCE),
-				// 没有首尾帧,也不收视频/音频参考。
-				"max_reference_images": 9,
-				"reference_mode":       "asset",
-				"max_videos":           0,
-				"max_audios":           0,
-			},
-			{
-				"key":         "seedance-2.0",
-				"label":       "Seedance 2.0 (Creative Fabrica)",
-				"type":        "video",
-				"provider":    "creativefabrica",
-				"durations":   []string{"10s"},
-				"ratios":      []string{"16:9", "9:16"},
-				"resolutions": []string{"720p"},
-				// Creative Fabrica 上游只有普通参考图(VIDEO_FRAME_TYPE_REFERENCE),
-				// 没有首尾帧,也不收视频/音频参考。
-				"max_reference_images": 9,
-				"reference_mode":       "asset",
-				"max_videos":           0,
-				"max_audios":           0,
-			},
-			{
-				"key":                  "seedance-2.0-不卡人脸",
-				"label":                "Seedance 2.0 (Leonardo 私有)",
-				"type":                 "video",
-				"provider":             "leonardo",
-				"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p"},
-				"max_reference_images": 8,
-				"max_images":           4,
-				"max_videos":           3,
-				"max_audios":           1,
-				"reference_mode":       "style",
-			},
-			{
-				"key":                  "seedance-2.0-fast-不卡人脸",
-				"label":                "Seedance 2.0 Fast (Leonardo 私有)",
-				"type":                 "video",
-				"provider":             "leonardo",
-				"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"720p"},
-				"max_reference_images": 8,
-				"max_images":           4,
-				"max_videos":           3,
-				"max_audios":           1,
-				"reference_mode":       "style",
-			},
-			{
-				"key":                  "minimax-h3",
-				"label":                "MiniMax H3 (Leonardo 私有)",
-				"type":                 "video",
-				"provider":             "leonardo",
-				"durations":            []string{"5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-				"ratios":               []string{"16:9", "9:16"},
-				"resolutions":          []string{"1440p"},
-				"max_reference_images": 8,
-				"max_images":           5,
-				"max_videos":           0,
-				"max_audios":           3,
-				"max_audio_seconds":    15,
-				"reference_mode":       "style",
-			},
-			{
-				"key":                  "firefly-video",
-				"label":                "Firefly Video",
-				"type":                 "video",
-				"provider":             "adobe",
-				"durations":            []string{"5s"},
-				"ratios":               []string{"16:9", "1:1", "9:16"},
-				"resolutions":          []string{"540p", "720p", "1080p"},
-				"max_reference_images": 9,
-				"reference_mode":       "frame",
-			},
-			{
-				"key":                  "runway-gen4-turbo",
-				"label":                "Runway Gen-4 Turbo",
-				"type":                 "video",
-				"provider":             "runway",
-				"durations":            []string{"5s", "10s"},
-				"ratios":               []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"},
-				"resolutions":          []string{"2K"},
-				"max_reference_images": 1,
-				"reference_mode":       "frame",
-				// Runway is strictly image-to-video — a first-frame image is required
-				// (no text2video), so the UI must block submit without one.
-				"requires_reference": true,
-			},
-		},
-	})
+	models, err := h.admin.Models(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load video presets"})
+		return
+	}
+	out := make([]gin.H, 0, len(models))
+	for _, m := range models {
+		if m.Type != "video" || !m.Enabled {
+			continue
+		}
+		out = append(out, modelPreset(m))
+	}
+	c.JSON(http.StatusOK, gin.H{"data": out})
 }
 
 func (h *UserGenerationHandler) Catalog(c *gin.Context) {
@@ -620,7 +481,7 @@ func (h *UserGenerationHandler) Catalog(c *gin.Context) {
 }
 
 func (h *UserGenerationHandler) Models(c *gin.Context) {
-	items, err := h.publicModels()
+	items, err := h.publicModels(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load models"})
 		return
@@ -628,537 +489,85 @@ func (h *UserGenerationHandler) Models(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
 
+// modelPreset projects one model_configs row into the preset shape the studio
+// (画图台) / model pickers consume. Database-driven now: providers are gone and
+// every model arrives via a channel import.
+func modelPreset(m model.ModelConfig) gin.H {
+	durations := repo.JSONStrings(m.Durations)
+	if len(durations) == 0 && m.DurationMin > 0 && m.DurationMax >= m.DurationMin {
+		// Range spec → expand integer seconds (capped so absurd ranges can't
+		// flood a dropdown).
+		for d := m.DurationMin; d <= m.DurationMax && len(durations) < 61; d++ {
+			durations = append(durations, fmt.Sprintf("%ds", d))
+		}
+	}
+	_, perSecond := m.DurationPrices["per_second"]
+	return gin.H{
+		"key":                  m.EffectiveName(),
+		"id":                   m.ID,
+		"label":                m.EffectiveName(),
+		"type":                 m.Type,
+		"provider":             m.Provider,
+		"ratios":               repo.JSONStrings(m.Ratios),
+		"resolutions":          repo.JSONStrings(m.Resolutions),
+		"durations":            durations,
+		"duration_min":         m.DurationMin,
+		"duration_max":         m.DurationMax,
+		"per_second":           perSecond,
+		"max_reference_images": m.MaxReferenceImages,
+		"max_images":           m.MaxReferenceImages,
+		"max_videos":           m.MaxReferenceVideos,
+		"max_audios":           m.MaxReferenceAudios,
+		"max_reference_videos": m.MaxReferenceVideos,
+		"max_reference_audios": m.MaxReferenceAudios,
+		"max_video_seconds":    m.MaxRefVideoSeconds,
+		"max_audio_seconds":    m.MaxRefAudioSeconds,
+		"reference_mode":       m.ReferenceMode,
+		"image_to_image":       m.ImageToImage,
+		"description":          m.Name,
+		"added":                true,
+	}
+}
+
+// catalogEntries lists the managed models (previously a static picklist of
+// offerable provider models). With channel imports the DB IS the catalog —
+// rows are already "added", so the admin picklist degrades gracefully.
 func (h *UserGenerationHandler) catalogEntries(c *gin.Context) ([]gin.H, error) {
-	items := []gin.H{
-		{
-			"id":       "gpt-image-2",
-			"provider": "chatgpt",
-			"type":     "image",
-			// ChatGPT web backend only reliably produces 1K and honors a limited
-			// ratio set; size params are advisory prompt hints. Mirrors the Python
-			// reference (providers/chatgpt/provider.py) — do not offer 2K/4K.
-			"ratios":               []string{"1:1", "16:9", "9:16", "4:3", "3:4"},
-			"resolutions":          []string{"1K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"description":          "ChatGPT image generation",
-		},
-		{
-			"id":                   "firefly-gpt-image-2",
-			"provider":             "adobe",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "5:4", "9:16", "21:9", "16:9", "4:3", "3:2", "4:5", "3:4", "2:3"},
-			"resolutions":          []string{"1K", "2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"description":          "Adobe Firefly GPT Image",
-		},
-		{
-			"id":             "firefly-image-5",
-			"provider":       "adobe",
-			"type":           "image",
-			"ratios":         []string{"1:1", "16:9", "9:16", "4:3", "3:4"},
-			"resolutions":    []string{"1K", "2K"},
-			"image_to_image": true,
-			"description":    "Adobe Firefly Image 5",
-		},
-		{
-			"id":                   "runway-nano-banana-2",
-			"provider":             "runway",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions":          []string{"1K", "2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"reference_mode":       "asset",
-			"description":          "Runway Nano Banana 2 (图/参考图)",
-		},
-		{
-			"id":                   "runway-nano-banana-pro",
-			"provider":             "runway",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions":          []string{"1K", "2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"reference_mode":       "asset",
-			"description":          "Runway Nano Banana Pro (图/参考图)",
-		},
-		{
-			"id":                   "nano-banana-2",
-			"provider":             "adobe",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions":          []string{"1K", "2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"reference_mode":       "asset",
-			"description":          "Nano Banana 2 (图/参考图)",
-		},
-		{
-			"id":                   "nano-banana-pro",
-			"provider":             "adobe",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions":          []string{"1K", "2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"reference_mode":       "asset",
-			"description":          "Nano Banana Pro (图/参考图)",
-		},
-		{
-			"id":                   "gemini-veo3.1-fast",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p", "1080p"},
-			"durations":            []string{"4s", "6s", "8s"},
-			"max_reference_images": 3,
-			"reference_mode":       "frame",
-			"description":          "Veo 3.1 Fast",
-		},
-		{
-			"id":                   "gemini-veo3.1",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p", "1080p"},
-			"durations":            []string{"4s", "6s", "8s"},
-			"max_reference_images": 3,
-			"reference_mode":       "style",
-			"description":          "Veo 3.1",
-		},
-		{
-			"id":                   "gemini-veo3.1",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p", "1080p"},
-			"durations":            []string{"5s", "10s"},
-			"max_reference_images": 2,
-			"reference_mode":       "frame",
-			"description":          "Luma Ray video",
-		},
-		{
-			"id":                   "firefly-video",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "1:1", "9:16"},
-			"resolutions":          []string{"720p", "1080p"},
-			"durations":            []string{"5s"},
-			"max_reference_images": 2,
-			"reference_mode":       "frame",
-			"description":          "Adobe Firefly Video",
-		},
-		{
-			"id":                   "adobe-seedance-2.0-fast",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p"},
-			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
-			"max_reference_images": 9,
-			"reference_mode":       "style",
-			"description":          "Seedance 2.0 Fast",
-		},
-		{
-			"id":                   "adobe-seedance-2.0",
-			"provider":             "adobe",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p", "1080p"},
-			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
-			"max_reference_images": 9,
-			"reference_mode":       "style",
-			"description":          "Seedance 2.0",
-		},
-		{
-			"id":          "seedance-2.0-fast",
-			"provider":    "creativefabrica",
-			"type":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			// 一次性账号：积分刚好够一次生成，时长固定 14 秒。
-			"durations": []string{"14s"},
-			// Creative Fabrica 上游只有普通参考图,没有首尾帧,也不收视频/音频参考。
-			"max_reference_images": 9,
-			"reference_mode":       "asset",
-			"description":          "Seedance 2.0 Fast (Creative Fabrica)",
-		},
-		{
-			"id":          "seedance-2.0",
-			"provider":    "creativefabrica",
-			"type":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			// 一次性账号：积分刚好够一次生成，时长固定 10 秒。
-			"durations": []string{"10s"},
-			// Creative Fabrica 上游只有普通参考图,没有首尾帧,也不收视频/音频参考。
-			"max_reference_images": 9,
-			"reference_mode":       "asset",
-			"description":          "Seedance 2.0 (Creative Fabrica)",
-		},
-		{
-			"id":                   "runway-gen4-turbo",
-			"provider":             "runway",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"},
-			"resolutions":          []string{"720p"},
-			"durations":            []string{"5s", "10s"},
-			"max_reference_images": 1,
-			"reference_mode":       "frame",
-			"description":          "Runway Gen-4 Turbo video (图生视频)",
-		},
-		{
-			"id":          "grok-video",
-			"provider":    "grok",
-			"type":        "video",
-			"ratios":      []string{"2:3", "3:2", "1:1", "9:16", "16:9"},
-			"resolutions": []string{"720p"},
-			// Console 视频吃 1–15 秒的整数时长，所以按秒计价（同 seedance）；
-			// 参考图只有 1 张首帧（上游只有 image 字段，没有尾帧）。
-			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
-			"max_reference_images": 1,
-			"reference_mode":       "frame",
-			"description":          "Grok Imagine video (文/图生视频)",
-		},
-		{
-			"id":                   "grok-image",
-			"provider":             "grok",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9"},
-			"resolutions":          []string{"1K", "2K"},
-			"image_to_image":       true,
-			"max_reference_images": 3,
-			"reference_mode":       "asset",
-			"description":          "Grok Imagine image (文生图 / 图生图)",
-		},
-		{
-			"id":                   "seedream-4.5",
-			"provider":             "leonardo",
-			"type":                 "image",
-			"ratios":               []string{"2:3", "1:1", "16:9", "4:3", "4:5", "9:16", "2:1"},
-			"resolutions":          []string{"2K", "4K"},
-			"image_to_image":       true,
-			"max_reference_images": 6,
-			"description":          "Leonardo Seedream 4.5 (生图 / 图生图)",
-		},
-		{
-			"id":          "seedance-2.0-不卡人脸",
-			"provider":    "leonardo",
-			"type":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"durations":   []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":  true,
-			// 参考资产总上限 8 = 4 图 + 1 音频 + 3 视频（分类上限在服务端校验）。
-			"max_reference_images": 8,
-			"reference_mode":       "style",
-			"description":          "Leonardo Seedance 2.0 (私有生成 / 图音视频参考)",
-		},
-		{
-			"id":                   "seedance-2.0-fast-不卡人脸",
-			"provider":             "leonardo",
-			"type":                 "video",
-			"ratios":               []string{"16:9", "9:16"},
-			"resolutions":          []string{"720p"},
-			"durations":            []string{"4s", "5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second":           true,
-			"max_reference_images": 8,
-			"reference_mode":       "style",
-			"description":          "Leonardo Seedance 2.0 Fast (私有生成 / 图音视频参考)",
-		},
-		{
-			"id":          "minimax-h3",
-			"provider":    "leonardo",
-			"type":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"1440p"},
-			// 上游吃 5–15 秒整数时长，所以按秒计价（后台只填一个 /s 价）。
-			"durations":  []string{"5s", "6s", "7s", "8s", "9s", "10s", "11s", "12s", "13s", "14s", "15s"},
-			"per_second": true,
-			// 参考资产总上限 8 = 5 图 + 3 音频（分类上限在服务端校验）。
-			"max_reference_images": 8,
-			"reference_mode":       "style",
-			"description":          "Leonardo MiniMax H3 / hailuo-03 (1440p / 图音参考)",
-		},
-		{
-			"id":                   "flux-klein-2",
-			"provider":             "krea",
-			"type":                 "image",
-			"ratios":               []string{"1:1", "4:3", "3:4", "16:9", "9:16"},
-			"resolutions":          []string{"1K", "2K"},
-			"image_to_image":       true,
-			"max_reference_images": 4,
-			"description":          "Krea Flux Klein (生图 / 图生图)",
-		},
-		{
-			"id":                   "imagine-1.5",
-			"provider":             "imagine",
-			"type":                 "image",
-			"ratios":               []string{"1:3", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "3:1"},
-			"resolutions":          []string{"2K"},
-			"max_reference_images": 0,
-			"description":          "Imagine 1.5 (文生图)",
-		},
-		{
-			"id":                   "imagine-1.5pro",
-			"provider":             "imagine",
-			"type":                 "image",
-			"ratios":               []string{"1:3", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "3:1"},
-			"resolutions":          []string{"4K"},
-			"max_reference_images": 0,
-			"description":          "Imagine 1.5 Pro (文生图)",
-		},
+	models, err := h.admin.Models(c.Request.Context())
+	if err != nil {
+		return nil, err
 	}
-	existing := map[string]bool{}
-	if h.admin != nil {
-		models, err := h.admin.Models(c.Request.Context())
-		if err != nil {
-			return nil, err
-		}
-		for _, item := range models {
-			existing[item.ID] = true
-		}
-	}
-	for i := range items {
-		items[i]["added"] = existing[items[i]["id"].(string)]
+	items := make([]gin.H, 0, len(models))
+	for _, m := range models {
+		row := modelPreset(m)
+		row["id"] = m.EffectiveName()
+		items = append(items, row)
 	}
 	return items, nil
 }
 
-func (h *UserGenerationHandler) publicModels() ([]gin.H, error) {
-	items := []gin.H{
-		{
-			"id":       "gpt-image-2",
-			"provider": "chatgpt",
-			"kind":     "image",
-			// See catalogEntries — ChatGPT only reliably does 1K and a limited
-			// ratio set; matches the Python reference. Keep both lists in sync.
-			"ratios":      []string{"1:1", "16:9", "9:16", "4:3", "3:4"},
-			"resolutions": []string{"1K"},
-			"description": "ChatGPT image generation",
+// publicModels — GET /api/models for the public site (docs/landing pickers).
+// Enabled models only, in the same shape as before minus the provider id.
+func (h *UserGenerationHandler) publicModels(c *gin.Context) ([]gin.H, error) {
+	models, err := h.admin.Models(c.Request.Context())
+	if err != nil {
+		return nil, err
+	}
+	items := make([]gin.H, 0, len(models))
+	for _, m := range models {
+		if !m.Enabled {
+			continue
+		}
+		items = append(items, gin.H{
+			"id":          m.EffectiveName(),
+			"kind":        m.Type,
+			"type":        m.Type,
+			"ratios":      repo.JSONStrings(m.Ratios),
+			"resolutions": repo.JSONStrings(m.Resolutions),
+			"durations":   repo.JSONStrings(m.Durations),
+			"description": m.Name,
 			"stub":        false,
-		},
-		{
-			"id":          "firefly-gpt-image-2",
-			"provider":    "adobe",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "5:4", "9:16", "21:9", "16:9", "4:3", "3:2", "4:5", "3:4", "2:3"},
-			"resolutions": []string{"1K", "2K", "4K"},
-			"description": "Adobe Firefly GPT Image",
-			"stub":        false,
-		},
-		{
-			"id":          "firefly-image-5",
-			"provider":    "adobe",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "16:9", "9:16", "4:3", "3:4"},
-			"resolutions": []string{"1K", "2K"},
-			"description": "Adobe Firefly Image 5",
-			"stub":        false,
-		},
-		{
-			"id":          "runway-nano-banana-2",
-			"provider":    "runway",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions": []string{"1K", "2K", "4K"},
-			"description": "Runway Nano Banana 2",
-			"stub":        false,
-		},
-		{
-			"id":          "runway-nano-banana-pro",
-			"provider":    "runway",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions": []string{"1K", "2K", "4K"},
-			"description": "Runway Nano Banana Pro",
-			"stub":        false,
-		},
-		{
-			"id":          "nano-banana-2",
-			"provider":    "adobe",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions": []string{"1K", "2K", "4K"},
-			"description": "Nano Banana 2",
-			"stub":        false,
-		},
-		{
-			"id":          "nano-banana-pro",
-			"provider":    "adobe",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"},
-			"resolutions": []string{"1K", "2K", "4K"},
-			"description": "Nano Banana Pro",
-			"stub":        false,
-		},
-		{
-			"id":          "gemini-veo3.1-fast",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p", "1080p"},
-			"description": "Veo 3.1 Fast",
-			"stub":        false,
-		},
-		{
-			"id":          "gemini-veo3.1",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Veo 3.1",
-			"stub":        false,
-		},
-		{
-			"id":          "firefly-ray",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"21:9", "16:9", "4:3", "1:1", "3:4", "9:16", "9:21"},
-			"resolutions": []string{"720p"},
-			"description": "Luma Ray video",
-			"stub":        false,
-		},
-		{
-			"id":          "firefly-video",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "1:1", "9:16"},
-			"resolutions": []string{"720p", "1080p"},
-			"description": "Adobe Firefly Video",
-			"stub":        false,
-		},
-		{
-			"id":          "adobe-seedance-2.0-fast",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Seedance 2.0 Fast",
-			"stub":        false,
-		},
-		{
-			"id":          "adobe-seedance-2.0",
-			"provider":    "adobe",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p", "1080p"},
-			"description": "Seedance 2.0",
-			"stub":        false,
-		},
-		{
-			"id":          "seedance-2.0-fast",
-			"provider":    "creativefabrica",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Seedance 2.0 Fast (Creative Fabrica)",
-			"stub":        false,
-		},
-		{
-			"id":          "seedance-2.0",
-			"provider":    "creativefabrica",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Seedance 2.0 (Creative Fabrica)",
-			"stub":        false,
-		},
-		{
-			"id":          "runway-gen4-turbo",
-			"provider":    "runway",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"},
-			"resolutions": []string{"720p"},
-			"description": "Runway Gen-4 Turbo video",
-			"stub":        false,
-		},
-		{
-			"id":          "grok-video",
-			"provider":    "grok",
-			"kind":        "video",
-			"ratios":      []string{"2:3", "3:2", "1:1", "9:16", "16:9"},
-			"resolutions": []string{"720p"},
-			"description": "Grok Imagine video",
-			"stub":        false,
-		},
-		{
-			"id":          "grok-image",
-			"provider":    "grok",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9"},
-			"resolutions": []string{"1K", "2K"},
-			"description": "Grok Imagine image",
-			"stub":        false,
-		},
-		{
-			"id":          "seedream-4.5",
-			"provider":    "leonardo",
-			"kind":        "image",
-			"ratios":      []string{"2:3", "1:1", "16:9", "4:3", "4:5", "9:16", "2:1"},
-			"resolutions": []string{"2K", "4K"},
-			"description": "Leonardo Seedream 4.5",
-			"stub":        false,
-		},
-		{
-			"id":          "seedance-2.0-不卡人脸",
-			"provider":    "leonardo",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Leonardo Seedance 2.0 (私有生成)",
-			"stub":        false,
-		},
-		{
-			"id":          "seedance-2.0-fast-不卡人脸",
-			"provider":    "leonardo",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"720p"},
-			"description": "Leonardo Seedance 2.0 Fast (私有生成)",
-			"stub":        false,
-		},
-		{
-			"id":          "minimax-h3",
-			"provider":    "leonardo",
-			"kind":        "video",
-			"ratios":      []string{"16:9", "9:16"},
-			"resolutions": []string{"1440p"},
-			"description": "Leonardo MiniMax H3 (1440p)",
-			"stub":        false,
-		},
-		{
-			"id":          "flux-klein-2",
-			"provider":    "krea",
-			"kind":        "image",
-			"ratios":      []string{"1:1", "4:3", "3:4", "16:9", "9:16"},
-			"resolutions": []string{"1K", "2K"},
-			"description": "Krea Flux Klein",
-			"stub":        false,
-		},
-		{
-			"id":          "imagine-1.5",
-			"provider":    "imagine",
-			"kind":        "image",
-			"ratios":      []string{"1:3", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "3:1"},
-			"resolutions": []string{"2K"},
-			"description": "Imagine 1.5",
-			"stub":        false,
-		},
-		{
-			"id":          "imagine-1.5pro",
-			"provider":    "imagine",
-			"kind":        "image",
-			"ratios":      []string{"1:3", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "3:1"},
-			"resolutions": []string{"4K"},
-			"description": "Imagine 1.5 Pro",
-			"stub":        false,
-		},
+		})
 	}
 	return items, nil
 }

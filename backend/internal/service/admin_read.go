@@ -19,20 +19,20 @@ type AdminReadService struct {
 	models   *repo.ModelRepository
 	events   *repo.EventRepository
 	settings *repo.SiteSettingRepository
-	tokens   *repo.TokenRepository
+	channels *repo.ChannelRepository
 	cdks     *repo.CDKRepository
 	store    *storage.Client
 	showcase *repo.ShowcaseRepository
 }
 
-func NewAdminReadService(cfg *config.Config, users *repo.UserRepository, models *repo.ModelRepository, events *repo.EventRepository, settings *repo.SiteSettingRepository, tokens *repo.TokenRepository, cdks *repo.CDKRepository, store *storage.Client, showcase *repo.ShowcaseRepository) *AdminReadService {
+func NewAdminReadService(cfg *config.Config, users *repo.UserRepository, models *repo.ModelRepository, events *repo.EventRepository, settings *repo.SiteSettingRepository, channels *repo.ChannelRepository, cdks *repo.CDKRepository, store *storage.Client, showcase *repo.ShowcaseRepository) *AdminReadService {
 	return &AdminReadService{
 		cfg:      cfg,
 		users:    users,
 		models:   models,
 		events:   events,
 		settings: settings,
-		tokens:   tokens,
+		channels: channels,
 		cdks:     cdks,
 		store:    store,
 		showcase: showcase,
@@ -104,6 +104,10 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 			"max_reference_images":  item.MaxReferenceImages,
 			"max_reference_videos":  item.MaxReferenceVideos,
 			"max_reference_audios":  item.MaxReferenceAudios,
+			"duration_min":          item.DurationMin,
+			"duration_max":          item.DurationMax,
+			"max_ref_video_seconds": item.MaxRefVideoSeconds,
+			"max_ref_audio_seconds": item.MaxRefAudioSeconds,
 			"reference_mode":        item.ReferenceMode,
 			"weight":                item.Weight,
 			"generation_count":      item.GenerationCount,
@@ -196,24 +200,24 @@ func (s *AdminReadService) UserNameMap(ctx context.Context) (map[string]string, 
 	return out, nil
 }
 
-// AccountNameMap builds a token-account id -> display label lookup (account
-// email, else display name, else id) used to annotate log rows with which
-// provider account fulfilled each generation (event_logs.account_id).
+// AccountNameMap builds a channel id -> display name lookup used to annotate
+// log rows with which channel fulfilled each generation (event_logs.account_id
+// now stores the channel id; account_email carries a denormalized name stamp).
 func (s *AdminReadService) AccountNameMap(ctx context.Context) (map[string]string, error) {
-	accounts, err := s.tokens.List(ctx)
+	if s.channels == nil {
+		return map[string]string{}, nil
+	}
+	channels, err := s.channels.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]string, len(accounts))
-	for _, a := range accounts {
-		label := strings.TrimSpace(a.AccountEmail)
+	out := make(map[string]string, len(channels))
+	for _, ch := range channels {
+		label := strings.TrimSpace(ch.Name)
 		if label == "" {
-			label = strings.TrimSpace(a.AccountDisplayName)
+			label = ch.ID
 		}
-		if label == "" {
-			label = a.ID
-		}
-		out[a.ID] = label
+		out[ch.ID] = label
 	}
 	return out, nil
 }
@@ -422,66 +426,30 @@ func (s *AdminReadService) Invites(ctx context.Context) ([]repo.InviteRecord, *r
 	return s.users.AllInvites(ctx, reward)
 }
 
+// Providers is now a channel summary (the account pools are gone): one row per
+// channel with its bound-model count and local usage stats.
 func (s *AdminReadService) Providers(ctx context.Context) ([]map[string]any, error) {
-	models, err := s.models.List(ctx)
+	if s.channels == nil {
+		return []map[string]any{}, nil
+	}
+	channels, err := s.channels.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	tokens, err := s.tokens.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	modelCounts := map[string]int{}
-	for _, item := range models {
-		modelCounts[item.Provider]++
-	}
-	type aggregate struct {
-		active   int
-		disabled int
-		quota    int
-	}
-	tokenCounts := map[string]*aggregate{}
-	for _, item := range tokens {
-		if _, ok := tokenCounts[item.Pool]; !ok {
-			tokenCounts[item.Pool] = &aggregate{}
-		}
-		switch item.Status {
-		case "active":
-			tokenCounts[item.Pool].active++
-		case "quota":
-			tokenCounts[item.Pool].quota++
-		default:
-			tokenCounts[item.Pool].disabled++
-		}
-	}
-	providers := []struct {
-		Name string
-		Pool string
-		Type string
-	}{
-		{Name: "chatgpt", Pool: "chatgpt", Type: "openai"},
-		{Name: "adobe", Pool: "adobe", Type: "adobe"},
-		{Name: "runway", Pool: "runway", Type: "runway"},
-		{Name: "leonardo", Pool: "leonardo", Type: "leonardo"},
-		{Name: "krea", Pool: "krea", Type: "krea"},
-		{Name: "imagine", Pool: "imagine", Type: "imagine"},
-		{Name: "grok", Pool: "grok", Type: "grok"},
-	}
-	out := make([]map[string]any, 0, len(providers))
-	for _, item := range providers {
-		count := tokenCounts[item.Pool]
-		if count == nil {
-			count = &aggregate{}
-		}
+	out := make([]map[string]any, 0, len(channels))
+	for _, ch := range channels {
+		modelIDs, _ := s.channels.ModelIDsByChannel(ctx, ch.ID)
 		out = append(out, map[string]any{
-			"name":            item.Name,
-			"token_pool":      item.Pool,
-			"type":            item.Type,
-			"model_count":     modelCounts[item.Name],
-			"tokens_total":    count.active + count.disabled + count.quota,
-			"tokens_active":   count.active,
-			"tokens_disabled": count.disabled,
-			"tokens_quota":    count.quota,
+			"id":            ch.ID,
+			"name":          ch.Name,
+			"base_url":      ch.BaseURL,
+			"enabled":       ch.Enabled,
+			"concurrency":   ch.Concurrency,
+			"weight":        ch.Weight,
+			"model_count":   len(modelIDs),
+			"success_total": ch.SuccessTotal,
+			"used_credits":  ch.UsedCredits,
+			"type":          "vivid",
 		})
 	}
 	return out, nil

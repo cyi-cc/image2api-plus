@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 import Icon from '../components/Icon.vue'
 import ModelFormModal from '../components/ModelFormModal.vue'
-import CustomModelModal from '../components/CustomModelModal.vue'
 import TestModal from '../components/TestModal.vue'
 import { points } from '../credits'
 import { mediaCaps, presetMap } from '../videoCaps'
@@ -11,7 +10,6 @@ import { mediaCaps, presetMap } from '../videoCaps'
 const models = ref([])
 const loading = ref(false)
 const showForm = ref(false)
-const showCustom = ref(false)
 const editing = ref(null) // null = add, object = edit
 const testing = ref(null) // model being tested, or null
 
@@ -41,7 +39,6 @@ async function loadModels() {
   loading.value = false
 }
 
-function openAdd() { editing.value = null; showForm.value = true }
 function openEdit(m) { editing.value = { ...m }; showForm.value = true }
 function onSaved() { showForm.value = false; loadModels() }
 
@@ -79,7 +76,7 @@ const filtered = computed(() => {
     if (kindFilter.value && m.type !== kindFilter.value) return false
     if (statusFilter.value === 'enabled' && m.enabled === false) return false
     if (statusFilter.value === 'disabled' && m.enabled !== false) return false
-    if (q && !(m.id.toLowerCase().includes(q) || (m.alias || '').toLowerCase().includes(q) || (m.provider || '').toLowerCase().includes(q))) return false
+    if (q && !(m.id.toLowerCase().includes(q) || (m.alias || '').toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q))) return false
     return true
   })
 })
@@ -132,12 +129,9 @@ onMounted(loadModels)
       <button @click="loadModels" class="btn-soft">
         <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
       </button>
-      <button @click="openAdd" class="btn-primary">
-        <Icon name="plus" class="w-3.5 h-3.5" /> 新增模型
-      </button>
-      <button @click="showCustom = true" class="btn-soft">
-        <Icon name="plus" class="w-3.5 h-3.5" /> 自定义模型
-      </button>
+      <router-link to="/admin/channels" class="btn-primary inline-flex items-center gap-1">
+        <Icon name="plug" class="w-3.5 h-3.5" /> 渠道导入模型
+      </router-link>
     </div>
 
     <!-- Table -->
@@ -145,7 +139,7 @@ onMounted(loadModels)
       <div v-if="loading && !models.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
       <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
         <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center"><Icon name="models" class="w-6 h-6" /></span>
-        <span class="text-sm">{{ models.length ? '没有匹配的模型' : '还没有模型,点右上角「新增模型」' }}</span>
+        <span class="text-sm">{{ models.length ? '没有匹配的模型' : '还没有模型,先到「渠道管理」拉取上游模型导入' }}</span>
       </div>
 
       <table v-else class="w-full text-sm table-fixed">
@@ -180,7 +174,7 @@ onMounted(loadModels)
                 <div class="font-mono text-xs text-white/90 truncate" :title="m.id">{{ m.id }}</div>
                 <span v-if="m.alias" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] bg-sky-500/10 text-sky-300 ring-1 ring-sky-400/20 shrink-0">{{ m.alias }}</span>
               </div>
-              <div class="mt-1 text-[10px] text-white/45 capitalize truncate">{{ m.provider || '—' }}</div>
+              <div class="mt-1 text-[10px] text-white/45 truncate">{{ m.provider === 'channel' ? '渠道导入' : (m.provider || '—') }}</div>
             </td>
 
             <!-- Type chip with the same shape as Logs/Provider 健康 -->
@@ -303,7 +297,6 @@ onMounted(loadModels)
     </div>
 
     <ModelFormModal v-if="showForm" :model="editing" @close="showForm = false" @saved="onSaved" />
-    <CustomModelModal v-if="showCustom" @close="showCustom = false" @saved="() => { showCustom = false; loadModels() }" />
     <TestModal v-if="testing" :model="testing" @close="testing = null" />
   </section>
 </template>

@@ -8,122 +8,109 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
+	"math/rand"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
-
-	"strconv"
 
 	"backend/internal/config"
 	"backend/internal/model"
-	"backend/internal/provider/adobe"
-	"backend/internal/provider/chatgpt"
-	"backend/internal/provider/creativefabrica"
-	"backend/internal/provider/custom"
-	"backend/internal/provider/grok"
-	"backend/internal/provider/imagine"
-	"backend/internal/provider/krea"
-	"backend/internal/provider/leonardo"
-	"backend/internal/provider/runway"
 	"backend/internal/repo"
 	"backend/internal/storage"
+	"backend/internal/upstream"
+	"backend/internal/util"
 
 	"gorm.io/gorm"
 )
 
 var (
-	ErrMissingAPIKey       = errors.New("missing api key")
-	ErrInvalidAPIKey       = errors.New("invalid api key")
-	ErrUnknownModel        = errors.New("unknown model")
-	ErrUnsupportedParams   = errors.New("unsupported or unpriced parameters for this model")
-	ErrBannedPrompt        = errors.New("prompt contains banned content")
-	ErrInsufficientFunds   = errors.New("insufficient credits")
-	ErrGenerationPending   = errors.New("generation executor not implemented yet")
-	ErrProviderAuth        = errors.New("provider token invalid or expired")
-	ErrNoProviderAccount   = errors.New("no provider account available, please ask an admin to configure one")
+	ErrMissingAPIKey     = errors.New("missing api key")
+	ErrInvalidAPIKey     = errors.New("invalid api key")
+	ErrUnknownModel      = errors.New("unknown model")
+	ErrUnsupportedParams = errors.New("unsupported or unpriced parameters for this model")
+	ErrBannedPrompt      = errors.New("prompt contains banned content")
+	ErrInsufficientFunds = errors.New("insufficient credits")
+	ErrGenerationPending = errors.New("generation executor not implemented yet")
+	ErrProviderAuth      = errors.New("upstream channel credentials rejected")
+	// ErrNoProviderAccount = no enabled channel is bound to the model.
+	ErrNoProviderAccount = errors.New("no upstream channel available, please ask an admin to configure one")
+	// ErrProviderQuota — kept for handler compatibility; channel failover no
+	// longer produces it (quota errors just rotate to the next channel).
 	ErrProviderQuota       = errors.New("provider quota exhausted")
-	ErrProviderTemporary   = errors.New("provider temporary unavailable")
-	ErrProviderExecution   = errors.New("provider request failed")
+	ErrProviderTemporary   = errors.New("upstream temporary unavailable")
+	ErrProviderExecution   = errors.New("upstream request failed")
 	ErrProviderUnsupported = errors.New("provider not implemented")
 	ErrReferenceTooLarge   = errors.New("reference image too large")
-	// ErrConcurrencyFull — every eligible account is busy (each account runs at
-	// most ONE generation at a time). English message: surfaced to API / UI.
-	ErrConcurrencyFull = errors.New("all accounts are busy (1 concurrent job each), please try again shortly")
-	// ErrUserConcurrencyFull — the caller already has their concurrency-group's max
-	// generations in flight (画图台 + API key combined). 0 = unlimited.
+	// ErrConcurrencyFull — every eligible channel is busy right now.
+	ErrConcurrencyFull = errors.New("all upstream channels are busy, please try again shortly")
+	// ErrUserConcurrencyFull — the caller already has their concurrency-group's
+	// max generations in flight (画图台 + API key combined). 0 = unlimited.
 	ErrUserConcurrencyFull = errors.New("too many generations in progress, please wait for one to finish")
-	// ErrVideoJobNotFound / ErrVideoNotReady — /v1/videos async job lookups.
-	ErrVideoJobNotFound = errors.New("video job not found")
-	ErrVideoNotReady    = errors.New("video is not ready yet")
+	// ErrVideoJobNotFound / ErrVideoNotReady — /v1 job lookups (kept names).
+	ErrVideoJobNotFound = errors.New("job not found")
+	ErrVideoNotReady    = errors.New("job result is not ready yet")
 )
 
-// maxReferenceImageBytes bounds a single decoded reference image. 20 MB
-// comfortably covers real photos/screenshots; anything larger is almost
-// certainly abuse or a mistake. Mirrors Python core/refs.py.
+// maxReferenceImageBytes bounds a single decoded reference blob. 20 MB
+// comfortably covers real photos/screenshots/clips; anything larger is almost
+// certainly abuse or a mistake.
 const maxReferenceImageBytes = 20 * 1024 * 1024
+
+// videoGenBudget caps one video render end-to-end (submit + stream + download).
+const videoGenBudget = 30 * time.Minute
+
+// imageGenBudget caps one image generation end-to-end.
+const imageGenBudget = 8 * time.Minute
+
+// defaultChannelConcurrency applies when a channel's Concurrency is 0.
+const defaultChannelConcurrency = 5
+
+// maxChannelFailover caps how many channels one request may burn on
+// retryable/temporary errors before giving up, so an upstream-wide blip can't
+// fan a single request out across every channel.
+const maxChannelFailover = 6
+
+// PresignTTL is the lifetime of /v1/uploads PUT urls and result GET urls.
+const PresignTTL = 30 * time.Minute
 
 type V1Service struct {
 	cfg      *config.Config
 	models   *repo.ModelRepository
 	users    *repo.UserRepository
 	events   *repo.EventRepository
-	tokens   *repo.TokenRepository
+	channels *ChannelService
 	settings *repo.SiteSettingRepository
 	cgroups  *repo.ConcurrencyGroupRepository
-	adobe    *adobe.Client
-	chatgpt  *chatgpt.Client
-	runway   *runway.Client
-	leonardo *leonardo.Client
-	krea     *krea.Client
-	imagine  *imagine.Client
-	grok     *grok.Client
-	custom   *custom.Client
-	cf       *creativefabrica.Client
 	store    *storage.Client
-	// refresh re-mints an Adobe access token from its cookie when a request hits a
-	// 401 mid-flight (set via SetRefresh — wired after construction to avoid an
-	// init cycle). nil for deployments without cookie refresh.
-	refresh *RefreshProfileService
+	up       *upstream.Client
 	// banned is the admin-managed prompt blocklist (set via SetBannedWords).
 	// nil disables the check.
 	banned *repo.BannedWordRepository
 
-	// tokenCursors holds one strict round-robin cursor per pool (key: pool name,
-	// value: *uint64). Each pick advances the pool's cursor by one so accounts
-	// are used in a fixed, even rotation (acct1→acct2→acct3→acct1…) independent
-	// of fails/last_used. The atomic counter also serializes concurrent picks so
-	// two simultaneous requests never start on the same account.
-	tokenCursors sync.Map
-
 	// inflight maps an in-progress event ID → the cancel func of its generation
 	// work context, so the maintenance sweep can stop a stuck generation the
-	// moment it abandons the row (instead of letting an orphaned goroutine run on
-	// for minutes and surface a late "success" on an already-abandoned event).
+	// moment it abandons the row.
 	inflight *InflightRegistry
 
-	// conc is the Redis-backed concurrency limiter for BOTH the per-account
-	// upstream gate (1+ jobs per account) and the per-user gate (画图台 + API key,
-	// capped by the user's concurrency group). Self-healing + fail-open.
+	// conc is the Redis-backed concurrency limiter for BOTH the per-channel
+	// upstream gate and the per-user gate (画图台 + API key, capped by the
+	// user's concurrency group). Self-healing + fail-open.
 	conc *ConcurrencyService
 }
 
-// acctAcquire takes one per-account upstream slot (capped at max; 0/1 = single),
-// tagged with the generation's eventID (unique per job; a generation only ever
-// holds one slot on a given account at a time, so failover reuses it cleanly).
-func (s *V1Service) acctAcquire(ctx context.Context, accountID, eventID string, max int) bool {
+// chanAcquire takes one per-channel slot (capped at max; 0 = default), tagged
+// with the generation's eventID.
+func (s *V1Service) chanAcquire(ctx context.Context, channelID, eventID string, max int) bool {
 	if max < 1 {
-		max = 1
+		max = defaultChannelConcurrency
 	}
-	return s.conc.Acquire(ctx, "conc:a:"+accountID, max, eventID)
+	return s.conc.Acquire(ctx, "conc:c:"+channelID, max, eventID)
 }
 
-func (s *V1Service) acctRelease(ctx context.Context, accountID, eventID string) {
-	s.conc.Release(ctx, "conc:a:"+accountID, eventID)
+func (s *V1Service) chanRelease(ctx context.Context, channelID, eventID string) {
+	s.conc.Release(ctx, "conc:c:"+channelID, eventID)
 }
 
 // userAcquire takes one per-user generation slot, capped by the user's
@@ -194,11 +181,8 @@ type V1ImageRequest struct {
 	Model  string
 	Prompt string
 	Size   string
-	// Quality is OpenAI's image quality (low|medium|high|auto). For our tiered
-	// models it selects the resolution (low→1K, medium→2K, high→4K, auto→default),
-	// clamped to whatever tiers the model actually prices. Only used when
-	// Resolution is left blank (the strict /v1 OpenAI path); the playground passes
-	// Resolution directly and ignores this.
+	// Quality is the vivid-protocol quality label (= resolution tier verbatim,
+	// e.g. "1K"/"2K"/"4K"). Only used when Resolution is blank.
 	Quality         string
 	AspectRatio     string
 	Resolution      string
@@ -206,15 +190,14 @@ type V1ImageRequest struct {
 	ReferenceImages []string
 	// DeAI applies 去AI特征 post-processing (crop / noise / tone jitter +
 	// re-encode) to the output and charges the per-tier surcharge on top of
-	// the model price. Playground-only; the /v1 OpenAI path never sets it.
+	// the model price. Playground-only; the /v1 path never sets it.
 	DeAI bool
-	// BaseURL is the scheme+host of the inbound request (e.g. "https://host"),
-	// used to build absolute, directly-downloadable output URLs. Empty falls
-	// back to a relative "/images/..." path.
+	// ChannelID pins an admin test to one specific channel (渠道测试). Ignored
+	// on the normal user paths.
+	ChannelID string
+	// BaseURL is the scheme+host of the inbound request, used to build absolute
+	// /images URLs. Empty falls back to a relative path.
 	BaseURL string
-	// AccountID pins the generation to one specific provider account (admin
-	// account-test). Empty keeps the normal pool selection with failover.
-	AccountID string
 }
 
 type V1VideoRequest struct {
@@ -225,32 +208,24 @@ type V1VideoRequest struct {
 	Resolution      string
 	ReferenceImages []string
 	ReferenceMode   string // "frame", "asset" or "media", overrides model default
+	// ChannelID — see V1ImageRequest.ChannelID.
+	ChannelID string
 	// BaseURL — see V1ImageRequest.BaseURL.
 	BaseURL string
-	// AccountID — see V1ImageRequest.AccountID.
-	AccountID string
 }
 
-func NewV1Service(cfg *config.Config, models *repo.ModelRepository, users *repo.UserRepository, events *repo.EventRepository, tokens *repo.TokenRepository, settings *repo.SiteSettingRepository, cgroups *repo.ConcurrencyGroupRepository, conc *ConcurrencyService, adobeClient *adobe.Client, chatGPTClient *chatgpt.Client, runwayClient *runway.Client, leonardoClient *leonardo.Client, kreaClient *krea.Client, imagineClient *imagine.Client, grokClient *grok.Client, customClient *custom.Client, cfClient *creativefabrica.Client, store *storage.Client) *V1Service {
+func NewV1Service(cfg *config.Config, models *repo.ModelRepository, users *repo.UserRepository, events *repo.EventRepository, channels *ChannelService, settings *repo.SiteSettingRepository, cgroups *repo.ConcurrencyGroupRepository, conc *ConcurrencyService, store *storage.Client) *V1Service {
 	return &V1Service{
 		cfg:      cfg,
 		models:   models,
 		users:    users,
 		events:   events,
-		tokens:   tokens,
+		channels: channels,
 		settings: settings,
 		cgroups:  cgroups,
 		conc:     conc,
-		adobe:    adobeClient,
-		chatgpt:  chatGPTClient,
-		runway:   runwayClient,
-		leonardo: leonardoClient,
-		krea:     kreaClient,
-		imagine:  imagineClient,
-		grok:     grokClient,
-		custom:   customClient,
-		cf:       cfClient,
 		store:    store,
+		up:       channels.Upstream(),
 		inflight: &InflightRegistry{},
 	}
 }
@@ -258,11 +233,6 @@ func NewV1Service(cfg *config.Config, models *repo.ModelRepository, users *repo.
 // Inflight exposes the registry so the maintenance sweep can cancel a stuck
 // generation when it abandons that event.
 func (s *V1Service) Inflight() *InflightRegistry { return s.inflight }
-
-// SetRefresh wires the Adobe cookie-refresh service in after construction
-// (RefreshProfileService is built later in bootstrap, so it can't be a ctor arg
-// without reordering). Enables refresh-then-retry on a mid-request 401.
-func (s *V1Service) SetRefresh(r *RefreshProfileService) { s.refresh = r }
 
 // SetBannedWords wires the prompt blocklist in after construction.
 func (s *V1Service) SetBannedWords(r *repo.BannedWordRepository) { s.banned = r }
@@ -324,37 +294,11 @@ func (s *V1Service) logRejectedEvent(ctx context.Context, kind, modelID string, 
 	_ = s.events.Create(ctx, event)
 }
 
-// refreshAdobeToken re-mints an Adobe account's access token from its cookie
-// (RefreshNow) and returns the updated row. Used to retry a 401 with a fresh
-// token instead of replaying the stale one. Returns false if refresh is
-// unavailable or the cookie can no longer mint a token (genuinely dead).
-func (s *V1Service) refreshAdobeToken(ctx context.Context, tokenID string) (model.TokenAccount, bool) {
-	if s.refresh == nil {
-		return model.TokenAccount{}, false
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil && proxy != "" {
-			s.refresh.SetProxy(proxy)
-		}
-	}
-	if err := s.refresh.RefreshNow(ctx, tokenID); err != nil {
-		return model.TokenAccount{}, false
-	}
-	t, err := s.tokens.Get(ctx, "adobe", tokenID)
-	if err != nil || t == nil {
-		return model.TokenAccount{}, false
-	}
-	return *t, true
-}
-
 func (s *V1Service) Authenticate(ctx context.Context, authHeader string) (*APIPrincipal, error) {
 	token := ParseBearer(authHeader)
 	if token == "" {
 		return nil, ErrMissingAPIKey
 	}
-
-	// Only per-user API keys (hashed in the DB) authenticate to /v1. The old
-	// global/shared API_KEY backdoor has been removed.
 	user, err := s.users.GetByAPIKeyHash(ctx, HashAPIKey(token))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -372,48 +316,341 @@ func (s *V1Service) Authenticate(ctx context.Context, authHeader string) (*APIPr
 	}, nil
 }
 
-func (s *V1Service) ListModels(ctx context.Context) ([]map[string]any, error) {
+// ===== /v1 public protocol (vivid-compatible) =====
+
+// V1ModelItem is one GET /v1/models entry — identical shape to a vivid
+// upstream's, which is what makes channel model-import work symmetrically.
+type V1ModelItem struct {
+	ID              string      `json:"id"`
+	Kind            string      `json:"kind"`
+	Qualities       []string    `json:"qualities"`
+	Duration        *V1ModelDur `json:"duration,omitempty"`
+	RefImages       int64       `json:"refImages"`
+	RefVideos       int64       `json:"refVideos"`
+	RefAudios       int64       `json:"refAudios"`
+	RefVideoSeconds int64       `json:"refVideoSeconds,omitempty"`
+	RefAudioSeconds int64       `json:"refAudioSeconds,omitempty"`
+}
+
+// V1ModelDur exposes a video model's duration capability: fixed=locked seconds,
+// options=discrete list, range=continuous interval.
+type V1ModelDur struct {
+	Mode    string  `json:"mode"`
+	Seconds int64   `json:"seconds,omitempty"`
+	Min     int64   `json:"min,omitempty"`
+	Max     int64   `json:"max,omitempty"`
+	Options []int64 `json:"options,omitempty"`
+}
+
+// SellableModels — GET /v1/models. Only enabled models bound to at least one
+// enabled channel AND fully priced are sellable (a model with an unpriced tier
+// would charge-reject at submit time — hide it instead).
+func (s *V1Service) SellableModels(ctx context.Context) ([]V1ModelItem, error) {
 	items, err := s.models.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now().Unix()
-	out := make([]map[string]any, 0, len(items))
+	out := make([]V1ModelItem, 0, len(items))
 	for _, item := range items {
 		if !item.Enabled {
 			continue
 		}
-		out = append(out, map[string]any{
-			"id":                    item.EffectiveName(),
-			"object":                "model",
-			"created":               now,
-			"owned_by":              item.Provider,
-			"kind":                  item.Type,
-			"supported_ratios":      repo.JSONStrings(item.Ratios),
-			"supported_resolutions": repo.JSONStrings(item.Resolutions),
-		})
+		if !s.modelSellable(ctx, &item) {
+			continue
+		}
+		qualities := repo.JSONStrings(item.Resolutions)
+		if len(qualities) == 0 {
+			// Resolution list unset → advertise the priced tiers.
+			for k := range item.Prices {
+				qualities = append(qualities, k)
+			}
+		}
+		entry := V1ModelItem{
+			ID:              item.EffectiveName(),
+			Kind:            item.Type,
+			Qualities:       qualities,
+			RefImages:       int64(item.MaxReferenceImages),
+			RefVideos:       int64(item.MaxReferenceVideos),
+			RefAudios:       int64(item.MaxReferenceAudios),
+			RefVideoSeconds: int64(item.MaxRefVideoSeconds),
+			RefAudioSeconds: int64(item.MaxRefAudioSeconds),
+		}
+		if entry.Qualities == nil {
+			entry.Qualities = []string{}
+		}
+		if item.Type == "video" {
+			entry.Duration = modelDurationSpec(&item)
+		}
+		out = append(out, entry)
 	}
 	return out, nil
 }
 
-// UserBalance — GET /v1/user/balance 的数据。重新读一次用户行保证实时
-// （principal 里那份是鉴权时读的，可能已经过期）。
-func (s *V1Service) UserBalance(ctx context.Context, principal *APIPrincipal) (map[string]any, error) {
+// modelSellable checks binding + pricing so /v1/models only advertises what a
+// generate call can actually fulfil.
+func (s *V1Service) modelSellable(ctx context.Context, item *model.ModelConfig) bool {
+	channels, err := s.channels.ChannelsForModel(ctx, item.ID)
+	if err != nil || len(channels) == 0 {
+		return false
+	}
+	for _, res := range repo.JSONStrings(item.Resolutions) {
+		if _, ok := jsonMapFloat(item.Prices, res); !ok {
+			return false
+		}
+	}
+	if item.Type == "video" {
+		durs := repo.JSONStrings(item.Durations)
+		if len(durs) > 0 {
+			for _, d := range durs {
+				if _, ok := jsonMapFloat(item.DurationPrices, d); !ok {
+					return false
+				}
+			}
+		} else if item.DurationMin > 0 || item.DurationMax > 0 {
+			if _, ok := jsonMapFloat(item.DurationPrices, "per_second"); !ok {
+				return false
+			}
+		}
+	}
+	return len(repo.JSONStrings(item.Resolutions)) > 0 || len(item.Prices) > 0
+}
+
+func modelDurationSpec(item *model.ModelConfig) *V1ModelDur {
+	if item.DurationMin > 0 || item.DurationMax > 0 {
+		return &V1ModelDur{Mode: "range", Min: int64(item.DurationMin), Max: int64(item.DurationMax)}
+	}
+	opts := repo.JSONStrings(item.Durations)
+	switch len(opts) {
+	case 0:
+		return nil
+	case 1:
+		return &V1ModelDur{Mode: "fixed", Seconds: int64(parseDurationSeconds(opts[0]))}
+	default:
+		vals := make([]int64, 0, len(opts))
+		for _, d := range opts {
+			if n := parseDurationSeconds(d); n > 0 {
+				vals = append(vals, int64(n))
+			}
+		}
+		return &V1ModelDur{Mode: "options", Options: vals}
+	}
+}
+
+// UserBalance — GET /v1/balance. Re-reads the user row so the number is live.
+func (s *V1Service) UserBalance(ctx context.Context, principal *APIPrincipal) (float64, error) {
 	user := principal.User
 	if fresh, err := s.users.GetByID(ctx, user.ID); err == nil && fresh != nil {
 		user = fresh
 	}
-	return map[string]any{
-		"object":  "user.balance",
-		"balance": user.Credits,
-		"used":    user.CreditsUsed,
-		"total":   user.Credits + user.CreditsUsed,
+	return user.Credits, nil
+}
+
+// ===== channel dispatch =====
+
+// generationParams bundles the wire fields one generate call carries.
+type generationParams struct {
+	Kind         string // "image" | "video"
+	Prompt       string
+	Ratio        string
+	Quality      string // resolution tier verbatim
+	DurationSecs int64
+	Refs         [][]byte
+	// PinChannelID forces this one channel (admin test) — bypasses the enabled
+	// filter, weighted order and failover.
+	PinChannelID string
+}
+
+// genResult is what a successful dispatch produces.
+type genResult struct {
+	Data        []byte
+	ContentType string
+	ChannelID   string
+	ChannelName string
+	UpstreamJob string
+	Credits     float64 // upstream-reported spend
+}
+
+// dispatchGenerate routes one generation through the channel pool bound to the
+// model: weighted-random order, per-channel concurrency slot, refs re-uploaded
+// per attempt (upload sessions are channel-local), failover on auth/temporary
+// errors. Deterministic errors (invalid params / failed job) are terminal.
+func (s *V1Service) dispatchGenerate(ctx context.Context, eventID string, modelItem *model.ModelConfig, p generationParams) (*genResult, error) {
+	var channels []repo.ChannelWithUpstream
+	var err error
+	if pin := strings.TrimSpace(p.PinChannelID); pin != "" {
+		// Admin test pin: single channel, disabled included, no failover.
+		channels, err = s.channels.ChannelsForModelAnyState(ctx, modelItem.ID)
+		if err != nil {
+			return nil, err
+		}
+		kept := channels[:0]
+		for _, c := range channels {
+			if c.Channel.ID == pin {
+				kept = append(kept, c)
+			}
+		}
+		channels = kept
+	} else {
+		channels, err = s.channels.ChannelsForModel(ctx, modelItem.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(channels) == 0 {
+		return nil, ErrNoProviderAccount
+	}
+	var lastErr error
+	failovers := 0
+	for _, cand := range weightedChannelOrder(channels) {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		ch := cand.Channel
+		if !s.chanAcquire(ctx, ch.ID, eventID, ch.Concurrency) {
+			continue // channel at capacity — try the next one
+		}
+		res, attemptErr := s.generateOnChannel(ctx, eventID, ch, cand.UpstreamModel, p)
+		s.chanRelease(ctx, ch.ID, eventID)
+		if attemptErr == nil {
+			return res, nil
+		}
+		lastErr = attemptErr
+		if !upstream.Failoverable(attemptErr) {
+			return nil, upstreamUserError(attemptErr)
+		}
+		if errors.Is(attemptErr, upstream.ErrAuth) {
+			continue // bad credentials don't burn the failover budget
+		}
+		failovers++
+		if failovers >= maxChannelFailover {
+			break
+		}
+	}
+	if lastErr == nil {
+		return nil, ErrConcurrencyFull
+	}
+	return nil, fmt.Errorf("%w: %v", ErrProviderTemporary, upstreamUserError(lastErr))
+}
+
+// generateOnChannel performs one full attempt on a single channel: upload refs
+// → POST /v1/generate (NDJSON, jobId reconnect) → download result bytes.
+func (s *V1Service) generateOnChannel(ctx context.Context, eventID string, ch model.Channel, upstreamModel string, p generationParams) (*genResult, error) {
+	apiKey := s.channels.Decrypt(ch)
+	if strings.TrimSpace(apiKey) == "" {
+		return nil, fmt.Errorf("%w: empty key", upstream.ErrAuth)
+	}
+	base := strings.TrimRight(ch.BaseURL, "/")
+	refKeys := make([]string, 0, len(p.Refs))
+	for _, blob := range p.Refs {
+		key, err := s.up.UploadRef(ctx, base, apiKey, blob)
+		if err != nil {
+			return nil, err
+		}
+		refKeys = append(refKeys, key)
+	}
+	wait := int64(imageGenBudget / time.Second)
+	if p.Kind == "video" {
+		wait = int64(videoGenBudget / time.Second)
+	}
+	var upstreamJob string
+	resultURL, credits, err := s.up.Generate(ctx, base, apiKey, upstream.GenParams{
+		Model:    upstreamModel,
+		Prompt:   p.Prompt,
+		Quality:  p.Quality,
+		Ratio:    p.Ratio,
+		Duration: p.DurationSecs,
+		Refs:     refKeys,
+	}, wait, func(job string) {
+		if upstreamJob == "" {
+			upstreamJob = job
+			_ = s.events.SetUpstreamJob(ctx, eventID, job)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	data, ct, err := s.up.Download(ctx, resultURL)
+	if err != nil {
+		return nil, err
+	}
+	s.channels.BumpSuccess(ctx, ch.ID, float64(credits))
+	_ = s.events.SetAccount(ctx, eventID, ch.ID, ch.Name)
+	return &genResult{
+		Data:        data,
+		ContentType: ct,
+		ChannelID:   ch.ID,
+		ChannelName: ch.Name,
+		UpstreamJob: upstreamJob,
+		Credits:     float64(credits),
 	}, nil
 }
 
-func (s *V1Service) PrepareImageRequest(ctx context.Context, principal *APIPrincipal, in V1ImageRequest) (map[string]any, error) {
-	return s.prepareImageExecution(ctx, principal, in, "v1", true)
+// weightedChannelOrder builds a weighted-random permutation: each pick draws a
+// channel with probability weight/remainingTotal (weight 2 → ~2x first-pick
+// rate of weight 1). Ported from vivid's job executor.
+func weightedChannelOrder(channels []repo.ChannelWithUpstream) []repo.ChannelWithUpstream {
+	if len(channels) <= 1 {
+		return channels
+	}
+	rest := append([]repo.ChannelWithUpstream(nil), channels...)
+	out := make([]repo.ChannelWithUpstream, 0, len(rest))
+	for len(rest) > 0 {
+		total := 0
+		for _, c := range rest {
+			w := c.Channel.Weight
+			if w < 1 {
+				w = 1
+			}
+			total += w
+		}
+		r := rand.Intn(total)
+		for i, c := range rest {
+			w := c.Channel.Weight
+			if w < 1 {
+				w = 1
+			}
+			if r < w {
+				out = append(out, c)
+				rest = append(rest[:i], rest[i+1:]...)
+				break
+			}
+			r -= w
+		}
+	}
+	return out
 }
+
+// upstreamUserError maps an upstream error to what the caller sees. failed 帧
+// 文案是上游给用户看的中文，透传；4001 参数错同样透传；其余归一为通用文案。
+func upstreamUserError(err error) error {
+	if err == nil {
+		return ErrProviderTemporary
+	}
+	msg := err.Error()
+	for _, prefix := range []string{
+		upstream.ErrJobFailed.Error() + ": ",
+		upstream.ErrInvalid.Error() + ": ",
+		upstream.ErrAuth.Error() + ": ",
+		upstream.ErrRetryable.Error() + ": ",
+		upstream.ErrAmbiguous.Error() + ": ",
+	} {
+		msg = strings.TrimSpace(strings.TrimPrefix(msg, prefix))
+	}
+	switch upstream.KindOf(err) {
+	case upstream.KindJobFailed, upstream.KindInvalid:
+		if msg == "" {
+			return ErrProviderExecution
+		}
+		return fmt.Errorf("%w: %s", ErrProviderExecution, msg)
+	default:
+		if msg == "" {
+			return ErrProviderTemporary
+		}
+		return fmt.Errorf("%w: %s", ErrProviderTemporary, msg)
+	}
+}
+
+// ===== session / admin-test generation (unchanged response shapes) =====
 
 func (s *V1Service) prepareSessionImage(ctx context.Context, principal *APIPrincipal, in V1ImageRequest) (map[string]any, error) {
 	return s.prepareImageExecution(ctx, principal, in, "user", true)
@@ -425,19 +662,8 @@ func (s *V1Service) prepareAdminTestImage(ctx context.Context, principal *APIPri
 
 func (s *V1Service) prepareImageExecution(ctx context.Context, principal *APIPrincipal, in V1ImageRequest, source string, charge bool) (map[string]any, error) {
 	// Detach the whole execution from the request lifecycle. The frontend tracks
-	// progress by polling /jobs/mine, so a client disconnect — or an nginx/CDN
-	// gateway timeout on the slow synchronous response — must NOT cancel an
-	// in-flight generation. Binding to the request ctx meant a cancelled request
-	// (a) spun uselessly in the upstream poll until its 180s timeout and
-	// (b) silently dropped the refund + final status write, leaving the row stuck
-	// pending until the maintenance sweep mislabeled it "abandoned".
-	//
-	// `ctx` (WithoutCancel) is durable and used for ALL bookkeeping (status /
-	// refund / cleanup) so those always land. `genCtx` is the cancellable WORK
-	// context: an 8-min backstop, AND registered in s.inflight so the maintenance
-	// sweep can cancel it the instant it abandons the row — stopping a stuck
-	// generation from running on for minutes and surfacing a late "success" on an
-	// already-abandoned event.
+	// progress by polling /jobs/mine, so a client disconnect must NOT cancel an
+	// in-flight generation or drop the refund/final-status bookkeeping.
 	ctx = context.WithoutCancel(ctx)
 	if source != "admin" {
 		if err := s.checkBannedPrompt(ctx, principal, in.Prompt); err != nil {
@@ -445,16 +671,12 @@ func (s *V1Service) prepareImageExecution(ctx context.Context, principal *APIPri
 			return nil, err
 		}
 	}
-	// 去AI特征 is gated by a system-settings switch (default off) — drop the
-	// flag when disabled so no surcharge is charged and no processing runs.
 	if in.DeAI && !s.deaiEnabled(ctx) {
 		in.DeAI = false
 	}
-	genCtx, cancel := context.WithTimeout(ctx, 8*time.Minute)
+	genCtx, cancel := context.WithTimeout(ctx, imageGenBudget)
 	defer cancel()
 
-	// Per-user concurrency gate (画图台 + API key combined). Admin model-tests are
-	// exempt. Held for the whole generation; released on return.
 	if source != "admin" && principal != nil && principal.User != nil {
 		slot := randomUpper(12)
 		if !s.userAcquire(ctx, principal.User, slot) {
@@ -470,204 +692,43 @@ func (s *V1Service) prepareImageExecution(ctx context.Context, principal *APIPri
 		return nil, err
 	}
 	refCount := len(in.ReferenceImages)
-	// API-key (source "v1") requests don't persist the output: we return the image
-	// as base64 inline (OpenAI gpt-image-1 also returns only b64_json) and never
-	// upload to RustFS, so there's no URL. The event is still logged (empty file)
-	// for usage; the customer logs page hides source="v1" rows.
-	noStore := source == "v1"
-	var fileURL, relativePath string
-	if !noStore {
-		fileURL, relativePath = s.allocateOutput(principal, "png", in.BaseURL)
-	}
-	// upstreamURL is the provider's original artifact URL. For API-key (source
-	// "v1") requests we return it instead of base64. When gatedURL is true the URL
-	// is auth-gated (chatgpt files.oaiusercontent.com — a plain GET 403s), so we
-	// store it on the event and hand the caller a proxy URL
-	// ({base}/v1/images/{eventID}/content) that re-fetches with the account token.
-	var upstreamURL string
-	var gatedURL bool
+	fileURL, relativePath := s.allocateOutput(principal, "png", in.BaseURL)
 	eventID, err := s.logPendingEvent(ctx, "image", modelItem, principal, in.Prompt, aspectRatio, resolution, "", refCount, price, relativePath, source, nil, in.DeAI)
 	if err != nil {
 		return nil, err
 	}
-	// Register so the maintenance sweep can cancel this generation if it abandons
-	// the row; deregister on return.
 	s.inflight.Add(eventID, cancel)
 	defer s.inflight.Done(eventID)
 	startedAt := time.Now()
 
-	var imageBytes []byte
-	switch s.effectiveProvider(genCtx, modelItem) {
-	case "adobe":
-		b, u, execErr := s.generateAdobeImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, adobe.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, adobe.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, adobe.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "chatgpt":
-		b, u, execErr := s.generateChatGPTImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, chatgpt.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, chatgpt.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, chatgpt.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-		gatedURL = true // chatgpt URL needs the account token → proxy it
-	case "leonardo":
-		b, u, execErr := s.generateLeonardoImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, leonardo.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, leonardo.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, leonardo.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "krea":
-		b, u, execErr := s.generateKreaImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, krea.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, krea.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, krea.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "imagine":
-		b, u, execErr := s.generateImagineImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, imagine.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, imagine.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, imagine.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "grok":
-		b, u, execErr := s.generateGrokImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, grok.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, grok.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, grok.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "runway":
-		b, u, execErr := s.generateRunwayImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, runway.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, runway.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, runway.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	case "custom":
-		b, u, execErr := s.generateCustomImage(genCtx, eventID, modelItem, in, aspectRatio, resolution, noStore)
-		if execErr != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-			switch {
-			case errors.Is(execErr, custom.ErrAuth):
-				return nil, ErrProviderAuth
-			case errors.Is(execErr, custom.ErrQuotaExhausted):
-				return nil, ErrProviderQuota
-			case errors.Is(execErr, custom.ErrTemporaryUpstream):
-				return nil, ErrProviderTemporary
-			default:
-				return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-			}
-		}
-		imageBytes = b
-		upstreamURL = u
-	default:
+	refs, err := decodeReferenceImages(in.ReferenceImages, max(totalRefLimit(modelItem), 1))
+	if err != nil {
 		_ = s.refundIfNeeded(ctx, principal, eventID, price)
-		_ = s.events.UpdateStatus(ctx, eventID, "failed", "provider not implemented", 0)
-		return nil, fmt.Errorf("%w: %s", ErrProviderUnsupported, modelItem.Provider)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", err.Error(), 0)
+		return nil, err
 	}
-	// 去AI特征: post-process before storing/returning. Best-effort — a decode
-	// failure keeps the original bytes rather than failing a paid generation.
+	res, execErr := s.dispatchGenerate(genCtx, eventID, modelItem, generationParams{
+		Kind: "image", Prompt: in.Prompt, Ratio: aspectRatio, Quality: resolution, Refs: refs,
+		PinChannelID: in.ChannelID,
+	})
+	if execErr != nil {
+		_ = s.refundIfNeeded(ctx, principal, eventID, price)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
+		return nil, execErr
+	}
+	imageBytes := res.Data
 	if in.DeAI {
 		if processed, derr := applyDeAI(imageBytes); derr == nil {
 			imageBytes = processed
 		}
 	}
-	if !noStore {
-		// Upload to RustFS. On failure the generation fails and credits are
-		// refunded — we never fall back to local disk.
-		if err := s.store.Put(genCtx, relativePath, imageBytes, "image/png"); err != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", "storage upload failed: "+err.Error(), 0)
-			return nil, fmt.Errorf("%w: %v", ErrProviderExecution, err)
-		}
-		// Best-effort thumbnail for list views; the image serving route falls
-		// back to the original when the thumb object is missing.
-		if thumb, terr := makeThumbnail(imageBytes); terr == nil {
-			_ = s.store.Put(genCtx, ThumbKey(relativePath), thumb, "image/jpeg")
-		}
+	if err := s.store.Put(genCtx, relativePath, imageBytes, "image/png"); err != nil {
+		_ = s.refundIfNeeded(ctx, principal, eventID, price)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", "storage upload failed: "+err.Error(), 0)
+		return nil, fmt.Errorf("%w: %v", ErrProviderExecution, err)
+	}
+	if thumb, terr := makeThumbnail(imageBytes); terr == nil {
+		_ = s.store.Put(genCtx, ThumbKey(relativePath), thumb, "image/jpeg")
 	}
 	elapsedMS := int(time.Since(startedAt).Milliseconds())
 	if err := s.events.UpdateStatus(ctx, eventID, "success", "", elapsedMS); err != nil {
@@ -680,61 +741,17 @@ func (s *V1Service) prepareImageExecution(ctx context.Context, principal *APIPri
 	if charge {
 		_ = s.maybeGrantInviteReward(ctx, principal)
 	}
-	if noStore {
-		// Prefer the provider's original URL — return it directly, no base64.
-		// (API-key requests don't support DeAI, so there's no post-processing that
-		// would invalidate the upstream URL.)
-		if strings.TrimSpace(upstreamURL) != "" {
-			outURL := upstreamURL
-			if gatedURL {
-				// Auth-gated URL (chatgpt): store it on the event and return a proxy
-				// URL that re-fetches with the account token (see OpenImageContent).
-				_ = s.events.SetFile(ctx, eventID, upstreamURL)
-				if base := strings.TrimRight(strings.TrimSpace(in.BaseURL), "/"); base != "" {
-					outURL = base + "/v1/images/" + eventID + "/content"
-				}
-			}
-			return map[string]any{
-				"created":    time.Now().Unix(),
-				"data":       []map[string]any{{"url": outURL}},
-				"model":      modelItem.EffectiveName(),
-				"provider":   modelItem.Provider,
-				"kind":       "image",
-				"url":        outURL,
-				"elapsed_ms": elapsedMS,
-				"charged":    price,
-				"credits":    principalCredits(principal),
-			}, nil
-		}
-		// Fallback: providers without an upstream URL still return base64.
-		b64 := base64.StdEncoding.EncodeToString(imageBytes)
-		return map[string]any{
-			"created":    time.Now().Unix(),
-			"data":       []map[string]any{{"b64_json": b64}},
-			"model":      modelItem.EffectiveName(),
-			"provider":   modelItem.Provider,
-			"kind":       "image",
-			"b64_json":   b64,
-			"elapsed_ms": elapsedMS,
-			"charged":    price,
-			"credits":    principalCredits(principal),
-		}, nil
-	}
 	return map[string]any{
 		"created":    time.Now().Unix(),
 		"data":       []map[string]any{{"url": fileURL, "b64_json": nil}},
 		"model":      modelItem.EffectiveName(),
-		"provider":   modelItem.Provider,
+		"provider":   res.ChannelName,
 		"kind":       "image",
 		"url":        fileURL,
 		"elapsed_ms": elapsedMS,
 		"charged":    price,
 		"credits":    principalCredits(principal),
 	}, nil
-}
-
-func (s *V1Service) PrepareVideoRequest(ctx context.Context, principal *APIPrincipal, in V1VideoRequest) (map[string]any, error) {
-	return s.prepareVideoExecution(ctx, principal, in, "v1", true)
 }
 
 func (s *V1Service) prepareSessionVideo(ctx context.Context, principal *APIPrincipal, in V1VideoRequest) (map[string]any, error) {
@@ -746,10 +763,6 @@ func (s *V1Service) prepareAdminTestVideo(ctx context.Context, principal *APIPri
 }
 
 func (s *V1Service) prepareVideoExecution(ctx context.Context, principal *APIPrincipal, in V1VideoRequest, source string, charge bool) (map[string]any, error) {
-	// Detach from the request lifecycle — see prepareImageExecution. `ctx`
-	// (WithoutCancel) carries all bookkeeping; `genCtx` is the cancellable work
-	// context (12-min backstop — video polls up to 10 min — and registered so the
-	// maintenance sweep can cancel a stuck render when it abandons the row).
 	ctx = context.WithoutCancel(ctx)
 	if source != "admin" {
 		if err := s.checkBannedPrompt(ctx, principal, in.Prompt); err != nil {
@@ -760,7 +773,6 @@ func (s *V1Service) prepareVideoExecution(ctx context.Context, principal *APIPri
 	genCtx, cancel := context.WithTimeout(ctx, videoGenBudget)
 	defer cancel()
 
-	// Per-user concurrency gate (画图台 + API key combined); admin tests exempt.
 	if source != "admin" && principal != nil && principal.User != nil {
 		slot := randomUpper(12)
 		if !s.userAcquire(ctx, principal.User, slot) {
@@ -776,82 +788,43 @@ func (s *V1Service) prepareVideoExecution(ctx context.Context, principal *APIPri
 		return nil, err
 	}
 	refCount := len(in.ReferenceImages)
-	// API-key (source "v1") requests return base64 inline and never persist a
-	// file — see prepareImageExecution for the rationale.
-	noStore := source == "v1"
-	var fileURL, relativePath string
-	if !noStore {
-		fileURL, relativePath = s.allocateOutput(principal, "mp4", in.BaseURL)
-	}
+	fileURL, relativePath := s.allocateOutput(principal, "mp4", in.BaseURL)
 	eventID, err := s.logPendingEvent(ctx, "video", modelItem, principal, in.Prompt, aspectRatio, resolution, duration, refCount, price, relativePath, source, nil, false)
 	if err != nil {
 		return nil, err
 	}
-	// Register so the maintenance sweep can cancel this render if it abandons the
-	// row; deregister on return.
 	s.inflight.Add(eventID, cancel)
 	defer s.inflight.Done(eventID)
 	startedAt := time.Now()
 
-	// API-key (noStore) requests return the upstream video URL directly.
-	// downloadResult=false skips the download. grok asset URLs are auth-gated
-	// (a plain GET 403s) → gatedVideoURL routes them through the /content proxy.
-	prov := s.effectiveProvider(genCtx, modelItem)
-	urlOnly := noStore
-	gatedVideoURL := prov == "grok"
-	var videoBytes []byte
-	var videoURL string
-	var execErr error
-	switch prov {
-	case "adobe":
-		videoBytes, videoURL, execErr = s.generateAdobeVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), !urlOnly)
-	case "runway":
-		videoBytes, videoURL, execErr = s.generateRunwayVideo(genCtx, eventID, modelItem, in, aspectRatio, parseDurationSeconds(duration), !urlOnly)
-	case "grok":
-		videoBytes, videoURL, execErr = s.generateGrokVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), !urlOnly)
-	case "leonardo":
-		videoBytes, videoURL, execErr = s.generateLeonardoVideo(genCtx, eventID, modelItem, in, aspectRatio, parseDurationSeconds(duration), !urlOnly)
-	case "custom":
-		videoBytes, videoURL, execErr = s.generateCustomVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), !urlOnly)
-	case "creativefabrica":
-		videoBytes, videoURL, execErr = s.generateCreativeFabricaVideo(genCtx, eventID, modelItem, in, aspectRatio, !urlOnly)
-	default:
+	refs, err := decodeReferenceImages(in.ReferenceImages, max(totalRefLimit(modelItem), 1))
+	if err != nil {
 		_ = s.refundIfNeeded(ctx, principal, eventID, price)
-		_ = s.events.UpdateStatus(ctx, eventID, "failed", "provider not implemented", 0)
-		return nil, fmt.Errorf("%w: %s", ErrProviderUnsupported, modelItem.Provider)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", err.Error(), 0)
+		return nil, err
 	}
+	res, execErr := s.dispatchGenerate(genCtx, eventID, modelItem, generationParams{
+		Kind: "video", Prompt: in.Prompt, Ratio: aspectRatio, Quality: resolution,
+		DurationSecs: int64(parseDurationSeconds(duration)), Refs: refs,
+		PinChannelID: in.ChannelID,
+	})
 	if execErr != nil {
 		_ = s.refundIfNeeded(ctx, principal, eventID, price)
 		_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
-		switch {
-		case errors.Is(execErr, ErrNoProviderAccount):
-			return nil, ErrNoProviderAccount
-		case errors.Is(execErr, adobe.ErrAuth), errors.Is(execErr, runway.ErrAuth), errors.Is(execErr, grok.ErrAuth), errors.Is(execErr, leonardo.ErrAuth), errors.Is(execErr, custom.ErrAuth), errors.Is(execErr, creativefabrica.ErrAuth):
-			return nil, ErrProviderAuth
-		case errors.Is(execErr, adobe.ErrQuotaExhausted), errors.Is(execErr, runway.ErrQuotaExhausted), errors.Is(execErr, grok.ErrQuotaExhausted), errors.Is(execErr, leonardo.ErrQuotaExhausted), errors.Is(execErr, custom.ErrQuotaExhausted), errors.Is(execErr, creativefabrica.ErrQuotaExhausted):
-			return nil, ErrProviderQuota
-		case errors.Is(execErr, adobe.ErrTemporaryUpstream), errors.Is(execErr, runway.ErrTemporaryUpstream), errors.Is(execErr, grok.ErrTemporaryUpstream), errors.Is(execErr, leonardo.ErrTemporaryUpstream), errors.Is(execErr, custom.ErrTemporaryUpstream), errors.Is(execErr, creativefabrica.ErrTemporaryUpstream):
-			return nil, ErrProviderTemporary
-		default:
-			return nil, fmt.Errorf("%w: %v", ErrProviderExecution, execErr)
-		}
+		return nil, execErr
 	}
-	if !noStore {
-		if err := s.store.Put(genCtx, relativePath, videoBytes, "video/mp4"); err != nil {
-			_ = s.refundIfNeeded(ctx, principal, eventID, price)
-			_ = s.events.UpdateStatus(ctx, eventID, "failed", "storage upload failed: "+err.Error(), 0)
-			return nil, fmt.Errorf("%w: %v", ErrProviderExecution, err)
+	videoBytes := res.Data
+	if err := s.store.Put(genCtx, relativePath, videoBytes, "video/mp4"); err != nil {
+		_ = s.refundIfNeeded(ctx, principal, eventID, price)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", "storage upload failed: "+err.Error(), 0)
+		return nil, fmt.Errorf("%w: %v", ErrProviderExecution, err)
+	}
+	if thumb, last, terr := extractVideoFrames(genCtx, videoBytes); terr == nil {
+		if len(thumb) > 0 {
+			_ = s.store.Put(genCtx, ThumbKey(relativePath), thumb, "image/jpeg")
 		}
-		// Best-effort stills: first frame (downscaled) for list thumbnails and
-		// the full-res last frame for 首尾帧 continuation. Missing objects fall
-		// back to the video itself at serve time.
-		if thumb, last, terr := extractVideoFrames(genCtx, videoBytes); terr == nil {
-			if len(thumb) > 0 {
-				_ = s.store.Put(genCtx, ThumbKey(relativePath), thumb, "image/jpeg")
-			}
-			if len(last) > 0 {
-				_ = s.store.Put(genCtx, LastFrameKey(relativePath), last, "image/jpeg")
-			}
+		if len(last) > 0 {
+			_ = s.store.Put(genCtx, LastFrameKey(relativePath), last, "image/jpeg")
 		}
 	}
 	elapsedMS := int(time.Since(startedAt).Milliseconds())
@@ -865,47 +838,11 @@ func (s *V1Service) prepareVideoExecution(ctx context.Context, principal *APIPri
 	if charge {
 		_ = s.maybeGrantInviteReward(ctx, principal)
 	}
-	if noStore && strings.TrimSpace(videoURL) != "" {
-		// Return the upstream video URL. grok URLs are auth-gated → store on the
-		// event and hand back the /content proxy (re-fetches with the account token).
-		outURL := videoURL
-		if gatedVideoURL {
-			_ = s.events.SetFile(ctx, eventID, videoURL)
-			if base := strings.TrimRight(strings.TrimSpace(in.BaseURL), "/"); base != "" {
-				outURL = base + "/v1/videos/" + eventID + "/content"
-			}
-		}
-		return map[string]any{
-			"created":    time.Now().Unix(),
-			"data":       []map[string]any{{"url": outURL}},
-			"model":      modelItem.EffectiveName(),
-			"provider":   modelItem.Provider,
-			"kind":       "video",
-			"url":        outURL,
-			"elapsed_ms": elapsedMS,
-			"charged":    price,
-			"credits":    principalCredits(principal),
-		}, nil
-	}
-	if noStore {
-		b64 := base64.StdEncoding.EncodeToString(videoBytes)
-		return map[string]any{
-			"created":    time.Now().Unix(),
-			"data":       []map[string]any{{"b64_json": b64}},
-			"model":      modelItem.EffectiveName(),
-			"provider":   modelItem.Provider,
-			"kind":       "video",
-			"b64_json":   b64,
-			"elapsed_ms": elapsedMS,
-			"charged":    price,
-			"credits":    principalCredits(principal),
-		}, nil
-	}
 	return map[string]any{
 		"created":    time.Now().Unix(),
 		"data":       []map[string]any{{"url": fileURL}},
 		"model":      modelItem.EffectiveName(),
-		"provider":   modelItem.Provider,
+		"provider":   res.ChannelName,
 		"kind":       "video",
 		"url":        fileURL,
 		"elapsed_ms": elapsedMS,
@@ -914,107 +851,198 @@ func (s *V1Service) prepareVideoExecution(ctx context.Context, principal *APIPri
 	}, nil
 }
 
-// ===== /v1/videos — OpenAI Sora-style async jobs =====
-// POST /v1/videos charges + creates a pending event and renders in the
-// background; the render captures only the UPSTREAM video URL (no download, no
-// RustFS). GET /v1/videos/{id} polls status; /content proxies the upstream URL.
+// ===== /v1/generate jobs (vivid protocol) =====
 
-// StartVideoJob validates+charges, creates the job event, kicks the render off in
-// the background, and returns the OpenAI video object (status "queued").
-func (s *V1Service) StartVideoJob(ctx context.Context, principal *APIPrincipal, in V1VideoRequest) (map[string]any, error) {
+// V1JobRequest is the POST /v1/generate body.
+type V1JobRequest struct {
+	Model    string  `json:"model"`
+	Prompt   string  `json:"prompt"`
+	Quality  string  `json:"quality"`
+	Ratio    *string `json:"ratio"`
+	Duration *int64  `json:"duration"`
+	// Refs are object keys issued by /v1/uploads.
+	Refs []string `json:"refs"`
+	// JobId reconnect mode: re-attach to an existing job, never creates one.
+	JobID *string `json:"jobId"`
+}
+
+// CreateJob validates + charges + creates the pending event and kicks the
+// background render; returns the event row (its ID is the jobId).
+func (s *V1Service) CreateJob(ctx context.Context, principal *APIPrincipal, in V1JobRequest) (*model.EventLog, error) {
 	ctx = context.WithoutCancel(ctx)
 	if err := s.checkBannedPrompt(ctx, principal, in.Prompt); err != nil {
-		s.logRejectedEvent(ctx, "video", in.Model, principal, in.Prompt, "v1", err.Error())
+		s.logRejectedEvent(ctx, "", in.Model, principal, in.Prompt, "v1", err.Error())
 		return nil, err
 	}
-	// Validate reference_mode against model capabilities and reference count
-	// BEFORE charging — a bad override must fail fast with no debit, never
-	// charge-then-reject (which would silently eat the user's credits).
 	modelItem, err := s.models.Get(ctx, strings.TrimSpace(in.Model))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			s.logRejectedEvent(ctx, "video", in.Model, principal, in.Prompt, "v1", ErrUnknownModel.Error())
 			return nil, ErrUnknownModel
 		}
 		return nil, err
 	}
-	if rm := strings.TrimSpace(in.ReferenceMode); rm != "" {
-		if err := validateReferenceMode(rm, modelItem, len(in.ReferenceImages)); err != nil {
-			s.logRejectedEvent(ctx, "video", in.Model, principal, in.Prompt, "v1", err.Error())
+	if !modelItem.Enabled {
+		return nil, ErrUnknownModel
+	}
+	kind := modelItem.Type
+	if kind != "image" && kind != "video" {
+		return nil, ErrUnknownModel
+	}
+	if strings.TrimSpace(in.Prompt) == "" {
+		return nil, fmt.Errorf("%w: prompt required", ErrUnsupportedParams)
+	}
+	quality := strings.TrimSpace(in.Quality)
+	if quality == "" {
+		return nil, fmt.Errorf("%w: quality required", ErrUnsupportedParams)
+	}
+	if res := repo.JSONStrings(modelItem.Resolutions); len(res) > 0 && !strSliceContains(res, quality) {
+		return nil, fmt.Errorf("%w: quality %q not in %v", ErrUnsupportedParams, quality, res)
+	}
+	ratio := ""
+	if in.Ratio != nil {
+		ratio = snapRatio(strings.TrimSpace(strings.ReplaceAll(*in.Ratio, "x", ":")), repo.JSONStrings(modelItem.Ratios))
+	}
+	var durSecs int64
+	duration := ""
+	if kind == "video" {
+		if in.Duration == nil || *in.Duration <= 0 {
+			return nil, fmt.Errorf("%w: duration required", ErrUnsupportedParams)
+		}
+		durSecs = *in.Duration
+		if err := validateModelDuration(modelItem, durSecs); err != nil {
 			return nil, err
 		}
-		if rm == modelItem.ReferenceMode {
-			in.ReferenceMode = "" // same as default, don't override
-		}
+		duration = fmt.Sprintf("%ds", durSecs)
 	}
-	modelItem, resolution, aspectRatio, duration, price, err := s.prepareVideo(ctx, principal, in, true)
+	// Refs: keys must live under the caller's refs/ dir; bytes are fetched now
+	// (existence + caps + duration checks) and re-uploaded to whatever channel
+	// wins the dispatch.
+	refBlobs, refKeys, err := s.resolveJobRefs(ctx, principal, in.Refs, modelItem)
 	if err != nil {
-		s.logRejectedEvent(ctx, "video", in.Model, principal, in.Prompt, "v1", err.Error())
+		s.logRejectedEvent(ctx, kind, modelItem.ID, principal, in.Prompt, "v1", err.Error())
 		return nil, err
 	}
-	// Source "v1": no output file is allocated — the result is the upstream URL,
-	// stored on the event when the render completes.
-	eventID, err := s.logPendingEvent(ctx, "video", modelItem, principal, in.Prompt, aspectRatio, resolution, duration, len(in.ReferenceImages), price, "", "v1", nil, false)
+	// The job runs async — acquire the per-user slot now and release it when the
+	// job settles, so the slot survives past this HTTP request.
+	slot := randomUpper(12)
+	if principal != nil && principal.User != nil && !s.userAcquire(ctx, principal.User, slot) {
+		s.logRejectedEvent(ctx, kind, modelItem.ID, principal, in.Prompt, "v1", ErrUserConcurrencyFull.Error())
+		return nil, ErrUserConcurrencyFull
+	}
+	price, err := s.chargeForModel(ctx, principal, modelItem, kind, quality, duration, 0, true)
 	if err != nil {
+		s.userRelease(ctx, principal.User.ID, slot)
+		s.logRejectedEvent(ctx, kind, modelItem.ID, principal, in.Prompt, "v1", err.Error())
 		return nil, err
 	}
-	go s.runVideoJob(ctx, principal, in, modelItem, eventID, aspectRatio, resolution, duration, price)
-	return videoJobObject(eventID, modelItem.EffectiveName(), "queued", 0, duration, sizeFromRatioRes(aspectRatio, resolution), time.Now().Unix(), 0, ""), nil
+	eventID, err := s.logPendingEvent(ctx, kind, modelItem, principal, in.Prompt, ratio, quality, duration, len(refBlobs), price, "", "v1", nil, false)
+	if err != nil {
+		s.userRelease(ctx, principal.User.ID, slot)
+		_, _ = s.users.RefundCredits(ctx, principal.User.ID, price)
+		return nil, err
+	}
+	go s.runV1Job(ctx, principal, eventID, modelItem, generationParams{
+		Kind: kind, Prompt: in.Prompt, Ratio: ratio, Quality: quality,
+		DurationSecs: durSecs, Refs: refBlobs,
+	}, refKeys, slot, price)
+	return s.events.GetByID(ctx, eventID)
 }
 
-// runVideoJob renders the clip in the background, capturing the upstream URL
-// (downloadResult=false → no bytes, no RustFS) and storing it on the event.
-func (s *V1Service) runVideoJob(ctx context.Context, principal *APIPrincipal, in V1VideoRequest, modelItem *model.ModelConfig, eventID, aspectRatio, resolution, duration string, price float64) {
-	genCtx, cancel := context.WithTimeout(ctx, videoGenBudget)
+// JobForUser reloads a job scoped to the caller (reconnect mode + wait loop).
+func (s *V1Service) JobForUser(ctx context.Context, principal *APIPrincipal, jobID string) (*model.EventLog, error) {
+	ev, err := s.events.GetByID(ctx, strings.TrimSpace(jobID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrVideoJobNotFound
+		}
+		return nil, err
+	}
+	if ev == nil || (principal != nil && principal.User != nil && ev.UserID != principal.User.ID) {
+		return nil, ErrVideoJobNotFound
+	}
+	return ev, nil
+}
+
+// JobStatus maps an event to the vivid wire status.
+func JobStatus(ev *model.EventLog) string {
+	switch ev.Status {
+	case "success":
+		return "succeeded"
+	case "failed":
+		return "failed"
+	default:
+		if strings.TrimSpace(ev.AccountID) != "" {
+			return "running"
+		}
+		return "queued"
+	}
+}
+
+// JobResultURL presigns the stored result for GET (30 min). API-key results
+// expire: the URL is only minted within 30 minutes of completion.
+func (s *V1Service) JobResultURL(ev *model.EventLog) string {
+	if ev == nil || ev.Status != "success" || strings.TrimSpace(ev.File) == "" {
+		return ""
+	}
+	if s.store == nil || !s.store.Configured() {
+		return ""
+	}
+	if time.Since(ev.UpdatedAt) > PresignTTL {
+		return ""
+	}
+	url, err := s.store.PresignGet(ev.File, PresignTTL)
+	if err != nil {
+		return ""
+	}
+	return url
+}
+
+// runV1Job executes a /v1 job in the background: dispatch → store under tmp/ →
+// final event state. Caller polls the row; the NDJSON stream just re-reads it.
+// `slot` is the per-user concurrency token acquired in CreateJob.
+func (s *V1Service) runV1Job(ctx context.Context, principal *APIPrincipal, eventID string, modelItem *model.ModelConfig, p generationParams, refKeys []string, slot string, price float64) {
+	budget := imageGenBudget
+	if p.Kind == "video" {
+		budget = videoGenBudget
+	}
+	genCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	s.inflight.Add(eventID, cancel)
 	defer s.inflight.Done(eventID)
+	if principal != nil && principal.User != nil {
+		defer s.userRelease(ctx, principal.User.ID, slot)
+	}
+	// Reference uploads are session-scoped on OUR side too — drop them once the
+	// job reaches a terminal state.
+	defer func() {
+		for _, k := range refKeys {
+			_ = s.store.Delete(context.Background(), k)
+		}
+	}()
 	startedAt := time.Now()
-
-	// A panic in provider fan-out must fail the event (and refund), not
-	// take down the whole API process with it.
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[v1] panic in runVideoJob event=%s model=%s: %v\n%s", eventID, modelItem.Name, r, debug.Stack())
+			log.Printf("[v1] panic in runV1Job event=%s model=%s: %v\n%s", eventID, modelItem.Name, r, debug.Stack())
 			_ = s.refundIfNeeded(ctx, principal, eventID, price)
 			_ = s.events.UpdateStatus(ctx, eventID, "failed", fmt.Sprintf("internal error: %v", r), 0)
 		}
 	}()
 
-	// No-store: capture only the UPSTREAM video URL. /content streams it on demand
-	// (grok URLs are auth-gated → fetched with the generating account's token).
-	var videoURL string
-	var execErr error
-	switch s.effectiveProvider(genCtx, modelItem) {
-	case "adobe":
-		_, videoURL, execErr = s.generateAdobeVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), false)
-	case "runway":
-		_, videoURL, execErr = s.generateRunwayVideo(genCtx, eventID, modelItem, in, aspectRatio, parseDurationSeconds(duration), false)
-	case "grok":
-		_, videoURL, execErr = s.generateGrokVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), false)
-	case "leonardo":
-		_, videoURL, execErr = s.generateLeonardoVideo(genCtx, eventID, modelItem, in, aspectRatio, parseDurationSeconds(duration), false)
-	case "custom":
-		_, videoURL, execErr = s.generateCustomVideo(genCtx, eventID, modelItem, in, aspectRatio, resolution, parseDurationSeconds(duration), false)
-	case "creativefabrica":
-		_, videoURL, execErr = s.generateCreativeFabricaVideo(genCtx, eventID, modelItem, in, aspectRatio, false)
-	default:
-		_ = s.refundIfNeeded(ctx, principal, eventID, price)
-		_ = s.events.UpdateStatus(ctx, eventID, "failed", "provider not implemented", 0)
-		return
-	}
+	res, execErr := s.dispatchGenerate(genCtx, eventID, modelItem, p)
 	if execErr != nil {
 		_ = s.refundIfNeeded(ctx, principal, eventID, price)
 		_ = s.events.UpdateStatus(ctx, eventID, "failed", execErr.Error(), 0)
 		return
 	}
-	if strings.TrimSpace(videoURL) == "" {
+	ext := resultExt(res.ContentType, p.Kind)
+	rel := filepath.ToSlash(filepath.Join("tmp", eventID+"."+ext))
+	if err := s.store.Put(genCtx, rel, res.Data, res.ContentType); err != nil {
 		_ = s.refundIfNeeded(ctx, principal, eventID, price)
-		_ = s.events.UpdateStatus(ctx, eventID, "failed", "upstream returned no video url", 0)
+		_ = s.events.UpdateStatus(ctx, eventID, "failed", "storage upload failed: "+err.Error(), 0)
 		return
 	}
-	// Store the upstream URL as the event's "file"; /content fetches it on demand.
-	if err := s.events.MarkVideoReady(ctx, eventID, videoURL, int(time.Since(startedAt).Milliseconds())); err != nil {
+	_ = s.events.SetFile(ctx, eventID, rel)
+	if err := s.events.UpdateStatus(ctx, eventID, "success", "", int(time.Since(startedAt).Milliseconds())); err != nil {
 		return
 	}
 	_ = s.models.IncrementGenerationCount(ctx, modelItem.ID)
@@ -1024,225 +1052,240 @@ func (s *V1Service) runVideoJob(ctx context.Context, principal *APIPrincipal, in
 	_ = s.maybeGrantInviteReward(ctx, principal)
 }
 
-// VideoJob returns the OpenAI video object for a job, scoped to the caller.
-func (s *V1Service) VideoJob(ctx context.Context, principal *APIPrincipal, id string) (map[string]any, error) {
-	ev, err := s.videoEventForUser(ctx, principal, id)
-	if err != nil {
-		return nil, err
-	}
-	status, progress := videoJobStatus(ev)
-	completedAt := int64(0)
-	if ev.Status == "success" || ev.Status == "failed" {
-		completedAt = ev.UpdatedAt.Unix()
-	}
-	errMsg := ""
-	if ev.Status == "failed" {
-		errMsg = ev.Error
-	}
-	modelName := ev.Model
-	if nameByID, nerr := s.models.NameMap(ctx); nerr == nil {
-		if name, ok := nameByID[ev.Model]; ok && strings.TrimSpace(name) != "" {
-			modelName = name
-		}
-	}
-	return videoJobObject(ev.ID, modelName, status, progress, ev.Duration, sizeFromRatioRes(ev.Ratio, ev.Resolution), ev.TS.Unix(), completedAt, errMsg), nil
-}
-
-// OpenVideoContent streams a completed job's video by proxying the stored
-// upstream URL (downloaded on demand — never persisted).
-func (s *V1Service) OpenVideoContent(ctx context.Context, principal *APIPrincipal, id string) (io.ReadCloser, string, error) {
-	ev, err := s.videoEventForUser(ctx, principal, id)
-	if err != nil {
-		return nil, "", err
-	}
-	if ev.Status != "success" || strings.TrimSpace(ev.File) == "" {
-		return nil, "", ErrVideoNotReady
-	}
-	// grok asset URLs (assets.grok.com) are auth-gated — a plain GET 403s. Stream
-	// them through the SAME account that generated the clip, using its token. If
-	// that account is gone (grok pools churn often), the clip is unrecoverable.
-	if ev.Provider == "grok" && s.grok != nil {
-		if s.settings != nil {
-			if proxy, perr := s.settings.GetValue(ctx, "proxy.url"); perr == nil {
-				s.grok.SetProxy(proxy)
-			}
-		}
-		acct, _ := s.tokens.Get(ctx, "grok", ev.AccountID)
-		if acct == nil || strings.TrimSpace(acct.Value) == "" {
-			return nil, "", fmt.Errorf("%w: grok account no longer available for this video", ErrProviderTemporary)
-		}
-		return s.grok.OpenAsset(ctx, acct.Value, ev.File)
-	}
-	// Other providers return publicly-fetchable URLs — proxy directly.
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ev.File, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("%w: fetch upstream video: %v", ErrProviderTemporary, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, "", fmt.Errorf("%w: upstream video status %d", ErrProviderTemporary, resp.StatusCode)
-	}
-	ct := strings.TrimSpace(resp.Header.Get("Content-Type"))
-	if ct == "" {
-		ct = "video/mp4"
-	}
-	return resp.Body, ct, nil
-}
-
-// OpenImageContent streams a no-store image by proxying the stored upstream URL.
-// chatgpt URLs are auth-gated (files.oaiusercontent.com — a plain GET 403s), so
-// they're fetched through the generating account's token; other providers'
-// URLs are public and proxied directly. Never persisted.
-func (s *V1Service) OpenImageContent(ctx context.Context, principal *APIPrincipal, id string) (io.ReadCloser, string, error) {
-	ev, err := s.events.GetByID(ctx, strings.TrimSpace(id))
-	if err != nil {
-		return nil, "", err
-	}
-	if ev == nil || ev.Kind != "image" {
-		return nil, "", ErrVideoJobNotFound
-	}
-	if principal != nil && principal.User != nil && ev.UserID != principal.User.ID {
-		return nil, "", ErrVideoJobNotFound
-	}
-	if ev.Status != "success" || strings.TrimSpace(ev.File) == "" {
-		return nil, "", ErrVideoNotReady
-	}
-	if ev.Provider == "chatgpt" && s.chatgpt != nil {
-		if s.settings != nil {
-			if proxy, perr := s.settings.GetValue(ctx, "proxy.url"); perr == nil {
-				s.chatgpt.SetProxy(proxy)
-			}
-		}
-		acct, _ := s.tokens.Get(ctx, "chatgpt", ev.AccountID)
-		if acct == nil || strings.TrimSpace(acct.Value) == "" {
-			return nil, "", fmt.Errorf("%w: chatgpt account no longer available for this image", ErrProviderTemporary)
-		}
-		return s.chatgpt.OpenAsset(ctx, acct.Value, ev.File)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ev.File, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("%w: fetch upstream image: %v", ErrProviderTemporary, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, "", fmt.Errorf("%w: upstream image status %d", ErrProviderTemporary, resp.StatusCode)
-	}
-	ct := strings.TrimSpace(resp.Header.Get("Content-Type"))
-	if ct == "" {
-		ct = "image/png"
-	}
-	return resp.Body, ct, nil
-}
-
-func (s *V1Service) videoEventForUser(ctx context.Context, principal *APIPrincipal, id string) (*model.EventLog, error) {
-	ev, err := s.events.GetByID(ctx, strings.TrimSpace(id))
-	if err != nil {
-		return nil, err
-	}
-	if ev == nil || ev.Kind != "video" {
-		return nil, ErrVideoJobNotFound
-	}
-	if principal != nil && principal.User != nil && ev.UserID != principal.User.ID {
-		return nil, ErrVideoJobNotFound
-	}
-	return ev, nil
-}
-
-// videoJobStatus maps our event status → OpenAI's (queued|in_progress|completed|
-// failed) plus a coarse progress.
-func videoJobStatus(ev *model.EventLog) (string, int) {
-	switch ev.Status {
-	case "success":
-		return "completed", 100
-	case "failed":
-		return "failed", 0
-	default:
-		if strings.TrimSpace(ev.AccountID) != "" {
-			return "in_progress", 50
-		}
-		return "queued", 0
-	}
-}
-
-func videoJobObject(id, modelID, status string, progress int, seconds, size string, createdAt, completedAt int64, errMsg string) map[string]any {
-	obj := map[string]any{
-		"id":         id,
-		"object":     "video",
-		"model":      modelID,
-		"status":     status,
-		"progress":   progress,
-		"created_at": createdAt,
-		"size":       size,
-		"seconds":    strings.TrimSuffix(strings.TrimSpace(seconds), "s"),
-	}
-	if completedAt > 0 {
-		obj["completed_at"] = completedAt
-	} else {
-		obj["completed_at"] = nil
-	}
-	if errMsg != "" {
-		obj["error"] = map[string]any{"message": errMsg}
-	} else {
-		obj["error"] = nil
-	}
-	return obj
-}
-
-// sizeFromRatioRes reconstructs an OpenAI-style "WxH" label from our stored ratio
-// + resolution tier (best-effort; only for display in the job object).
-func sizeFromRatioRes(ratio, resolution string) string {
-	long := 720
-	res := strings.ToUpper(resolution)
+func resultExt(contentType, kind string) string {
 	switch {
-	case strings.Contains(res, "1080") || strings.Contains(res, "2K"):
-		long = 1080
-	case strings.Contains(res, "4K") || strings.Contains(res, "2160"):
-		long = 2160
+	case strings.Contains(contentType, "webp"):
+		return "webp"
+	case strings.Contains(contentType, "jpeg"), strings.Contains(contentType, "jpg"):
+		return "jpg"
+	case strings.Contains(contentType, "gif"):
+		return "gif"
+	case strings.Contains(contentType, "webm"):
+		return "webm"
+	case strings.Contains(contentType, "mp4"):
+		return "mp4"
+	case strings.Contains(contentType, "quicktime"):
+		return "mov"
 	}
-	w, h := long, long
-	switch strings.TrimSpace(ratio) {
-	case "16:9":
-		w, h = long, long*9/16
-	case "9:16":
-		w, h = long*9/16, long
-	case "4:3":
-		w, h = long, long*3/4
-	case "3:4":
-		w, h = long*3/4, long
-	case "1:1":
-		w, h = long, long
-	default:
-		w, h = long, long*9/16
+	if kind == "video" {
+		return "mp4"
 	}
-	return fmt.Sprintf("%dx%d", w, h)
+	return "png"
 }
 
-// hasActiveProviderToken reports whether the provider pool holds at least one
-// usable token for this kind of generation — mirrors the selection filter in
-// the generate* paths. Used to fail fast (before charging / creating a job)
-// with a clear "no account" error instead of dialing upstream with no token.
-func (s *V1Service) hasActiveProviderToken(ctx context.Context, provider, kind string) (bool, error) {
-	items, err := s.tokens.ListByPool(ctx, provider)
-	if err != nil {
-		return false, err
-	}
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
+// validateModelDuration enforces the model's duration spec (options list or
+// min/max range) on a /v1 request.
+func validateModelDuration(item *model.ModelConfig, secs int64) error {
+	if item.DurationMin > 0 || item.DurationMax > 0 {
+		if item.DurationMin > 0 && secs < int64(item.DurationMin) ||
+			item.DurationMax > 0 && secs > int64(item.DurationMax) {
+			return fmt.Errorf("%w: duration %ds out of range [%d-%d]", ErrUnsupportedParams, secs, item.DurationMin, item.DurationMax)
 		}
-		// Adobe accounts are credit-based (积分号) — no per-kind quota locks.
-		return true, nil
+		return nil
 	}
-	return false, nil
+	if durs := repo.JSONStrings(item.Durations); len(durs) > 0 {
+		for _, d := range durs {
+			if int64(parseDurationSeconds(d)) == secs {
+				return nil
+			}
+		}
+		return fmt.Errorf("%w: duration %ds not in %v", ErrUnsupportedParams, secs, durs)
+	}
+	return nil
 }
+
+// resolveJobRefs fetches + validates /v1 ref keys. Returns blobs (for channel
+// upload) and the raw keys (for cleanup on job completion).
+func (s *V1Service) resolveJobRefs(ctx context.Context, principal *APIPrincipal, keys []string, modelItem *model.ModelConfig) ([][]byte, []string, error) {
+	if len(keys) == 0 {
+		return nil, nil, nil
+	}
+	if principal == nil || principal.User == nil {
+		return nil, nil, ErrInvalidAPIKey
+	}
+	uid := principal.User.ID
+	total := len(keys)
+	if cap := totalRefLimit(modelItem); cap > 0 && total > cap {
+		return nil, nil, fmt.Errorf("%w: too many reference files", ErrUnsupportedParams)
+	}
+	blobs := make([][]byte, 0, total)
+	counts := map[string]int{}
+	secSum := map[string]float64{}
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if !validRefKey(uid, key) {
+			return nil, nil, fmt.Errorf("%w: 参考素材无效", ErrUnsupportedParams)
+		}
+		data, err := s.getObjectBytes(ctx, key)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: 参考素材已过期或不存在", ErrUnsupportedParams)
+		}
+		kind, mime := upstream.RefKindMime(data)
+		if kind == "" {
+			return nil, nil, fmt.Errorf("%w: 参考素材格式不支持", ErrUnsupportedParams)
+		}
+		counts[kind]++
+		limit := refLimitFor(modelItem, kind)
+		if counts[kind] > limit {
+			return nil, nil, fmt.Errorf("%w: 参考%s最多 %d 个", ErrUnsupportedParams, refKindLabel(kind), limit)
+		}
+		if kind == "video" || kind == "audio" {
+			if sec, ok := util.MediaDurationSeconds(mime, data[:minInt(len(data), 256<<10)]); ok {
+				secSum[kind] += sec
+			}
+		}
+		blobs = append(blobs, data)
+	}
+	if lim := modelItem.MaxRefVideoSeconds; lim > 0 && secSum["video"] > float64(lim) {
+		return nil, nil, fmt.Errorf("%w: 参考视频总时长 %.0f 秒超过上限 %d 秒", ErrUnsupportedParams, secSum["video"], lim)
+	}
+	if lim := modelItem.MaxRefAudioSeconds; lim > 0 && secSum["audio"] > float64(lim) {
+		return nil, nil, fmt.Errorf("%w: 参考音频总时长 %.0f 秒超过上限 %d 秒", ErrUnsupportedParams, secSum["audio"], lim)
+	}
+	return blobs, keys, nil
+}
+
+func refLimitFor(item *model.ModelConfig, kind string) int {
+	switch kind {
+	case "video":
+		return item.MaxReferenceVideos
+	case "audio":
+		return item.MaxReferenceAudios
+	default:
+		return item.MaxReferenceImages
+	}
+}
+
+func refKindLabel(kind string) string {
+	switch kind {
+	case "video":
+		return "视频"
+	case "audio":
+		return "音频"
+	default:
+		return "图"
+	}
+}
+
+// validRefKey checks ownership + shape: <uid>/refs/<kind>/<name>.<ext>.
+func validRefKey(uid, key string) bool {
+	if uid == "" || !strings.HasPrefix(key, uid+"/refs/") {
+		return false
+	}
+	rest := strings.TrimPrefix(key, uid+"/refs/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 {
+		return false
+	}
+	switch parts[0] {
+	case "image", "video", "audio":
+	default:
+		return false
+	}
+	name := parts[1]
+	dot := strings.LastIndexByte(name, '.')
+	if dot <= 0 || dot == len(name)-1 {
+		return false
+	}
+	switch name[dot+1:] {
+	case "png", "jpg", "webp", "mp4", "webm", "mov", "mp3", "wav", "m4a", "ogg":
+		return true
+	}
+	return false
+}
+
+func (s *V1Service) getObjectBytes(ctx context.Context, key string) ([]byte, error) {
+	resp, err := s.store.Get(ctx, key, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, maxReferenceImageBytes+1))
+}
+
+// PresignRefUpload — POST /v1/uploads. Returns the object key + presigned PUT
+// URL the caller uploads bytes to within PresignTTL.
+type V1UploadView struct {
+	UUID      string `json:"uuid"`
+	Key       string `json:"key"`
+	URL       string `json:"url"`
+	ExpiresAt int64  `json:"expiresAt"`
+}
+
+func (s *V1Service) PresignRefUpload(ctx context.Context, principal *APIPrincipal, kind, mime string) (*V1UploadView, error) {
+	if principal == nil || principal.User == nil {
+		return nil, ErrInvalidAPIKey
+	}
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	mime = strings.ToLower(strings.TrimSpace(mime))
+	if !presignRefMimeOK(kind, mime) {
+		return nil, fmt.Errorf("%w: 参考素材类型或格式不支持", ErrUnsupportedParams)
+	}
+	if s.store == nil || !s.store.Configured() {
+		return nil, fmt.Errorf("%w: 对象存储不可用", ErrProviderTemporary)
+	}
+	id := "r" + strings.ToLower(randomUpper(16))
+	key := fmt.Sprintf("%s/refs/%s/%s.%s", principal.User.ID, kind, id, refExtOfMime(mime))
+	url, err := s.store.PresignPut(key, mime, PresignTTL)
+	if err != nil {
+		return nil, fmt.Errorf("%w: 预签名签发失败", ErrProviderTemporary)
+	}
+	return &V1UploadView{UUID: id, Key: key, URL: url, ExpiresAt: time.Now().Add(PresignTTL).Unix()}, nil
+}
+
+func presignRefMimeOK(kind, mime string) bool {
+	if !strings.HasPrefix(mime, kind+"/") {
+		return false
+	}
+	switch mime {
+	case "image/png", "image/jpeg", "image/webp",
+		"video/mp4", "video/webm", "video/quicktime",
+		"audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/mp4", "audio/m4a", "audio/ogg":
+		return true
+	}
+	return false
+}
+
+func refExtOfMime(mime string) string {
+	switch mime {
+	case "image/png":
+		return "png"
+	case "image/jpeg":
+		return "jpg"
+	case "image/webp":
+		return "webp"
+	case "video/mp4":
+		return "mp4"
+	case "video/webm":
+		return "webm"
+	case "video/quicktime":
+		return "mov"
+	case "audio/mpeg", "audio/mp3":
+		return "mp3"
+	case "audio/wav", "audio/x-wav":
+		return "wav"
+	case "audio/mp4", "audio/m4a":
+		return "m4a"
+	case "audio/ogg":
+		return "ogg"
+	default:
+		return "bin"
+	}
+}
+
+func strSliceContains(list []string, v string) bool {
+	for _, item := range list {
+		if strings.TrimSpace(item) == v {
+			return true
+		}
+	}
+	return false
+}
+
+// ===== pricing / charge / refund (unchanged semantics) =====
 
 func (s *V1Service) prepareImage(ctx context.Context, principal *APIPrincipal, in V1ImageRequest, charge bool) (*model.ModelConfig, string, string, float64, error) {
 	modelID := strings.TrimSpace(in.Model)
@@ -1260,16 +1303,11 @@ func (s *V1Service) prepareImage(ctx context.Context, principal *APIPrincipal, i
 	if !modelItem.Enabled || modelItem.Type != "image" {
 		return nil, "", "", 0, ErrUnknownModel
 	}
-	// Fail fast before charging if the provider has no usable account. Use the
-	// effective provider: a custom upstream serving this model id routes to
-	// "custom" (effectiveProvider only returns it when such an account exists, so
-	// the precheck is satisfied); otherwise check the native provider pool.
-	if eff := s.effectiveProvider(ctx, modelItem); eff != "custom" {
-		if ok, err := s.hasActiveProviderToken(ctx, eff, "image"); err != nil {
-			return nil, "", "", 0, err
-		} else if !ok {
-			return nil, "", "", 0, ErrNoProviderAccount
-		}
+	// Fail fast before charging if no channel serves this model.
+	if ok, err := s.hasChannelForModel(ctx, modelItem.ID); err != nil {
+		return nil, "", "", 0, err
+	} else if !ok {
+		return nil, "", "", 0, ErrNoProviderAccount
 	}
 	refLimit := 0
 	if modelItem.ImageToImage {
@@ -1281,23 +1319,15 @@ func (s *V1Service) prepareImage(ctx context.Context, principal *APIPrincipal, i
 	if len(in.ReferenceImages) > refLimit {
 		return nil, "", "", 0, errors.New("too many reference images")
 	}
-	// Reject oversized reference images before charging (all providers, all paths).
 	if err := ensureReferenceSizes(in.ReferenceImages); err != nil {
 		return nil, "", "", 0, err
 	}
-	// `size` (WxH) drives BOTH the aspect ratio AND the resolution tier — its long
-	// edge maps to a tier (<1800→1K, 1800–3499→2K, ≥3500→4K). The web path passes
-	// an explicit resolution; the OpenAI /v1 path derives it from size. There is no
-	// `quality` param — size is the single source of truth for resolution.
 	aspectRatio, resolution := parseImageSize(in.Size, in.AspectRatio, in.Resolution)
-	// Snap to the nearest ratio the model actually supports — a `size`-derived
-	// ratio (e.g. 1:3) must never be passed through to an upstream that rejects
-	// it (Runway 400s on ratios outside its list).
+	// An explicit quality label (vivid callers) wins over a blank resolution.
+	if resolution == "" && strings.TrimSpace(in.Quality) != "" {
+		resolution = strings.TrimSpace(in.Quality)
+	}
 	aspectRatio = snapRatio(aspectRatio, repo.JSONStrings(modelItem.Ratios))
-	// parseImageSize defaults a blank resolution to "2K" (OpenAI-size parity).
-	// For a model that doesn't price that tier — e.g. gpt-image-2 is 1K-only —
-	// fall back to its first supported tier so a missing/stale resolution from
-	// the client doesn't get rejected as "unsupported or unpriced".
 	if _, ok := modelPrice(modelItem, "image", resolution, "", false); !ok {
 		if fb := firstPricedResolution(modelItem); fb != "" {
 			resolution = fb
@@ -1334,65 +1364,29 @@ func (s *V1Service) prepareVideo(ctx context.Context, principal *APIPrincipal, i
 	if !modelItem.Enabled || modelItem.Type != "video" {
 		return nil, "", "", "", 0, ErrUnknownModel
 	}
-	// Validate duration against model's supported range (from Durations JSON array).
-	if secs := parseDurationSeconds(duration); secs > 0 {
-		if durList := repo.JSONStrings(modelItem.Durations); len(durList) > 0 {
-			minSecs, maxSecs := 9999, 0
-			for _, d := range durList {
-				n := parseDurationSeconds(d)
-				if n > 0 {
-					if n < minSecs {
-						minSecs = n
-					}
-					if n > maxSecs {
-						maxSecs = n
-					}
-				}
-			}
-			if secs < minSecs || secs > maxSecs {
-				return nil, "", "", "", 0, fmt.Errorf("duration %ds out of range [%d-%d] for model %s", secs, minSecs, maxSecs, modelItem.EffectiveName())
-			}
+	// Validate duration against the model's spec (options list or min/max range).
+	if secs := int64(parseDurationSeconds(duration)); secs > 0 {
+		if err := validateModelDuration(modelItem, secs); err != nil {
+			return nil, "", "", "", 0, err
 		}
 	}
-	// Fail fast before charging — effective provider (custom upstream by id, else native).
-	if eff := s.effectiveProvider(ctx, modelItem); eff == "custom" {
-		// custom serves this id (effectiveProvider guaranteed it) — precheck ok
-	} else if ok, err := s.hasActiveProviderToken(ctx, eff, "video"); err != nil {
+	if ok, err := s.hasChannelForModel(ctx, modelItem.ID); err != nil {
 		return nil, "", "", "", 0, err
 	} else if !ok {
 		return nil, "", "", "", 0, ErrNoProviderAccount
 	}
 	refLimit := totalRefLimit(modelItem)
+	if refLimit <= 0 && len(in.ReferenceImages) > 0 {
+		return nil, "", "", "", 0, errors.New("this model does not accept references")
+	}
 	if refLimit <= 0 {
 		refLimit = 10
 	}
 	if len(in.ReferenceImages) > refLimit {
 		return nil, "", "", "", 0, errors.New("too many reference images")
 	}
-	// Reject oversized reference images before charging (all providers, all paths).
 	if err := ensureReferenceSizes(in.ReferenceImages); err != nil {
 		return nil, "", "", "", 0, err
-	}
-	// Runway i2v strictly requires exactly one first-frame image. Enforce it here,
-	// BEFORE charging, so a missing/extra frame fails fast instead of charge →
-	// upstream reject → refund. generateRunwayVideo keeps its own guard too.
-	if modelItem.Provider == "runway" {
-		n := 0
-		for _, r := range in.ReferenceImages {
-			if strings.TrimSpace(r) != "" {
-				n++
-			}
-		}
-		if n != 1 {
-			return nil, "", "", "", 0, errors.New("runway 图生视频需要且仅需 1 张首帧图")
-		}
-	}
-	// Leonardo seedance 的参考资产分三类且各有上限/时长限制,在扣费前拦掉,
-	// 不让请求带着非法参考走到上游。
-	if modelItem.Provider == "leonardo" {
-		if _, err := classifyLeonardoVideoRefs(in.ReferenceImages, leonardoVideoSpecOf(modelItem.ID)); err != nil {
-			return nil, "", "", "", 0, err
-		}
 	}
 	aspectRatio := strings.TrimSpace(strings.ReplaceAll(in.AspectRatio, "x", ":"))
 	if aspectRatio == "" {
@@ -1400,8 +1394,6 @@ func (s *V1Service) prepareVideo(ctx context.Context, principal *APIPrincipal, i
 	}
 	resolution := strings.TrimSpace(in.Resolution)
 	if resolution == "" {
-		// 调用方没指定档位时用模型自己配的第一档,而不是假定 720p ——
-		// 只卖 1440p 的模型会被 720p 判成"没定价"。
 		if resList := repo.JSONStrings(modelItem.Resolutions); len(resList) > 0 {
 			resolution = strings.TrimSpace(resList[0])
 		}
@@ -1413,17 +1405,24 @@ func (s *V1Service) prepareVideo(ctx context.Context, principal *APIPrincipal, i
 	if err != nil {
 		return nil, "", "", "", 0, err
 	}
-	// 规范化 duration 字段：前端 per_second 计费模式可能发来 "per_second" 字符串，
-	// 统一转为 "Xs" 格式（如 "4s"）存库，避免日志显示原始键名。
 	if n := parseDurationSeconds(duration); n > 0 {
 		duration = fmt.Sprintf("%ds", n)
 	}
 	return modelItem, resolution, aspectRatio, duration, price, nil
 }
 
+// hasChannelForModel reports whether at least one enabled channel serves the
+// model — the channel-era replacement for the token-pool precheck.
+func (s *V1Service) hasChannelForModel(ctx context.Context, modelID string) (bool, error) {
+	channels, err := s.channels.ChannelsForModel(ctx, modelID)
+	if err != nil {
+		return false, err
+	}
+	return len(channels) > 0, nil
+}
+
 func (s *V1Service) chargeForModel(ctx context.Context, principal *APIPrincipal, modelItem *model.ModelConfig, kind, resolution, duration string, surcharge float64, charge bool) (float64, error) {
-	// 代理用户走代理价(某档未设代理价则回退普通价)。principal.User 即将被扣费的
-	// 用户,无论画图台还是 key 调用都从这里取,所以一处即覆盖所有路径。
+	// 代理用户走代理价(某档未设代理价则回退普通价)。
 	agent := principal != nil && principal.User != nil && principal.User.Role == "agent"
 	price, ok := modelPrice(modelItem, kind, resolution, duration, agent)
 	if !ok {
@@ -1445,2028 +1444,6 @@ func (s *V1Service) chargeForModel(ctx context.Context, principal *APIPrincipal,
 	}
 	principal.User = updated
 	return price, nil
-}
-
-func (s *V1Service) userDir(principal *APIPrincipal) string {
-	if principal == nil {
-		return "anon"
-	}
-	return OwnerDir(principal.User)
-}
-
-// OwnerDir is the storage directory (= /images/<owner>/ segment) a user's outputs
-// live under: sanitized name → sanitized email-local → id → "anon".
-func OwnerDir(user *model.User) string {
-	if user != nil {
-		if d := sanitizeOwnerName(user.Name); d != "" {
-			return d
-		}
-		if d := sanitizeOwnerName(strings.Split(user.Email, "@")[0]); d != "" {
-			return d
-		}
-		if user.ID != "" {
-			return user.ID
-		}
-	}
-	return "anon"
-}
-
-// contentTypeForExt maps a file extension to a MIME type for storage uploads.
-func contentTypeForExt(ext string) string {
-	switch strings.ToLower(strings.TrimPrefix(ext, ".")) {
-	case "png":
-		return "image/png"
-	case "jpg", "jpeg":
-		return "image/jpeg"
-	case "webp":
-		return "image/webp"
-	case "gif":
-		return "image/gif"
-	case "mp4":
-		return "video/mp4"
-	case "webm":
-		return "video/webm"
-	case "mov":
-		return "video/quicktime"
-	default:
-		return "application/octet-stream"
-	}
-}
-
-// imageExtFromBytes sniffs a sensible file extension from the magic bytes so the
-// saved reference keeps its real type (the /images handler types by extension).
-func imageExtFromBytes(b []byte) string {
-	switch {
-	case len(b) >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF:
-		return "jpg"
-	case len(b) >= 6 && string(b[0:6]) == "GIF89a", len(b) >= 6 && string(b[0:6]) == "GIF87a":
-		return "gif"
-	case len(b) >= 12 && string(b[0:4]) == "RIFF" && string(b[8:12]) == "WEBP":
-		return "webp"
-	default:
-		return "png"
-	}
-}
-
-// allocateOutput builds the object key (= relative path, user-scoped) and the
-// directly-downloadable URL pointing at this site's /images proxy. Nothing is
-// written here — the bytes are uploaded to RustFS by the caller.
-func (s *V1Service) allocateOutput(principal *APIPrincipal, ext, baseURL string) (string, string) {
-	userDir := s.userDir(principal)
-	filename := time.Now().Format("20060102-150405") + "-" + randomUpper(8) + "." + strings.TrimPrefix(ext, ".")
-	relativePath := filepath.ToSlash(filepath.Join(userDir, filename))
-	// OpenAI-style clients need a directly-downloadable absolute URL. When the
-	// inbound request's base URL is known, build "{scheme}://{host}/images/...";
-	// otherwise fall back to the relative path for backward compatibility.
-	if base := strings.TrimRight(strings.TrimSpace(baseURL), "/"); base != "" {
-		return base + "/images/" + relativePath, relativePath
-	}
-	return "/images/" + relativePath, relativePath
-}
-
-func (s *V1Service) logPendingEvent(ctx context.Context, kind string, modelItem *model.ModelConfig, principal *APIPrincipal, prompt, ratio, resolution, duration string, refs int, cost float64, file, source string, refFiles []string, deai bool) (string, error) {
-	event := &model.EventLog{
-		ID:         "evt-" + randomUpper(12),
-		TS:         time.Now(),
-		Kind:       kind,
-		Status:     "pending",
-		Model:      modelItem.ID,
-		Provider:   modelItem.Provider,
-		Prompt:     prompt,
-		Ratio:      ratio,
-		Resolution: resolution,
-		Duration:   duration,
-		Refs:       refs,
-		DeAI:       deai,
-		Source:     source,
-		Cost:       cost,
-		File:       file,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-	if len(refFiles) > 0 {
-		event.RefFiles = jsonArray(refFiles)
-	}
-	if principal != nil && principal.User != nil {
-		event.UserID = principal.User.ID
-	}
-	if err := s.events.Create(ctx, event); err != nil {
-		return "", err
-	}
-	return event.ID, nil
-}
-
-func (s *V1Service) finishUnimplementedEvent(ctx context.Context, eventID string) error {
-	return s.events.UpdateStatus(ctx, eventID, "failed", "generation executor not implemented yet", 0)
-}
-
-// videoGenBudget caps one video render end-to-end (submit + poll + download).
-// 上游慢的时候（seedance 长镜头）12 分钟不够，统一给 30 分钟。
-const videoGenBudget = 30 * time.Minute
-
-// grokConcurrencyPerAccount is how many simultaneous generations one grok account
-// may run (grok tolerates 10, unlike the 1-per-account default elsewhere).
-const grokConcurrencyPerAccount = 10
-
-// maxTempDeadAccounts caps how many accounts the "temporary error = fail over"
-// policy may burn per request before giving up, so an upstream-wide blip
-// ("system under load") can't fan a single request out across the whole pool.
-// After this many accounts fail this way, the request fails.
-const maxTempDeadAccounts = 10
-
-// runPoolWithFailover drives a generation across a round-robin-ordered account
-// list with per-error-class behavior, so a bad request never burns the whole
-// pool while genuinely limited accounts still fail over:
-//   - 额度耗尽 quota → mark the account and FAIL OVER to the next account
-//     immediately (same-account retry can't help). Repeats until one succeeds or
-//     the pool is exhausted.
-//   - 认证失效 auth → refresh the token from its cookie and retry ONCE with the
-//     fresh token; if it still auth-fails (or there's nothing to refresh, e.g.
-//     chatgpt's JWT IS the credential), mark the account and fail over.
-//   - 上游临时 temporary → record the failure (no disable/dead) and FAIL OVER to
-//     the next account immediately, capped at maxTempDeadAccounts accounts so a
-//     pool-wide blip can't fan a single request out across everything.
-//   - 参数错 / request-level (anything else) → return immediately, no retry, no
-//     account penalty (the account isn't at fault).
-//
-// Returns the actual upstream error (never a synthetic "retry failed"). On
-// success it stamps success_total/fails=0 on the winning account. classify maps
-// a provider error to (isAuth, isQuota, isTemporary). refreshOnAuth (nil for
-// providers whose token IS the credential) re-mints the account's token so an
-// auth retry uses a FRESH token instead of replaying the stale one.
-func (s *V1Service) runPoolWithFailover(ctx context.Context, eventID, pool string, active []model.TokenAccount, kind string,
-	attempt func(token model.TokenAccount) ([]byte, error),
-	classify func(error) (isAuth, isQuota, isTemporary, isDead bool),
-	refreshOnAuth func(tokenID string) (model.TokenAccount, bool),
-	tempFailover bool,
-) ([]byte, error) {
-	var lastErr error
-	busy := 0
-	tempDeadCount := 0
-	for _, token := range active {
-		// Per-account concurrency gate (defaults to 1 for built-in pools).
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		// release via defer so a panic in tryAccount can't leak the 1-job slot.
-		data, err, failover, tempDead := func() ([]byte, error, bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			return s.tryAccount(ctx, eventID, pool, token, kind, attempt, classify, refreshOnAuth, tempFailover)
-		}()
-		if err == nil {
-			return data, nil
-		}
-		lastErr = err
-		if tempDead {
-			// temp-failover policy: this account hit a temporary upstream error.
-			// Cap how many accounts one request may burn before we stop, so an
-			// upstream-wide blip doesn't fan out across the whole pool.
-			tempDeadCount++
-			if tempDeadCount >= maxTempDeadAccounts {
-				return nil, lastErr
-			}
-		}
-		if failover {
-			continue
-		}
-		// temporary exhausted or request-level error → surface it, no fan-out.
-		return nil, lastErr
-	}
-	// Nothing ran. If accounts were skipped ONLY because they were all busy
-	// (no real failure), tell the caller the pool is at its concurrency cap.
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, ErrConcurrencyFull
-		}
-		return nil, ErrProviderExecution
-	}
-	return nil, lastErr
-}
-
-// tryAccount runs one account's attempt with the pool's retry policy:
-// 额度耗尽/认证失效 → mark + failover; 上游临时 → record failure + failover (capped
-// via the tempDead return); 参数错 → fail fast. Returns (data, err, failover,
-// tempDead) — failover=true means move on to the next account. The per-account
-// concurrency gate is held by the caller.
-func (s *V1Service) tryAccount(ctx context.Context, eventID, pool string, token model.TokenAccount, kind string,
-	attempt func(token model.TokenAccount) ([]byte, error),
-	classify func(error) (isAuth, isQuota, isTemporary, isDead bool),
-	refreshOnAuth func(tokenID string) (model.TokenAccount, bool),
-	tempFailover bool,
-) ([]byte, error, bool, bool) {
-	_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-	_ = s.tokens.TouchLastUsed(ctx, token.ID)
-	authRefreshed := false
-	if strings.TrimSpace(token.Value) == "" && refreshOnAuth != nil {
-		if refreshed, ok := refreshOnAuth(token.ID); ok {
-			token = refreshed
-			authRefreshed = true
-		} else {
-			s.markTokenDead(ctx, pool, token, kind)
-			return nil, ErrProviderExecution, true, true
-		}
-	}
-	for {
-		data, err := attempt(token)
-		if err == nil {
-			_, _ = s.tokens.Update(ctx, pool, token.ID, map[string]any{
-				"last_used_at":  time.Now(),
-				"success_total": gorm.Expr("success_total + 1"),
-				"fails":         0,
-			})
-			return data, nil, false, false
-		}
-		isAuth, isQuota, isTemp, isDead := classify(err)
-		if isQuota {
-			s.markTokenFailure(ctx, pool, token, kind, false, true)
-			return nil, err, true, false
-		}
-		if isAuth {
-			// A 403 user_not_entitled means the account has no Firefly entitlement
-			// — refreshing the access token can't grant one, so kill it now instead
-			// of leaving it in rotation to burn every future request.
-			if errors.Is(err, adobe.ErrNotEntitled) {
-				s.markTokenDead(ctx, pool, token, kind)
-				return nil, err, true, true
-			}
-			// Refresh from cookie and retry ONCE; otherwise the credential is dead.
-			if refreshOnAuth != nil && !authRefreshed {
-				if refreshed, ok := refreshOnAuth(token.ID); ok {
-					token = refreshed
-					authRefreshed = true
-					continue
-				}
-			}
-			s.markTokenFailure(ctx, pool, token, kind, true, false)
-			return nil, err, true, false
-		}
-		// Fatal / temporary-under-failover-policy upstream error.
-		if isDead || (isTemp && tempFailover) {
-			if tempFailover {
-				// Ops policy (adobe): NEVER kill on these upstream errors — a
-				// genuinely bad account and a transient Adobe blip (429/5xx/
-				// overload) look the same, and killing wipes healthy accounts.
-				// Record the failure and fail over to the next account (no
-				// disable/dead). The 4th return value caps how many accounts one
-				// request may burn this way (maxTempDeadAccounts) so a pool-wide
-				// blip can't fan a single request across the whole pool.
-				s.markTokenFailure(ctx, pool, token, kind, false, false)
-				return nil, err, true, true
-			}
-			s.markTokenDead(ctx, pool, token, kind)
-			return nil, err, true, true
-		}
-		if isTemp {
-			// Temporary upstream error → record the failure (no disable/dead) and
-			// fail over to the NEXT account, capped via the tempDead return so a
-			// pool-wide blip can't fan one request across the whole pool.
-			s.markTokenFailure(ctx, pool, token, kind, false, false)
-			return nil, err, true, true
-		}
-		return nil, err, false, false // 参数错 / request-level
-	}
-}
-
-func adobeErrClass(e error) (bool, bool, bool, bool) {
-	return errors.Is(e, adobe.ErrAuth), errors.Is(e, adobe.ErrQuotaExhausted), errors.Is(e, adobe.ErrTemporaryUpstream) || errors.Is(e, adobe.ErrRateLimited), errors.Is(e, adobe.ErrDeadUpstream)
-}
-
-// creativefabricaErrClass maps a creativefabrica upstream error onto the pool's
-// (auth, quota, temporary, dead) classification.
-func creativefabricaErrClass(e error) (bool, bool, bool, bool) {
-	return errors.Is(e, creativefabrica.ErrAuth),
-		errors.Is(e, creativefabrica.ErrQuotaExhausted),
-		errors.Is(e, creativefabrica.ErrTemporaryUpstream) || errors.Is(e, creativefabrica.ErrRateLimited),
-		errors.Is(e, creativefabrica.ErrDeadUpstream)
-}
-
-// noStore url-only mode: adobe returns a presigned image URL (meta["image_url"]);
-// skip the download and return it directly.
-func (s *V1Service) generateAdobeImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.adobe == nil {
-		return nil, "", errors.New("adobe client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.adobe.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "adobe")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		// Adobe accounts are credit-based (积分号) — no per-kind quota locks.
-		// Only skip accounts that are dead or disabled.
-		if item.Status != "active" || item.Dead {
-			continue
-		}
-		// plan 未探测到的号既不算普号也不算会员号，置死号、不参与调度
-		if planUnknown(item.Meta) {
-			s.markPlanUnknownDead(ctx, "adobe", item.ID)
-			continue
-		}
-		// 普号(free)只能调度 free_allowed 的模型（香蕉2 仅 1K）
-		if !freeAccountsAllowed(modelItem, resolution) && isFreeAccount(item.Meta) {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("adobe", active)
-	// 非 seedance 图片生成：普号 → 子号 → 母号
-	active = prioritizeSubAccounts(active)
-
-	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
-	if err != nil {
-		return nil, "", err
-	}
-
-	// Round-robin order. Adobe uses tempFailover=true: a temporary upstream error
-	// ("system under load") fails over to the next account without penalizing the
-	// current one, capped at maxTempDeadAccounts; auth/quota also fail over
-	// (see runPoolWithFailover). imageURL is captured from the successful attempt.
-	var imageURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "adobe", active, "image", func(token model.TokenAccount) ([]byte, error) {
-		var blobIDs []string
-		for _, ref := range refs {
-			id, upErr := s.adobe.UploadImage(ctx, token.Value, ref, "image/png", "")
-			if upErr != nil {
-				if errors.Is(upErr, adobe.ErrRateLimited) {
-					recoverAt := time.Now().Add(4 * time.Hour)
-					s.tokens.Update(ctx, "adobe", token.ID, map[string]any{
-						"status":           "quota",
-						"quota_recover_at": &recoverAt,
-					})
-				}
-				return nil, upErr
-			}
-			blobIDs = append(blobIDs, id)
-		}
-		d, meta, genErr := s.adobe.GenerateImage(ctx, token.Value, modelItem.ID, in.Prompt, aspectRatio, resolution, blobIDs, !urlOnly)
-		if genErr == nil {
-			imageURL = strings.TrimSpace(stringValue(meta["image_url"]))
-		}
-		return d, genErr
-	}, adobeErrClass, func(id string) (model.TokenAccount, bool) {
-		return s.refreshAdobeToken(ctx, id)
-	}, true)
-	return data, imageURL, err
-}
-
-func (s *V1Service) generateAdobeVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio, resolution string, durationSeconds int, downloadResult bool) ([]byte, string, error) {
-	if s.adobe == nil {
-		return nil, "", errors.New("adobe client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.adobe.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "adobe")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead {
-			continue
-		}
-		// plan 未探测到的号既不算普号也不算会员号，置死号、不参与调度
-		if planUnknown(item.Meta) {
-			s.markPlanUnknownDead(ctx, "adobe", item.ID)
-			continue
-		}
-		// Seedance 模型只允许 VIP 母号：必须正向识别（plan 非 free、非子号、
-		// 积分 >4000），plan/额度未探测的账号一律不参与调度
-		if isSeedanceModel(modelItem.ID) && !isVipMotherAccount(item.Meta) {
-			continue
-		}
-		// 普号(free)只能调度 free_allowed 的模型
-		if !freeAccountsAllowed(modelItem, resolution) && isFreeAccount(item.Meta) {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("adobe", active)
-	// 非 seedance 视频生成：普号 → 子号 → 母号
-	// （seedance 已在上面过滤掉子号，此处无需额外处理）
-	if !isSeedanceModel(modelItem.ID) {
-		active = prioritizeSubAccounts(active)
-	}
-
-	refLimit := modelItem.MaxReferenceImages
-	if refLimit <= 0 {
-		refLimit = 10
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, refLimit)
-	if err != nil {
-		return nil, "", err
-	}
-	// Classify refs for seedance: images (usage:style), videos, audio (usage:source).
-	var imgRefs, vidRefs, audRefs [][]byte
-	for _, r := range refs {
-		switch detectMediaType(r) {
-		case "video":
-			vidRefs = append(vidRefs, r)
-		case "audio":
-			audRefs = append(audRefs, r)
-		default:
-			imgRefs = append(imgRefs, r)
-		}
-	}
-	prompt := in.Prompt
-
-	engine, upstreamModel := resolveAdobeVideoEngine(modelItem.ID)
-	referenceMode := defaultString(strings.TrimSpace(modelItem.ReferenceMode), "frame")
-	if rm := strings.TrimSpace(in.ReferenceMode); rm != "" {
-		referenceMode = rm
-	}
-
-	// Round-robin order; fail over to the next account on auth/quota; temporary
-	// upstream errors fail over too without penalizing the account (tempFailover,
-	// capped at maxTempDeadAccounts). videoURL is
-	// captured from the successful attempt's meta (the upstream presigned URL).
-	var videoURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "adobe", active, "video", func(token model.TokenAccount) ([]byte, error) {
-		var blobIDs []string
-		for _, ref := range imgRefs {
-			id, upErr := s.adobe.UploadImage(ctx, token.Value, ref, "image/png", engine)
-			if upErr != nil {
-				if errors.Is(upErr, adobe.ErrRateLimited) {
-					recoverAt := time.Now().Add(4 * time.Hour)
-					s.tokens.Update(ctx, "adobe", token.ID, map[string]any{
-						"status":           "quota",
-						"quota_recover_at": &recoverAt,
-					})
-				}
-				return nil, upErr
-			}
-			blobIDs = append(blobIDs, id)
-		}
-		var videoBlobIDs []string
-		for _, ref := range vidRefs {
-			id, upErr := s.adobe.UploadImage(ctx, token.Value, ref, "video/mp4", engine)
-			if upErr != nil {
-				return nil, upErr
-			}
-			videoBlobIDs = append(videoBlobIDs, id)
-		}
-		var audioBlobIDs []string
-		for _, ref := range audRefs {
-			id, upErr := s.adobe.UploadImage(ctx, token.Value, ref, "audio/mp3", engine)
-			if upErr != nil {
-				return nil, upErr
-			}
-			audioBlobIDs = append(audioBlobIDs, id)
-		}
-		bytes, meta, genErr := s.adobe.GenerateVideo(ctx, token.Value, engine, prompt, aspectRatio, durationSeconds, resolution, referenceMode, upstreamModel, blobIDs, videoBlobIDs, audioBlobIDs, downloadResult)
-		if genErr == nil {
-			videoURL = strings.TrimSpace(stringValue(meta["video_url"]))
-		}
-		return bytes, genErr
-	}, adobeErrClass, func(id string) (model.TokenAccount, bool) {
-		return s.refreshAdobeToken(ctx, id)
-	}, true)
-	return data, videoURL, err
-}
-
-// maxCreativeFabricaRefs caps how many reference images a Creative Fabrica
-// generation may carry (the studio UI allows up to 9).
-const maxCreativeFabricaRefs = 9
-
-// generateCreativeFabricaVideo renders a video through the Creative Fabrica
-// Studio upstream. Accounts are ONE-SHOT: the coins buy exactly one generation,
-// so a successful render immediately disables the account. A fresh short-lived
-// JWT is minted from the stored cookie for every attempt (there is no
-// long-lived token to cache). Only image reference frames are supported.
-func (s *V1Service) generateCreativeFabricaVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio string, downloadResult bool) ([]byte, string, error) {
-	if s.cf == nil {
-		return nil, "", errors.New("creativefabrica client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.cf.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "creativefabrica")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("creativefabrica", active)
-
-	refLimit := modelItem.MaxReferenceImages
-	if refLimit <= 0 {
-		refLimit = maxCreativeFabricaRefs
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, refLimit)
-	if err != nil {
-		return nil, "", err
-	}
-	// The studio only accepts image reference frames — reject video/audio refs.
-	for _, r := range refs {
-		if detectMediaType(r) != "image" {
-			return nil, "", errors.New("creativefabrica only supports image reference frames")
-		}
-	}
-
-	var videoURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "creativefabrica", active, "video", func(token model.TokenAccount) ([]byte, error) {
-		jwt, _, terr := s.cf.ExchangeToken(ctx, token.Value)
-		if terr != nil {
-			s.markTokenDead(ctx, "creativefabrica", token, "video")
-			return nil, terr
-		}
-		bytes, url, gerr := s.cf.GenerateVideo(ctx, token.Value, jwt, modelItem.ID, in.Prompt, aspectRatio, refs, downloadResult)
-		if gerr == nil {
-			videoURL = url
-			// One-shot: the account's coins paid for exactly this generation.
-			s.markTokenDead(ctx, "creativefabrica", token, "video")
-		}
-		return bytes, gerr
-	}, creativefabricaErrClass, nil, true)
-	return data, videoURL, err
-}
-
-// leonardoMinCredits is the per-generation token cost (one Leonardo image = 30
-// tokens). An account with fewer is treated as 限额 and skipped — it can't afford
-// a generation. Daily renewal (tokenRenewalDate) drives auto-recovery.
-const leonardoMinCredits = 30
-
-func (s *V1Service) generateRunwayVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio string, durationSeconds int, downloadResult bool) ([]byte, string, error) {
-	if s.runway == nil {
-		return nil, "", errors.New("runway client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.runway.SetProxy(proxy)
-		}
-	}
-
-	// Runway i2v strictly requires exactly one first-frame image.
-	refs, err := decodeReferenceImages(in.ReferenceImages, 1)
-	if err != nil {
-		return nil, "", err
-	}
-	if len(refs) != 1 {
-		return nil, "", errors.New("runway 图生视频需要且仅需 1 张首帧图")
-	}
-	frame := refs[0]
-
-	items, err := s.tokens.ListByPool(ctx, "runway")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		// No pre-deduct (same policy as the image flow): skip only accounts we KNOW
-		// are out of credits (cached remaining <= 0) — those are treated as dead.
-		// Unknown balance gets the benefit of the doubt.
-		if rem, ok := jsonMapInt(item.Meta, "cached_quota_remaining"); ok && rem <= 0 {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("runway", active)
-
-	var lastErr error
-	var videoURL string
-	busy := 0
-	for _, token := range active {
-		// Per-account concurrency gate (defaults to 1 for built-in pools).
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			teamID := ""
-			if token.Meta != nil {
-				teamID = strings.TrimSpace(stringValue(token.Meta["team_id"]))
-			}
-			d, meta, genErr := s.runway.GenerateVideo(ctx, token.Value, teamID, in.Prompt, aspectRatio, durationSeconds, frame, downloadResult)
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "runway", token.ID, map[string]any{
-					"last_used_at":  time.Now(),
-					"success_total": gorm.Expr("success_total + 1"),
-					"fails":         0,
-				})
-				data = d
-				videoURL = strings.TrimSpace(stringValue(meta["video_url"]))
-				return true, false
-			}
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, runway.ErrAuth), errors.Is(genErr, runway.ErrQuotaExhausted):
-				// 额度没了 / token 失效 → 当 401 判死(status=disabled, dead),换号。
-				s.markTokenFailure(ctx, "runway", token, "video", true, false)
-				return false, true
-			case errors.Is(genErr, runway.ErrTemporaryUpstream):
-				// 上游临时错误 → 直接换下一个号。
-				return false, true
-			default:
-				// 参数级错误(如 prompt 未过审)→ 直接失败,不换号。
-				return false, false
-			}
-		}()
-		if done {
-			return data, videoURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// totalRefLimit is the aggregate reference-file cap across all media kinds.
-// Models with per-kind caps (max_reference_videos/audios) total them; legacy
-// models only have max_reference_images, so the sum degenerates correctly.
-func totalRefLimit(m *model.ModelConfig) int {
-	return m.MaxReferenceImages + m.MaxReferenceVideos + m.MaxReferenceAudios
-}
-
-// refKinds counts decoded refs by media class (image / video / audio) using the
-// same magic-byte detection the leonardo upload path relies on.
-func refKinds(refs [][]byte) (images, videos, audios int) {
-	for _, r := range refs {
-		switch detectMediaType(r) {
-		case "video":
-			videos++
-		case "audio":
-			audios++
-		default:
-			images++
-		}
-	}
-	return
-}
-
-// checkCustomRefCaps validates decoded refs against a custom model's per-kind
-// caps (Chinese messages mirror the leonardo spec errors).
-func checkCustomRefCaps(modelItem *model.ModelConfig, refs [][]byte) (images, videos, audios int, err error) {
-	images, videos, audios = refKinds(refs)
-	switch {
-	case videos > modelItem.MaxReferenceVideos:
-		err = fmt.Errorf("最多 %d 段视频参考", modelItem.MaxReferenceVideos)
-	case audios > modelItem.MaxReferenceAudios:
-		err = fmt.Errorf("最多 %d 段音频参考", modelItem.MaxReferenceAudios)
-	case images > modelItem.MaxReferenceImages:
-		err = fmt.Errorf("最多 %d 张图片参考", modelItem.MaxReferenceImages)
-	}
-	return
-}
-
-// customAccountServes reports whether a custom (upstream) account is usable for a
-// given model id: active, not dead, has a base_url, and its meta.models list (csv
-// of model ids it serves) contains the id. An empty models list serves ALL ids.
-func customAccountServes(item model.TokenAccount, modelID string) bool {
-	if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-		return false
-	}
-	if item.Meta == nil || strings.TrimSpace(stringValue(item.Meta["base_url"])) == "" {
-		return false
-	}
-	list := strings.TrimSpace(stringValue(item.Meta["models"]))
-	if list == "" {
-		return true
-	}
-	for _, m := range strings.Split(list, ",") {
-		if strings.EqualFold(strings.TrimSpace(m), modelID) {
-			return true
-		}
-	}
-	return false
-}
-
-// customActive returns the custom accounts that serve modelID, ordered by weight
-// (higher first; ties by id) so heavier upstreams are preferred.
-func (s *V1Service) customActive(ctx context.Context, modelID string) ([]model.TokenAccount, error) {
-	items, err := s.tokens.ListByPool(ctx, "custom")
-	if err != nil {
-		return nil, err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if customAccountServes(item, modelID) {
-			active = append(active, item)
-		}
-	}
-	s.rotateRoundRobin("custom", active) // weight priority + round-robin within ties
-	return active, nil
-}
-
-// accountConcurrency is the per-account simultaneous-job cap. Custom accounts use
-// their configured Concurrency (default 1); built-in pools use the system value.
-func accountConcurrency(item model.TokenAccount) int {
-	if item.Pool == "adobe" {
-		if isFreeAccount(item.Meta) {
-			return 1 // FREE 普号 / 降级号限制为 1 并发
-		}
-		if item.Concurrency > 0 {
-			return item.Concurrency
-		}
-		return 5 // VIP 会员号默认 5 并发
-	}
-	if item.Concurrency > 0 {
-		return item.Concurrency
-	}
-	if item.Pool == "grok" {
-		return grokConcurrencyPerAccount // 10
-	}
-	return 1
-}
-
-// effectiveProvider routes a model to the "custom" upstream whenever a custom
-// account declares it serves that model id (id-based override of the model's
-// native provider) — so an upstream can take over any model by matching its id.
-// Otherwise the model's own provider is used.
-func (s *V1Service) effectiveProvider(ctx context.Context, modelItem *model.ModelConfig) string {
-	if s.custom != nil {
-		if active, err := s.customActive(ctx, modelItem.ID); err == nil && len(active) > 0 {
-			return "custom"
-		}
-	}
-	return modelItem.Provider
-}
-
-// generateCustomImage forwards an image generation to an OpenAI-compatible
-// upstream. The upstream (custom account) is matched by model id; calls go direct
-// (no proxy). Billing uses the local model price.
-func (s *V1Service) generateCustomImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.custom == nil {
-		return nil, "", errors.New("custom client not configured")
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, totalRefLimit(modelItem)))
-	if err != nil {
-		return nil, "", err
-	}
-	_, vids, auds, err := checkCustomRefCaps(modelItem, refs)
-	if err != nil {
-		return nil, "", err
-	}
-	active, err := s.customActive(ctx, modelItem.ID)
-	if err != nil {
-		return nil, "", err
-	}
-	active = pinTestAccount(active, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	size := upstreamSize(aspectRatio, resolution)
-	quality := upstreamQuality(resolution)
-	var lastErr error
-	busy := 0
-	for _, token := range active {
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		var imgURL string
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			baseURL := stringValue(token.Meta["base_url"])
-			vivid := strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid")
-			if !vivid && (vids > 0 || auds > 0) {
-				// OpenAI-protocol upstreams only accept image refs — skip this
-				// account; another vivid-protocol account may still serve.
-				lastErr = errors.New("upstream does not accept video/audio refs")
-				return false, true
-			}
-			var d []byte
-			var u string
-			var genErr error
-			if vivid {
-				d, u, genErr = s.custom.GenerateVividImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), refs, !urlOnly)
-			} else {
-				d, u, genErr = s.custom.GenerateImage(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, quality, refs, !urlOnly)
-			}
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "custom", token.ID, map[string]any{
-					"last_used_at": time.Now(), "success_total": gorm.Expr("success_total + 1"), "fails": 0,
-				})
-				data = d
-				imgURL = u
-				return true, false
-			}
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, custom.ErrAuth):
-				s.markTokenFailure(ctx, "custom", token, "image", true, false)
-				return false, true
-			case errors.Is(genErr, custom.ErrQuotaExhausted):
-				s.markTokenFailure(ctx, "custom", token, "image", false, true)
-				return false, true
-			case errors.Is(genErr, custom.ErrTemporaryUpstream):
-				return false, true
-			default:
-				return false, false
-			}
-		}()
-		if done {
-			return data, imgURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// generateCustomVideo forwards a video generation to an OpenAI-compatible
-// (Sora-style) upstream, matched by model id. No proxy; local-price billing.
-func (s *V1Service) generateCustomVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio, resolution string, durationSeconds int, downloadResult bool) ([]byte, string, error) {
-	if s.custom == nil {
-		return nil, "", errors.New("custom client not configured")
-	}
-	active, err := s.customActive(ctx, modelItem.ID)
-	if err != nil {
-		return nil, "", err
-	}
-	active = pinTestAccount(active, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	size := upstreamVideoSize(aspectRatio, resolution)
-	// Optional reference files (images / videos / audios for vivid upstreams;
-	// images only for OpenAI-protocol ones).
-	frames, err := decodeReferenceImages(in.ReferenceImages, max(1, totalRefLimit(modelItem)))
-	if err != nil {
-		return nil, "", err
-	}
-	_, vids, auds, err := checkCustomRefCaps(modelItem, frames)
-	if err != nil {
-		return nil, "", err
-	}
-	var lastErr error
-	var videoURL string
-	busy := 0
-	for _, token := range active {
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			baseURL := stringValue(token.Meta["base_url"])
-			vivid := strings.EqualFold(stringValue(token.Meta["protocol"]), "vivid")
-			if !vivid && (vids > 0 || auds > 0) {
-				lastErr = errors.New("upstream does not accept video/audio refs")
-				return false, true
-			}
-			var d []byte
-			var url string
-			var genErr error
-			if vivid {
-				d, url, genErr = s.custom.GenerateVividVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, aspectRatio, vividQuality(resolution), durationSeconds, frames, downloadResult)
-			} else {
-				d, url, genErr = s.custom.GenerateVideo(ctx, baseURL, token.Value, modelItem.ID, in.Prompt, size, durationSeconds, frames, downloadResult)
-			}
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "custom", token.ID, map[string]any{
-					"last_used_at": time.Now(), "success_total": gorm.Expr("success_total + 1"), "fails": 0,
-				})
-				data = d
-				videoURL = url
-				return true, false
-			}
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, custom.ErrAuth):
-				s.markTokenFailure(ctx, "custom", token, "video", true, false)
-				return false, true
-			case errors.Is(genErr, custom.ErrQuotaExhausted):
-				s.markTokenFailure(ctx, "custom", token, "video", false, true)
-				return false, true
-			case errors.Is(genErr, custom.ErrTemporaryUpstream):
-				return false, true
-			default:
-				return false, false
-			}
-		}()
-		if done {
-			return data, videoURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// upstreamSize maps our (ratio, resolution) to an OpenAI-style "WxH" size string
-// for the upstream. The pixel base scales with the tier (1K/2K/4K); the ratio
-// sets the shape. Upstreams that key off ratio (our own /v1) read it fine.
-func upstreamSize(aspectRatio, resolution string) string {
-	base := 1024
-	switch strings.ToUpper(strings.TrimSpace(resolution)) {
-	case "2K":
-		base = 2048
-	case "4K":
-		base = 4096
-	}
-	w, h := 1, 1
-	parts := strings.Split(strings.ReplaceAll(strings.TrimSpace(aspectRatio), "x", ":"), ":")
-	if len(parts) == 2 {
-		if a, e1 := strconv.Atoi(strings.TrimSpace(parts[0])); e1 == nil && a > 0 {
-			if b, e2 := strconv.Atoi(strings.TrimSpace(parts[1])); e2 == nil && b > 0 {
-				w, h = a, b
-			}
-		}
-	}
-	if w >= h {
-		return fmt.Sprintf("%dx%d", base, base*h/w)
-	}
-	return fmt.Sprintf("%dx%d", base*w/h, base)
-}
-
-// upstreamVideoSize maps our (ratio, resolution) to a "WxH" size for video
-// upstreams. Video "Np" tiers set the SHORT edge in pixels (like grok:
-// 720p 1:1 → 720x720, 720p 16:9 → 1280x720); 2K/4K fall back to the
-// long-edge mapping shared with images.
-func upstreamVideoSize(aspectRatio, resolution string) string {
-	short := 0
-	switch res := strings.ToLower(strings.TrimSpace(resolution)); res {
-	case "540p":
-		short = 540
-	case "720p", "":
-		short = 720
-	case "1080p":
-		short = 1080
-	}
-	if short == 0 {
-		return upstreamSize(aspectRatio, resolution)
-	}
-	w, h := 1, 1
-	parts := strings.Split(strings.ReplaceAll(strings.TrimSpace(aspectRatio), "x", ":"), ":")
-	if len(parts) == 2 {
-		if a, e1 := strconv.Atoi(strings.TrimSpace(parts[0])); e1 == nil && a > 0 {
-			if b, e2 := strconv.Atoi(strings.TrimSpace(parts[1])); e2 == nil && b > 0 {
-				w, h = a, b
-			}
-		}
-	}
-	if w >= h {
-		return fmt.Sprintf("%dx%d", short*w/h, short)
-	}
-	return fmt.Sprintf("%dx%d", short, short*h/w)
-}
-
-// vividQuality maps a resolution tier to the quality string a Vivid-protocol
-// upstream expects. Vivid passes the tier through verbatim — "1K"/"2K"/"4K"
-// for images, "720p"/"1080p"/"540p" for videos — so don't re-map to the OpenAI
-// enum; only default a blank to "1K" (the field is required).
-func vividQuality(resolution string) string {
-	if q := strings.TrimSpace(resolution); q != "" {
-		return q
-	}
-	return "1K"
-}
-
-// upstreamQuality maps a resolution tier to the OpenAI quality enum.
-func upstreamQuality(resolution string) string {
-	switch strings.ToUpper(strings.TrimSpace(resolution)) {
-	case "2K":
-		return "medium"
-	case "4K":
-		return "high"
-	case "1K":
-		return "low"
-	}
-	return ""
-}
-
-// generateGrokVideo runs grok's imagine video pipeline across the grok pool,
-// via Grok Console (console.x.ai) — the same sso account, but the clean JSON
-// media API instead of the anti-bot gated grok.com website flow.
-// 额度是本地写死的（每号 图 5 / 视频 2）：视频计数归零的号不再调度，下单先预扣一个、
-// 失败退回（并发不超扣），图/视频都归零直接判死；auth / 额度错误同样判死换号
-// （grok sso 不续期，失效就失效）。
-func (s *V1Service) generateGrokVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio, resolution string, durationSeconds int, downloadResult bool) ([]byte, string, error) {
-	if s.grok == nil {
-		return nil, "", errors.New("grok client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.grok.SetProxy(proxy)
-		}
-	}
-
-	// Optional reference frames (image-to-video), up to the model's max.
-	frames, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
-	if err != nil {
-		return nil, "", err
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "grok")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		if rem, ok := jsonMapInt(item.Meta, repo.GrokVideoQuotaKey); ok && rem <= 0 {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("grok", active)
-
-	res := strings.TrimSpace(resolution)
-	if res == "" {
-		res = "720p"
-	}
-	var lastErr error
-	var videoURL string
-	busy := 0
-	for _, token := range active {
-		// Per-account concurrency gate (defaults to 1 for built-in pools).
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			// 下单先预扣本地额度（并发时不会超扣），失败再退回。
-			allowed, reserveErr := s.tokens.ReserveGrokQuota(ctx, token.ID, "video")
-			if reserveErr != nil || !allowed {
-				return false, true
-			}
-			d, meta, genErr := s.grok.GenerateConsoleVideo(ctx, token.Value, in.Prompt, aspectRatio, res, durationSeconds, frames, downloadResult)
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "grok", token.ID, map[string]any{
-					"last_used_at":  time.Now(),
-					"success_total": gorm.Expr("success_total + 1"),
-					"fails":         0,
-				})
-				// 图/视频都归零时账号直接判死。
-				_ = s.tokens.FinalizeGrokQuota(ctx, token.ID)
-				data = d
-				videoURL = strings.TrimSpace(stringValue(meta["video_url"]))
-				return true, false
-			}
-			_ = s.tokens.RefundGrokQuota(ctx, token.ID, "video")
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, grok.ErrAuth), errors.Is(genErr, grok.ErrQuotaExhausted):
-				// 失效 / 额度没了 → 当 401 判死(不续期),换号。
-				s.markTokenFailure(ctx, "grok", token, "video", true, false)
-				return false, true
-			case errors.Is(genErr, grok.ErrTemporaryUpstream):
-				return false, true
-			default:
-				return false, false
-			}
-		}()
-		if done {
-			return data, videoURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// generateGrokImage runs Grok Console's image pipeline (grok-imagine-image)
-// across the grok pool. 额度策略同视频路径，只是扣的是图片那份计数。带参考图时
-// （最多 3 张，内联在请求里）自动走 /images/edits 的 quality 上游 — 图生图。
-func (s *V1Service) generateGrokImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	// API-key (noStore) requests skip the download and return the upstream URL.
-	urlOnly := noStore
-	if s.grok == nil {
-		return nil, "", errors.New("grok client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.grok.SetProxy(proxy)
-		}
-	}
-
-	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
-	if err != nil {
-		return nil, "", err
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "grok")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		if rem, ok := jsonMapInt(item.Meta, repo.GrokImageQuotaKey); ok && rem <= 0 {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("grok", active)
-
-	var lastErr error
-	busy := 0
-	for _, token := range active {
-		// Per-account concurrency gate.
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		var artURL string
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			// 下单先预扣本地额度（并发时不会超扣），失败再退回。
-			allowed, reserveErr := s.tokens.ReserveGrokQuota(ctx, token.ID, "image")
-			if reserveErr != nil || !allowed {
-				return false, true
-			}
-			d, meta, genErr := s.grok.GenerateConsoleImage(ctx, token.Value, in.Prompt, aspectRatio, resolution, refs, urlOnly)
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "grok", token.ID, map[string]any{
-					"last_used_at":  time.Now(),
-					"success_total": gorm.Expr("success_total + 1"),
-					"fails":         0,
-				})
-				// 图/视频都归零时账号直接判死。
-				_ = s.tokens.FinalizeGrokQuota(ctx, token.ID)
-				data = d
-				artURL = strings.TrimSpace(stringValue(meta["image_url"]))
-				return true, false
-			}
-			_ = s.tokens.RefundGrokQuota(ctx, token.ID, "image")
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, grok.ErrAuth), errors.Is(genErr, grok.ErrQuotaExhausted):
-				// 失效 / 额度没了 → 当 401 判死(不续期),换号。
-				s.markTokenFailure(ctx, "grok", token, "image", true, false)
-				return false, true
-			case errors.Is(genErr, grok.ErrTemporaryUpstream):
-				return false, true
-			default:
-				return false, false
-			}
-		}()
-		if done {
-			return data, artURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// generateRunwayImage runs the Runway gemini image pipeline (Nano Banana Pro or
-// Nano Banana 2, selected by the model id) across the runway pool. Unlike the
-// video path it does NOT pre-deduct credits: it simply round-robins the pool and
-// generates. Per ops decision an out-of-credits account is treated like a dead
-// 401 — marked dead (status=disabled) and skipped — because Runway credits don't
-// refill daily, so a "quota" mark (which the maintenance loop would revive) is
-// wrong. Reference images (up to the model's max) are uploaded per attempt.
-// noStore url-only mode (API-key requests without DeAI): skip the artifact
-// download and return the upstream image URL directly, no bytes.
-func (s *V1Service) generateRunwayImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	// API-key (noStore) requests don't support DeAI (only the web drawing board
-	// does), so url-only mode == noStore — skip the download, return the URL.
-	urlOnly := noStore
-	if s.runway == nil {
-		return nil, "", errors.New("runway client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.runway.SetProxy(proxy)
-		}
-	}
-
-	refs, err := decodeReferenceImages(in.ReferenceImages, max(1, modelItem.MaxReferenceImages))
-	if err != nil {
-		return nil, "", err
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "runway")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		// No pre-deduct: skip only accounts we KNOW are out of credits
-		// (cached remaining <= 0); they're treated as dead. Unknown balance gets
-		// the benefit of the doubt — upstream rejects if it's truly empty.
-		if rem, ok := jsonMapInt(item.Meta, "cached_quota_remaining"); ok && rem <= 0 {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("runway", active)
-
-	imageSize := strings.TrimSpace(resolution)
-	if imageSize == "" {
-		imageSize = "1K"
-	}
-	var lastErr error
-	busy := 0
-	for _, token := range active {
-		// Per-account concurrency gate (defaults to 1 for built-in pools).
-		if !s.acctAcquire(ctx, token.ID, eventID, accountConcurrency(token)) {
-			busy++
-			continue
-		}
-		var data []byte
-		var artURL string
-		done, failover := func() (bool, bool) {
-			defer s.acctRelease(ctx, token.ID, eventID)
-			_ = s.events.SetAccount(ctx, eventID, token.ID, token.AccountEmail)
-			_ = s.tokens.TouchLastUsed(ctx, token.ID)
-			teamID := ""
-			if token.Meta != nil {
-				teamID = strings.TrimSpace(stringValue(token.Meta["team_id"]))
-			}
-			// downloadResult=false in url-only mode → skip the artifact download and
-			// just return meta["image_url"].
-			d, meta, genErr := s.runway.GenerateImage(ctx, token.Value, teamID, modelItem.ID, in.Prompt, aspectRatio, imageSize, refs, !urlOnly)
-			if genErr == nil {
-				_, _ = s.tokens.Update(ctx, "runway", token.ID, map[string]any{
-					"last_used_at":  time.Now(),
-					"success_total": gorm.Expr("success_total + 1"),
-					"fails":         0,
-				})
-				data = d
-				artURL = strings.TrimSpace(stringValue(meta["image_url"]))
-				return true, false
-			}
-			lastErr = genErr
-			switch {
-			case errors.Is(genErr, runway.ErrAuth), errors.Is(genErr, runway.ErrQuotaExhausted):
-				// 额度没了 / token 失效 → 当 401 判死(status=disabled, dead),换号。
-				s.markTokenFailure(ctx, "runway", token, "image", true, false)
-				return false, true
-			case errors.Is(genErr, runway.ErrTemporaryUpstream):
-				// 上游临时错误 → 直接换下一个号。
-				return false, true
-			default:
-				// 参数级错误(如 prompt 未过审)→ 直接失败,不换号。
-				return false, false
-			}
-		}()
-		if done {
-			return data, artURL, nil
-		}
-		if failover {
-			continue
-		}
-		return nil, "", lastErr
-	}
-	if lastErr == nil {
-		if busy > 0 {
-			return nil, "", ErrConcurrencyFull
-		}
-		lastErr = ErrProviderExecution
-	}
-	return nil, "", lastErr
-}
-
-// reconcileChatGPTQuota re-reads OpenAI's image_gen remaining right after a
-// successful generation and writes it back (negative / unknown clamp to 0),
-// flipping the account to 限额 when it hits 0 — so accounts limit one-by-one as
-// they're used, not all at once on a later batch probe. Runs while the
-// per-account concurrency gate is still held. Best-effort (never fails the render).
-func (s *V1Service) reconcileChatGPTQuota(ctx context.Context, tokenID, accessToken string) {
-	if s.chatgpt == nil {
-		return
-	}
-	data, err := s.chatgpt.FetchImageQuota(ctx, accessToken)
-	if err != nil || boolValueWithDefault(data["auth_failed"], false) {
-		return
-	}
-	rem, exhausted := chatgptRemaining(data)
-	item, err := s.tokens.Get(ctx, "chatgpt", tokenID)
-	if err != nil {
-		return
-	}
-	meta := cloneJSONMap(item.Meta)
-	meta["cached_quota_remaining"] = rem
-	meta["cached_quota_at"] = int(time.Now().Unix())
-	patch := map[string]any{"meta": meta}
-	if reset := strings.TrimSpace(stringValue(data["reset_after"])); reset != "" {
-		patch["cached_quota_reset_after"] = reset
-	} else if strings.TrimSpace(item.CachedQuotaResetAfter) == "" {
-		patch["cached_quota_reset_after"] = leonardoResetAfter("")
-	}
-	if exhausted && item.Status == "active" {
-		patch["status"] = "quota"
-	}
-	_, _ = s.tokens.Update(ctx, "chatgpt", tokenID, patch)
-}
-
-// chatgpt image URLs are auth-gated (files.oaiusercontent.com — a plain GET
-// 403s), so url-only mode returns the URL for the caller to proxy via
-// OpenImageContent using the generating account's token.
-func (s *V1Service) generateChatGPTImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.chatgpt == nil {
-		return nil, "", errors.New("chatgpt client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.chatgpt.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "chatgpt")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status == "active" && !item.Dead && strings.TrimSpace(item.Value) != "" {
-			active = append(active, item)
-		}
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("chatgpt", active)
-
-	refLimit := modelItem.MaxReferenceImages
-	if refLimit <= 0 {
-		refLimit = 1
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, refLimit)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// Round-robin order; on a transient upstream error (e.g. "image generation
-	// did not start (no async marker)") FAIL OVER to the next account
-	// (tempFailover=true, capped at maxTempDeadAccounts) — never mark the
-	// account dead. Auth/quota fail over immediately (see runPoolWithFailover).
-	var imageURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "chatgpt", active, "image", func(token model.TokenAccount) ([]byte, error) {
-		d, meta, genErr := s.chatgpt.GenerateImage(ctx, token.Value, in.Prompt, modelItem.ID, aspectRatio, resolution, refs, !urlOnly)
-		if genErr == nil {
-			imageURL = strings.TrimSpace(stringValue(meta["image_url"]))
-			// Sync the real OpenAI quota BEFORE the concurrency gate releases, so the
-			// freshly-decremented remaining (and 限额 flip at 0) gates the next pick.
-			s.reconcileChatGPTQuota(ctx, token.ID, token.Value)
-		}
-		return d, genErr
-	}, func(e error) (bool, bool, bool, bool) {
-		return errors.Is(e, chatgpt.ErrAuth), errors.Is(e, chatgpt.ErrQuotaExhausted), errors.Is(e, chatgpt.ErrTemporaryUpstream), false
-	}, nil, true) // chatgpt token IS the credential — no cookie to refresh; switch accounts on transient errors
-	return data, imageURL, err
-}
-
-// leonardoResetAfter returns when a Leonardo account's daily free tokens renew.
-// Leonardo resets at 08:00 Beijing == 00:00 UTC, so when the upstream gives no
-// explicit renewal time we deterministically use the next UTC midnight — this is
-// filled at import so 恢复时间 is always populated, not left blank.
-func leonardoResetAfter(availableUntil string) string {
-	if v := strings.TrimSpace(availableUntil); v != "" {
-		return v
-	}
-	return time.Unix((time.Now().Unix()/86400+1)*86400, 0).UTC().Format(time.RFC3339)
-}
-
-// leonardoDimensions maps the catalog's resolution+ratio to Leonardo pixel sizes.
-func leonardoDimensions(resolution, aspectRatio string) (int, int) {
-	res := strings.ToUpper(strings.TrimSpace(resolution))
-	ar := strings.TrimSpace(aspectRatio)
-	if res == "4K" {
-		switch ar {
-		case "2:3":
-			return 2000, 3000
-		case "16:9":
-			return 4096, 2304
-		case "4:3":
-			return 4096, 3072
-		case "4:5":
-			return 3264, 4080
-		case "9:16":
-			return 2160, 3840
-		case "2:1":
-			return 4096, 2048
-		default: // 1:1
-			return 4096, 4096
-		}
-	}
-	switch ar { // 2K (default)
-	case "2:3":
-		return 1664, 2496
-	case "16:9":
-		return 2560, 1440
-	case "4:3":
-		return 2304, 1728
-	case "4:5":
-		return 2432, 3040
-	case "9:16":
-		return 1440, 2560
-	case "2:1":
-		return 3232, 1616
-	default: // 1:1
-		return 2048, 2048
-	}
-}
-
-func (s *V1Service) generateLeonardoImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.leonardo == nil {
-		return nil, "", errors.New("leonardo client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.leonardo.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "leonardo")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		// Skip accounts under the per-generation floor (treated as 限额). Unknown
-		// balance gets the benefit of the doubt (upstream rejects if truly empty).
-		if rem, ok := jsonMapInt(item.Meta, "cached_quota_remaining"); ok && rem < leonardoMinCredits {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("leonardo", active)
-
-	width, height := leonardoDimensions(resolution, aspectRatio)
-	// The catalog model id is the upstream Leonardo model name (e.g. seedream-4.5).
-	upstreamModel := strings.TrimSpace(modelItem.ID)
-
-	// Optional image-to-image: decode the reference image once up front (Leonardo
-	// seedream takes at most one).
-	refLimit := modelItem.MaxReferenceImages
-	if refLimit <= 0 {
-		refLimit = 1
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, refLimit)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// token.Value is the cookie; GenerateImage mints a fresh JWT each attempt (and
-	// re-mints it internally when the bearer is rejected), so an auth failure means
-	// the cookie itself no longer authenticates — no refresher (nil).
-	var imageURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "leonardo", active, "image", func(token model.TokenAccount) ([]byte, error) {
-		// Atomically pre-deduct the per-generation cost so concurrent picks of the
-		// same near-empty account can't over-commit it. A known-insufficient
-		// balance surfaces as quota → the driver fails over to the next account.
-		allowed, deducted, rerr := s.tokens.ReserveQuota(ctx, "leonardo", token.ID, leonardoMinCredits)
-		if rerr != nil {
-			return nil, fmt.Errorf("%w: reserve: %v", leonardo.ErrTemporaryUpstream, rerr)
-		}
-		if !allowed {
-			return nil, leonardo.ErrQuotaExhausted
-		}
-		data, meta, genErr := s.leonardo.GenerateImage(ctx, token.Value, upstreamModel, in.Prompt, width, height, nil, refs, !urlOnly)
-		cookie := s.leonardoPersistCookie(ctx, token.ID, token.Value)
-		if genErr != nil {
-			// Release the hold so a failed render doesn't burn credits.
-			if deducted {
-				_ = s.tokens.RefundQuota(ctx, "leonardo", token.ID, leonardoMinCredits)
-			}
-			return nil, genErr
-		}
-		imageURL = strings.TrimSpace(stringValue(meta["image_url"]))
-		// Success → overwrite the held value with the REAL upstream balance and
-		// sink to 限额 if below the floor (best-effort; never fails a done render).
-		s.reconcileLeonardoCredits(ctx, token.ID, cookie)
-		return data, nil
-	}, func(e error) (bool, bool, bool, bool) {
-		return errors.Is(e, leonardo.ErrAuth), errors.Is(e, leonardo.ErrQuotaExhausted), errors.Is(e, leonardo.ErrTemporaryUpstream), false
-	}, nil, true)
-	return data, imageURL, err
-}
-
-// leonardoPrivateSuffix 标记目录里 Leonardo 私有视频模型(public:false 生成)的
-// 后缀,上游 slug 就是去掉它之后的 id。
-const leonardoPrivateSuffix = "-不卡人脸"
-
-// leonardoVideoSpec 描述一个 Leonardo 视频模型的上游 slug、输出尺寸和参考资产
-// 限制(各类上限 + 时长约束),校验在扣费前跑,免得非法参考白扣积分。
-type leonardoVideoSpec struct {
-	upstream string
-	// long/short 是长边/短边像素,按比例组合成 16:9 或 9:16。
-	long      int
-	short     int
-	maxImages int
-	maxAudios int
-	maxVideos int
-	// 视频参考单个时长区间与总时长上限(秒),0 表示不限。
-	videoMinSeconds   float64
-	videoMaxSeconds   float64
-	videoTotalSeconds float64
-	// 音频参考总时长上限(秒),0 表示不限。
-	audioTotalSeconds float64
-}
-
-var leonardoVideoSpecs = map[string]leonardoVideoSpec{
-	"seedance-2.0" + leonardoPrivateSuffix: {
-		upstream: "seedance-2.0", long: 1280, short: 720,
-		maxImages: 4, maxAudios: 1, maxVideos: 3,
-		videoMinSeconds: 3, videoMaxSeconds: 10, videoTotalSeconds: 15,
-	},
-	"seedance-2.0-fast" + leonardoPrivateSuffix: {
-		upstream: "seedance-2.0-fast", long: 1280, short: 720,
-		maxImages: 4, maxAudios: 1, maxVideos: 3,
-		videoMinSeconds: 3, videoMaxSeconds: 10, videoTotalSeconds: 15,
-	},
-	"minimax-h3": {
-		upstream: "hailuo-03", long: 2560, short: 1440,
-		maxImages: 5, maxAudios: 3, maxVideos: 0,
-		audioTotalSeconds: 15,
-	},
-}
-
-func leonardoVideoSpecOf(modelID string) leonardoVideoSpec {
-	id := strings.TrimSpace(modelID)
-	if spec, ok := leonardoVideoSpecs[id]; ok {
-		return spec
-	}
-	// 目录里新增的同族模型退化成 seedance 规格,上游 slug 取去掉私有后缀的 id。
-	return leonardoVideoSpec{
-		upstream: strings.TrimSuffix(id, leonardoPrivateSuffix), long: 1280, short: 720,
-		maxImages: 4, maxAudios: 1, maxVideos: 3,
-		videoMinSeconds: 3, videoMaxSeconds: 10, videoTotalSeconds: 15,
-	}
-}
-
-// dimensions 按比例返回像素尺寸,只支持 16:9 / 9:16。
-func (spec leonardoVideoSpec) dimensions(aspectRatio string) (int, int) {
-	if strings.TrimSpace(aspectRatio) == "9:16" {
-		return spec.short, spec.long
-	}
-	return spec.long, spec.short
-}
-
-// classifyLeonardoVideoRefs decodes the mixed reference payload (画图台把图片/
-// 音频/视频一起塞进 reference_images)并按类型分流,同时按模型规格校验各类上限和
-// 时长。
-func classifyLeonardoVideoRefs(inputs []string, spec leonardoVideoSpec) (leonardo.VideoAssets, error) {
-	var refs leonardo.VideoAssets
-	decoded, err := decodeReferenceImages(inputs, spec.maxImages+spec.maxAudios+spec.maxVideos)
-	if err != nil {
-		return refs, err
-	}
-	var videoTotal, audioTotal float64
-	for _, ref := range decoded {
-		switch detectMediaType(ref) {
-		case "video":
-			if spec.maxVideos == 0 {
-				return refs, errors.New("该模型不支持视频参考")
-			}
-			secs := leonardo.MediaDurationSeconds(ref)
-			if secs <= 0 {
-				return refs, errors.New("无法解析视频参考的时长,请换一个 mp4")
-			}
-			if secs < spec.videoMinSeconds || secs > spec.videoMaxSeconds {
-				return refs, fmt.Errorf("单个视频参考需 %.0f-%.0f 秒,当前 %.1f 秒",
-					spec.videoMinSeconds, spec.videoMaxSeconds, secs)
-			}
-			videoTotal += secs
-			if spec.videoTotalSeconds > 0 && videoTotal >= spec.videoTotalSeconds {
-				return refs, fmt.Errorf("视频参考总时长 %.1f 秒,需短于 %.0f 秒",
-					videoTotal, spec.videoTotalSeconds)
-			}
-			refs.Videos = append(refs.Videos, ref)
-		case "audio":
-			if spec.maxAudios == 0 {
-				return refs, errors.New("该模型不支持音频参考")
-			}
-			secs := leonardo.MediaDurationSeconds(ref)
-			if spec.audioTotalSeconds > 0 {
-				if secs <= 0 {
-					return refs, errors.New("无法解析音频参考的时长,请换一个 mp3")
-				}
-				audioTotal += secs
-				if audioTotal > spec.audioTotalSeconds {
-					return refs, fmt.Errorf("音频参考总时长 %.1f 秒,最多 %.0f 秒",
-						audioTotal, spec.audioTotalSeconds)
-				}
-			}
-			refs.Audios = append(refs.Audios, ref)
-		default:
-			refs.Images = append(refs.Images, ref)
-		}
-	}
-	switch {
-	case len(refs.Images) > spec.maxImages:
-		return refs, fmt.Errorf("最多 %d 张参考图", spec.maxImages)
-	case len(refs.Audios) > spec.maxAudios:
-		return refs, fmt.Errorf("最多 %d 段音频参考", spec.maxAudios)
-	case len(refs.Videos) > spec.maxVideos:
-		return refs, fmt.Errorf("最多 %d 段视频参考", spec.maxVideos)
-	}
-	return refs, nil
-}
-
-// generateLeonardoVideo renders a Leonardo video across the leonardo pool. Mirrors
-// generateLeonardoImage (cookie → JWT, quota reserve, cookie 轮换持久化), only the
-// upstream call differs: 私有生成 + 三类参考资产 + motionMP4URL。
-func (s *V1Service) generateLeonardoVideo(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1VideoRequest, aspectRatio string, durationSeconds int, downloadResult bool) ([]byte, string, error) {
-	if s.leonardo == nil {
-		return nil, "", errors.New("leonardo client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.leonardo.SetProxy(proxy)
-		}
-	}
-	spec := leonardoVideoSpecOf(modelItem.ID)
-	refs, err := classifyLeonardoVideoRefs(in.ReferenceImages, spec)
-	if err != nil {
-		return nil, "", err
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "leonardo")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		if item.Status != "active" || item.Dead || strings.TrimSpace(item.Value) == "" {
-			continue
-		}
-		if rem, ok := jsonMapInt(item.Meta, "cached_quota_remaining"); ok && rem < leonardoMinCredits {
-			continue
-		}
-		active = append(active, item)
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("leonardo", active)
-
-	width, height := spec.dimensions(aspectRatio)
-
-	var videoURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "leonardo", active, "video", func(token model.TokenAccount) ([]byte, error) {
-		allowed, deducted, rerr := s.tokens.ReserveQuota(ctx, "leonardo", token.ID, leonardoMinCredits)
-		if rerr != nil {
-			return nil, fmt.Errorf("%w: reserve: %v", leonardo.ErrTemporaryUpstream, rerr)
-		}
-		if !allowed {
-			return nil, leonardo.ErrQuotaExhausted
-		}
-		data, meta, genErr := s.leonardo.GenerateVideo(ctx, token.Value, spec.upstream, in.Prompt, width, height, durationSeconds, refs, downloadResult)
-		cookie := s.leonardoPersistCookie(ctx, token.ID, token.Value)
-		if genErr != nil {
-			if deducted {
-				_ = s.tokens.RefundQuota(ctx, "leonardo", token.ID, leonardoMinCredits)
-			}
-			return nil, genErr
-		}
-		videoURL = strings.TrimSpace(stringValue(meta["video_url"]))
-		s.reconcileLeonardoCredits(ctx, token.ID, cookie)
-		return data, nil
-	}, func(e error) (bool, bool, bool, bool) {
-		return errors.Is(e, leonardo.ErrAuth), errors.Is(e, leonardo.ErrQuotaExhausted), errors.Is(e, leonardo.ErrTemporaryUpstream), false
-	}, nil, true)
-	return data, videoURL, err
-}
-
-// leonardoPersistCookie writes back the account cookie when Leonardo rotated its
-// better-auth session_data cache (that cache is what actually authenticates
-// get-session, so a stale copy would eventually look like a dead account).
-// Returns the value now stored.
-func (s *V1Service) leonardoPersistCookie(ctx context.Context, tokenID, cookie string) string {
-	if s.leonardo == nil {
-		return cookie
-	}
-	fresh, ok := s.leonardo.RotatedCookie(cookie)
-	if !ok || strings.TrimSpace(fresh) == "" {
-		return cookie
-	}
-	_, _ = s.tokens.SwapValue(ctx, "leonardo", tokenID, cookie, fresh)
-	return fresh
-}
-
-// reconcileLeonardoCredits re-fetches an account's real token balance after a
-// render and writes it back, flipping the account to 限额 when below the per-gen
-// floor. Stores the daily renewal time so RecoverQuota can auto-recover it.
-func (s *V1Service) reconcileLeonardoCredits(ctx context.Context, tokenID, cookie string) {
-	if s.leonardo == nil {
-		return
-	}
-	data, err := s.leonardo.FetchCreditsBalance(ctx, cookie)
-	s.leonardoPersistCookie(ctx, tokenID, cookie)
-	if err != nil {
-		return
-	}
-	rem, ok := data["remaining"].(int)
-	if !ok {
-		return
-	}
-	item, err := s.tokens.Get(ctx, "leonardo", tokenID)
-	if err != nil {
-		return
-	}
-	meta := cloneJSONMap(item.Meta)
-	meta["cached_quota_remaining"] = rem
-	meta["cached_quota_at"] = int(time.Now().Unix())
-	patch := map[string]any{"meta": meta}
-	patch["cached_quota_reset_after"] = leonardoResetAfter(stringValue(data["available_until"]))
-	if rem < leonardoMinCredits && item.Status == "active" {
-		patch["status"] = "quota"
-	}
-	_, _ = s.tokens.Update(ctx, "leonardo", tokenID, patch)
-}
-
-// kreaRefreshAndPersist ensures the account's Krea cookie has a valid access token
-// (refreshing via the rotating refresh_token when expired) and persists the new
-// cookie — the refresh_token is single-use, so the rotated value MUST be saved.
-func kreaRefreshAndPersist(ctx context.Context, client *krea.Client, tokens *repo.TokenRepository, tokenID, cookie string) (string, error) {
-	if client == nil {
-		return cookie, nil
-	}
-	fresh, changed, err := client.RefreshIfNeeded(ctx, cookie)
-	if err != nil {
-		return "", err
-	}
-	if changed && tokenID != "" {
-		_, _ = tokens.Update(ctx, "krea", tokenID, map[string]any{"value": fresh})
-	}
-	return fresh, nil
-}
-
-// kreaDimensions maps the catalog's resolution+ratio to Krea pixel sizes.
-func kreaDimensions(resolution, aspectRatio string) (int, int) {
-	res := strings.ToUpper(strings.TrimSpace(resolution))
-	ar := strings.TrimSpace(aspectRatio)
-	if res == "2K" {
-		switch ar {
-		case "4:3":
-			return 2048, 1536
-		case "3:4":
-			return 1536, 2048
-		case "16:9":
-			return 2048, 1152
-		case "9:16":
-			return 1152, 2048
-		default: // 1:1
-			return 2048, 2048
-		}
-	}
-	switch ar { // 1K (default)
-	case "4:3":
-		return 1024, 768
-	case "3:4":
-		return 768, 1024
-	case "16:9":
-		return 1024, 576
-	case "9:16":
-		return 576, 1024
-	default: // 1:1
-		return 1024, 1024
-	}
-}
-
-func (s *V1Service) generateKreaImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.krea == nil {
-		return nil, "", errors.New("krea client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.krea.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "krea")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		// No numeric floor — Krea signals 限额 with a 402 at generation time, which
-		// the failover driver turns into mark-quota + next account.
-		if item.Status == "active" && !item.Dead && strings.TrimSpace(item.Value) != "" {
-			active = append(active, item)
-		}
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("krea", active)
-
-	width, height := kreaDimensions(resolution, aspectRatio)
-	refLimit := modelItem.MaxReferenceImages
-	if refLimit <= 0 {
-		refLimit = 1
-	}
-	refs, err := decodeReferenceImages(in.ReferenceImages, refLimit)
-	if err != nil {
-		return nil, "", err
-	}
-
-	var imageURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "krea", active, "image", func(token model.TokenAccount) ([]byte, error) {
-		// Refresh the (rotating) Supabase token if expired and persist the new
-		// cookie, then generate with the fresh cookie.
-		cookie, rerr := kreaRefreshAndPersist(ctx, s.krea, s.tokens, token.ID, token.Value)
-		if rerr != nil {
-			return nil, rerr
-		}
-		data, meta, genErr := s.krea.GenerateImage(ctx, cookie, in.Prompt, width, height, refs, !urlOnly)
-		if genErr == nil {
-			imageURL = strings.TrimSpace(stringValue(meta["image_url"]))
-		}
-		return data, genErr
-	}, func(e error) (bool, bool, bool, bool) {
-		return errors.Is(e, krea.ErrAuth), errors.Is(e, krea.ErrQuotaExhausted), errors.Is(e, krea.ErrTemporaryUpstream), false
-	}, nil, true)
-	return data, imageURL, err
-}
-
-// imagineRefreshAndPersist ensures the account's Imagine credential has a valid
-// access token (refreshing via the rotating refreshToken when expired) and
-// persists the new credential — both tokens rotate, so the value MUST be saved.
-func imagineRefreshAndPersist(ctx context.Context, client *imagine.Client, tokens *repo.TokenRepository, tokenID, cred string) (string, error) {
-	if client == nil {
-		return cred, nil
-	}
-	fresh, changed, err := client.RefreshIfNeeded(ctx, cred)
-	if err != nil {
-		return "", err
-	}
-	if changed && tokenID != "" {
-		_, _ = tokens.Update(ctx, "imagine", tokenID, map[string]any{"value": fresh})
-	}
-	return fresh, nil
-}
-
-// imagineStyle maps the catalog model id to its upstream style_id + resolution.
-func imagineStyle(modelID string) (int, string) {
-	if strings.TrimSpace(modelID) == "imagine-1.5pro" {
-		return 41004, "4K"
-	}
-	return 41001, "2K"
-}
-
-func (s *V1Service) generateImagineImage(ctx context.Context, eventID string, modelItem *model.ModelConfig, in V1ImageRequest, aspectRatio, resolution string, noStore bool) ([]byte, string, error) {
-	urlOnly := noStore
-	if s.imagine == nil {
-		return nil, "", errors.New("imagine client not configured")
-	}
-	if s.settings != nil {
-		if proxy, err := s.settings.GetValue(ctx, "proxy.url"); err == nil {
-			s.imagine.SetProxy(proxy)
-		}
-	}
-
-	items, err := s.tokens.ListByPool(ctx, "imagine")
-	if err != nil {
-		return nil, "", err
-	}
-	var active []model.TokenAccount
-	for _, item := range items {
-		// No numeric floor — Imagine signals 限额 with a 402 at generation time,
-		// which the failover driver turns into mark-quota + next account.
-		if item.Status == "active" && !item.Dead && strings.TrimSpace(item.Value) != "" {
-			active = append(active, item)
-		}
-	}
-	active = pinTestAccount(items, active, in.AccountID)
-	if len(active) == 0 {
-		return nil, "", ErrNoProviderAccount
-	}
-	s.rotateRoundRobin("imagine", active)
-
-	// Each model supports exactly one resolution (2K / 4K) — force it per model.
-	styleID, res := imagineStyle(modelItem.ID)
-
-	var imageURL string
-	data, err := s.runPoolWithFailover(ctx, eventID, "imagine", active, "image", func(token model.TokenAccount) ([]byte, error) {
-		// Refresh the (rotating) access token if expired and persist the new
-		// credential, then generate with the fresh token.
-		cred, rerr := imagineRefreshAndPersist(ctx, s.imagine, s.tokens, token.ID, token.Value)
-		if rerr != nil {
-			return nil, rerr
-		}
-		data, meta, genErr := s.imagine.GenerateImage(ctx, cred, styleID, res, aspectRatio, in.Prompt, !urlOnly)
-		if genErr != nil {
-			return nil, genErr
-		}
-		imageURL = strings.TrimSpace(stringValue(meta["image_url"]))
-		return data, nil
-	}, func(e error) (bool, bool, bool, bool) {
-		return errors.Is(e, imagine.ErrAuth), errors.Is(e, imagine.ErrQuotaExhausted), errors.Is(e, imagine.ErrTemporaryUpstream), false
-	}, nil, true)
-	return data, imageURL, err
 }
 
 func (s *V1Service) refundIfNeeded(ctx context.Context, principal *APIPrincipal, eventID string, price float64) error {
@@ -3509,11 +1486,76 @@ func (s *V1Service) maybeGrantInviteReward(ctx context.Context, principal *APIPr
 	return err
 }
 
-// ensureReferenceSizes rejects any reference image over the byte cap BEFORE
-// charging, so an oversized image fails fast (no charge, no pending-log churn)
-// across every entry path — session /generate, API-key /v1, and admin /test.
-// decodeReferenceImages re-checks at decode time as a backstop; this mirrors its
-// base64 length pre-check (decoded ≈ len(b64)*3/4).
+func (s *V1Service) userDir(principal *APIPrincipal) string {
+	if principal == nil {
+		return "anon"
+	}
+	return OwnerDir(principal.User)
+}
+
+// OwnerDir is the storage directory (= /images/<owner>/ segment) a user's outputs
+// live under: sanitized name → sanitized email-local → id → "anon".
+func OwnerDir(user *model.User) string {
+	if user != nil {
+		if d := sanitizeOwnerName(user.Name); d != "" {
+			return d
+		}
+		if d := sanitizeOwnerName(strings.Split(user.Email, "@")[0]); d != "" {
+			return d
+		}
+		if user.ID != "" {
+			return user.ID
+		}
+	}
+	return "anon"
+}
+
+// allocateOutput builds the object key (= relative path, user-scoped) and the
+// /images proxy URL. Nothing is written here — the caller uploads the bytes.
+func (s *V1Service) allocateOutput(principal *APIPrincipal, ext, baseURL string) (string, string) {
+	userDir := s.userDir(principal)
+	filename := time.Now().Format("20060102-150405") + "-" + randomUpper(8) + "." + strings.TrimPrefix(ext, ".")
+	relativePath := filepath.ToSlash(filepath.Join(userDir, filename))
+	if base := strings.TrimRight(strings.TrimSpace(baseURL), "/"); base != "" {
+		return base + "/images/" + relativePath, relativePath
+	}
+	return "/images/" + relativePath, relativePath
+}
+
+func (s *V1Service) logPendingEvent(ctx context.Context, kind string, modelItem *model.ModelConfig, principal *APIPrincipal, prompt, ratio, resolution, duration string, refs int, cost float64, file, source string, refFiles []string, deai bool) (string, error) {
+	event := &model.EventLog{
+		ID:         "evt-" + randomUpper(12),
+		TS:         time.Now(),
+		Kind:       kind,
+		Status:     "pending",
+		Model:      modelItem.ID,
+		Provider:   modelItem.Provider,
+		Prompt:     prompt,
+		Ratio:      ratio,
+		Resolution: resolution,
+		Duration:   duration,
+		Refs:       refs,
+		DeAI:       deai,
+		Source:     source,
+		Cost:       cost,
+		File:       file,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if len(refFiles) > 0 {
+		event.RefFiles = jsonArray(refFiles)
+	}
+	if principal != nil && principal.User != nil {
+		event.UserID = principal.User.ID
+	}
+	if err := s.events.Create(ctx, event); err != nil {
+		return "", err
+	}
+	return event.ID, nil
+}
+
+// ===== small helpers =====
+
 func ensureReferenceSizes(inputs []string) error {
 	for _, raw := range inputs {
 		v := strings.TrimSpace(raw)
@@ -3540,10 +1582,7 @@ func decodeReferenceImages(inputs []string, limit int) ([][]byte, error) {
 		if v == "" {
 			continue
 		}
-		// Only raw base64 is accepted (no "data:...;base64," URL prefix). A data
-		// URL now fails to decode rather than being silently stripped.
-		// decoded size ≈ len(b64) * 3 / 4 — reject oversized payloads up front,
-		// before allocating the decoded buffer.
+		// Only raw base64 is accepted (no "data:...;base64," URL prefix).
 		if (len(v)*3)/4 > maxReferenceImageBytes {
 			return nil, ErrReferenceTooLarge
 		}
@@ -3565,38 +1604,16 @@ func decodeReferenceImages(inputs []string, limit int) ([][]byte, error) {
 	return out, nil
 }
 
-// detectMediaType inspects the first bytes of a decoded reference to classify it
-// as "video", "audio", or "image". Used to route refs to the correct upload MIME
-// and the correct referenceBlobs usage for seedance.
-func detectMediaType(data []byte) string {
-	n := len(data)
-	if n < 8 {
-		return "image"
+// totalRefLimit is the combined per-kind cap for a model.
+func totalRefLimit(item *model.ModelConfig) int {
+	if item == nil {
+		return 0
 	}
-	// MP4 / ISOBMFF
-	if n >= 12 && string(data[4:8]) == "ftyp" {
-		return "video"
+	n := item.MaxReferenceImages + item.MaxReferenceVideos + item.MaxReferenceAudios
+	if item.ImageToImage && n == 0 {
+		n = 1
 	}
-	// WebM
-	if n >= 4 && data[0] == 0x1A && data[1] == 0x45 && data[2] == 0xDF && data[3] == 0xA3 {
-		return "video"
-	}
-	// MP3: ID3 header or sync word 0xFFFx
-	if n >= 3 && data[0] == 0x49 && data[1] == 0x44 && data[2] == 0x33 {
-		return "audio"
-	}
-	if n >= 2 && data[0] == 0xFF && (data[1]&0xE0) == 0xE0 {
-		return "audio"
-	}
-	// WAV
-	if n >= 4 && data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 {
-		return "audio"
-	}
-	// OGG
-	if n >= 4 && data[0] == 0x4F && data[1] == 0x67 && data[2] == 0x67 && data[3] == 0x53 {
-		return "audio"
-	}
-	return "image"
+	return n
 }
 
 func parseImageSize(size, aspectRatio, resolution string) (string, string) {
@@ -3635,8 +1652,6 @@ func parseImageSize(size, aspectRatio, resolution string) (string, string) {
 }
 
 // snapRatio returns the entry in supported closest in value to ar ("W:H").
-// ar is returned as-is when it's already supported, unparsable, or the model
-// has no ratio list.
 func snapRatio(ar string, supported []string) string {
 	parse := func(s string) (float64, bool) {
 		var w, h int
@@ -3673,11 +1688,6 @@ func guessRatio(w, h int) string {
 		W int
 		H int
 	}
-	// The 17 ratios actually used across our models. Must stay in sync with the
-	// custom-model picker (CustomModelModal RATIO_OPTS) and the docs 对照表, so a
-	// /v1 `size` maps to exactly one of them. 9:21 is intentionally absent —
-	// no image provider accepts it (Runway 400s on it). snapRatio then clamps
-	// the guess to the target model's own supported list.
 	candidates := []candidate{
 		{1, 1},
 		{5, 4}, {4, 3}, {3, 2}, {16, 9}, {2, 1}, {21, 9}, {3, 1}, {4, 1}, {8, 1}, // 横
@@ -3695,11 +1705,8 @@ func guessRatio(w, h int) string {
 	return fmt.Sprintf("%d:%d", best.W, best.H)
 }
 
-// firstPricedResolution returns the model's lowest priced image tier (1K/2K/4K
-// order), or "" if none is priced. Used to rescue a request whose resolution
-// the model doesn't support.
 // deaiEnabled reports whether the 去AI特征 feature is switched on in system
-// settings (default off). When off, an incoming deai flag is ignored entirely.
+// settings (default off).
 func (s *V1Service) deaiEnabled(ctx context.Context) bool {
 	if s.settings == nil {
 		return false
@@ -3744,59 +1751,22 @@ func firstPricedResolution(item *model.ModelConfig) string {
 			return r
 		}
 	}
+	// Fall back to whatever priced tier exists (video-style labels like 720p).
+	for _, r := range repo.JSONStrings(item.Resolutions) {
+		if _, ok := jsonMapFloat(item.Prices, r); ok {
+			return r
+		}
+	}
 	return ""
 }
 
-// resolutionForQuality maps OpenAI's `quality` to one of the model's priced
-// resolution tiers: low→1K, medium→2K, high→4K, auto/blank→the model's lowest
-// priced tier. The desired tier is clamped to the nearest tier the model
-// actually prices (e.g. seedream is 2K/4K only: low→2K, high→4K).
-func resolutionForQuality(item *model.ModelConfig, quality string) string {
-	order := []string{"1K", "2K", "4K"}
-	var priced []string
-	for _, r := range order {
-		if _, ok := jsonMapFloat(item.Prices, r); ok {
-			priced = append(priced, r)
-		}
-	}
-	if len(priced) == 0 {
-		return firstPricedResolution(item)
-	}
-	rank := map[string]int{"low": 0, "medium": 1, "high": 2}
-	want, ok := rank[strings.ToLower(strings.TrimSpace(quality))]
-	if !ok {
-		return priced[0] // auto / unknown → model default (lowest priced)
-	}
-	idxOf := func(r string) int {
-		for i, v := range order {
-			if v == r {
-				return i
-			}
-		}
-		return 0
-	}
-	best, bestDist := priced[0], 99
-	for _, r := range priced {
-		d := idxOf(r) - want
-		if d < 0 {
-			d = -d
-		}
-		if d < bestDist {
-			best, bestDist = r, d
-		}
-	}
-	return best
-}
-
 // modelPrice returns the charge for (kind, resolution, duration). The set of
-// supported tiers is always driven by the NORMAL prices; `agent` only overrides
-// the amount with the agent price when one is set for that tier (else it falls
-// back to the normal price).
+// supported tiers is driven by the NORMAL prices; `agent` only overrides the
+// amount with the agent price when one is set for that tier.
 func modelPrice(item *model.ModelConfig, kind, resolution, duration string, agent bool) (float64, bool) {
 	if item == nil {
 		return 0, false
 	}
-	// tierPrice: normal price gates support; agent price (if present) overrides.
 	tierPrice := func(normal, agentMap map[string]any, key string) (float64, bool) {
 		nv, ok := jsonMapFloat(normal, key)
 		if !ok {
@@ -3852,8 +1822,7 @@ func jsonMapFloat(m map[string]any, key string) (float64, bool) {
 		return float64(x), true
 	case json.Number:
 		// datatypes.JSONMap.Scan decodes with UseNumber(), so values loaded from
-		// the DB arrive as json.Number — NOT float64. Without this case every
-		// price read back from Postgres looked "unpriced".
+		// the DB arrive as json.Number — NOT float64.
 		if f, err := x.Float64(); err == nil {
 			return f, true
 		}
@@ -3895,25 +1864,6 @@ func parseDurationSeconds(raw string) int {
 	return n
 }
 
-func resolveAdobeVideoEngine(modelID string) (string, string) {
-	switch strings.ToLower(strings.TrimSpace(modelID)) {
-	case "gemini-veo3.1-fast", "gemini-veo31", "firefly-veo31":
-		return "veo31-fast", ""
-	case "gemini-veo3.1":
-		return "veo31-standard", ""
-	case "adobe-seedance-2.0-fast":
-		return "seedance-2.0-fast", ""
-	case "adobe-seedance-2.0":
-		return "seedance-2.0", ""
-	case "firefly-ray":
-		return "luma", ""
-	case "firefly-video":
-		return "firefly-video", ""
-	default:
-		return "sora2", ""
-	}
-}
-
 func absFloat(v float64) float64 {
 	if v < 0 {
 		return -v
@@ -3928,277 +1878,16 @@ func max(a, b int) int {
 	return b
 }
 
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func principalCredits(principal *APIPrincipal) float64 {
 	if principal == nil || principal.User == nil {
 		return 0
 	}
 	return principal.User.Credits
-}
-
-// markTokenFailure applies Python mark_bad semantics for a failed generation
-// attempt against a pool token. It always bumps fail counters; the status side
-// effects depend on the failure reason and the provider/pool.
-//
-//   - quota:  status="quota"; when no cached_quota_reset_after is present, set
-//     quota_recover_at to next UTC midnight so the maintenance loop can revive it.
-//   - auth on chatgpt: status="disabled" + dead=true (the access token IS the
-//     credential; a 401 means it's dead).
-//   - auth on adobe: NOT disabled/dead — the access token auto-refreshes from the
-//     cookie, so rotate for this request and let the refresh loop mint a new one.
-//   - other (non-auth/non-quota): NEITHER pool is auto-disabled — accounts stay
-//     active/green and fails is tracked only for rotation ordering.
-func (s *V1Service) markTokenFailure(ctx context.Context, pool string, token model.TokenAccount, kind string, isAuth, isQuota bool) {
-	patch := map[string]any{
-		"last_used_at": time.Now(),
-		"fail_total":   gorm.Expr("fail_total + 1"),
-		"fails":        gorm.Expr("fails + 1"),
-	}
-	switch {
-	case isQuota:
-		patch["status"] = "quota"
-		if strings.TrimSpace(token.CachedQuotaResetAfter) == "" {
-			recoverAt := time.Unix((time.Now().Unix()/86400+1)*86400, 0).UTC()
-			patch["quota_recover_at"] = &recoverAt
-		}
-	case isAuth:
-		// Adobe auth failures are NOT disabling: the access token refreshes from
-		// the cookie. chatgpt/runway/leonardo auth means the stored credential is
-		// dead — a raw JWT (chatgpt/runway) or a cookie whose session no longer
-		// authenticates (leonardo) — there's nothing left to refresh from.
-		// grok is intentionally excluded: a grok sso can momentarily 401 while
-		// still valid (upstream blip / proxy / anti-bot), so an auth failure just
-		// fails over for this request without permanently killing the account.
-		disable := pool == "chatgpt" || pool == "runway" || pool == "leonardo" || pool == "krea" || pool == "imagine" || pool == "creativefabrica"
-		if disable && pool == "leonardo" {
-			// 两道保险：先重新 get-session 复核（单次失败常是 bearer 轮换竞态），复核
-			// 也不过就只记一次连续失败，连续到上限才判死。
-			if s.leonardoCookieAlive(ctx, token) {
-				log.Printf("leonardo %s: auth failure on %s but cookie still authenticates — kept active", token.ID, kind)
-				disable = false
-			} else {
-				meta, strikes, kill := leonardoAuthStrike(&token, "auth failure on "+kind)
-				patch["meta"] = meta
-				disable = kill
-				if kill {
-					log.Printf("account leonardo/%s disabled after %d consecutive auth failures: %s", token.ID, strikes, kind)
-				} else {
-					log.Printf("leonardo %s: auth failure %d/%d on %s — kept active", token.ID, strikes, leonardoAuthStrikeLimit, kind)
-				}
-			}
-		}
-		if disable {
-			patch["status"] = "disabled"
-			patch["dead"] = true
-			if pool != "leonardo" {
-				log.Printf("account %s/%s disabled: auth failure on %s", pool, token.ID, kind)
-			}
-		}
-	default:
-		// Neither pool is auto-disabled on generic (non-auth / non-quota) failures
-		// — the account usually still works, so it stays active (green). fails is
-		// only tracked for rotation ordering. (A chatgpt *auth* failure still marks
-		// the token dead in the isAuth case above; that is a genuinely dead token.)
-	}
-	_, _ = s.tokens.Update(ctx, pool, token.ID, patch)
-}
-
-// leonardoCookieAlive re-checks a Leonardo cookie after an auth failure by
-// force-minting a session (bypassing the cached bearer). Only a cookie that
-// still fails to authenticate counts as dead; a temporary upstream answer
-// (403/429 人机校验) also keeps the account alive.
-func (s *V1Service) leonardoCookieAlive(ctx context.Context, token model.TokenAccount) bool {
-	if s.leonardo == nil || strings.TrimSpace(token.Value) == "" {
-		return false
-	}
-	probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	defer cancel()
-	sess, err := s.leonardo.ProbeSession(probeCtx, token.Value)
-	if err == nil && sess != nil && strings.TrimSpace(sess.AccessToken) != "" {
-		s.leonardoPersistCookie(probeCtx, token.ID, token.Value)
-		return true
-	}
-	return !errors.Is(err, leonardo.ErrAuth)
-}
-
-// markTokenDead disables an account and marks it dead on a fatal upstream error
-// (a non-overload temporary Adobe failure that ops policy treats as account death).
-func (s *V1Service) markTokenDead(ctx context.Context, pool string, token model.TokenAccount, kind string) {
-	_, _ = s.tokens.Update(ctx, pool, token.ID, map[string]any{
-		"last_used_at": time.Now(),
-		"fail_total":   gorm.Expr("fail_total + 1"),
-		"fails":        gorm.Expr("fails + 1"),
-		"status":       "disabled",
-		"dead":         true,
-	})
-}
-
-// nextCursor returns the pool's current round-robin position and atomically
-// advances it by one. Concurrent callers each get a distinct value, so parallel
-// picks land on different accounts instead of racing onto the same one. The
-// counter is in-memory (per process): it resets on restart, which only shifts
-// the rotation's starting point — distribution stays even.
-func (s *V1Service) nextCursor(pool string) uint64 {
-	v, _ := s.tokenCursors.LoadOrStore(pool, new(uint64))
-	return atomic.AddUint64(v.(*uint64), 1) - 1
-}
-
-// rotateRoundRobin orders the active accounts by a stable key (ID) and rotates
-// the slice in place so iteration begins at the pool's current cursor position,
-// then advances the cursor. This is strict round-robin: account selection
-// cycles in fixed order regardless of fails or last_used. The fall-through
-// retry chain is preserved — on failure the caller's loop simply continues to
-// the next account in rotation order.
-// pinTestAccount narrows account selection to the single account requested by
-// an admin 账号生图测试. The pinned account is taken from the pool's full list
-// (bypassing active/dead/limited filters) so a limited or disabled account can
-// still be probed. Returns nil when the account isn't in this pool.
-func pinTestAccount(items, active []model.TokenAccount, accountID string) []model.TokenAccount {
-	id := strings.TrimSpace(accountID)
-	if id == "" {
-		return active
-	}
-	for _, item := range items {
-		if item.ID == id && strings.TrimSpace(item.Value) != "" {
-			return []model.TokenAccount{item}
-		}
-	}
-	return nil
-}
-
-func (s *V1Service) rotateRoundRobin(pool string, items []model.TokenAccount) {
-	if len(items) <= 1 {
-		return
-	}
-	// Weight = priority: higher-weight accounts come first, so the scheduler tries
-	// them before lower-weight ones (and only falls through when they're at their
-	// concurrency cap). Within the SAME weight all accounts are equal, so they're
-	// rotated by the pool cursor for even distribution.
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].Weight != items[j].Weight {
-			return items[i].Weight > items[j].Weight
-		}
-		return items[i].ID < items[j].ID
-	})
-	start := int(s.nextCursor(pool))
-	for i := 0; i < len(items); {
-		j := i + 1
-		for j < len(items) && items[j].Weight == items[i].Weight {
-			j++
-		}
-		if g := j - i; g > 1 {
-			off := start % g
-			if off != 0 {
-				grp := items[i:j]
-				rot := make([]model.TokenAccount, 0, g)
-				rot = append(rot, grp[off:]...)
-				rot = append(rot, grp[:off]...)
-				copy(grp, rot)
-			}
-		}
-		i = j
-	}
-}
-
-// freeOnly1KModelID is the one free-allowed model 普号 may only serve at 1K
-// (香蕉2 的 2K/4K 需要会员号) — see freeAccountsAllowed.
-const freeOnly1KModelID = "nano-banana-2"
-
-func isSeedanceModel(modelID string) bool {
-	return modelID == "adobe-seedance-2.0-fast" || modelID == "adobe-seedance-2.0"
-}
-
-// freeAccountsAllowed reports whether 普号(free) may serve this request: the model
-// must be marked free_allowed. 香蕉2 另外只允许 1K 档，它的 2K/4K 只走会员号。
-func freeAccountsAllowed(modelItem *model.ModelConfig, resolution string) bool {
-	if modelItem == nil || !modelItem.FreeAllowed {
-		return false
-	}
-	if modelItem.ID == freeOnly1KModelID {
-		return strings.EqualFold(strings.TrimSpace(resolution), "1K")
-	}
-	return true
-}
-
-func isFreeAccount(meta map[string]interface{}) bool {
-	if meta == nil {
-		return false
-	}
-	plan := strings.ToLower(strings.TrimSpace(stringValue(meta["plan"])))
-	return plan == "free"
-}
-
-// planUnknown 报告账号的会员身份还没探测出来（meta.plan 缺失或为空）。这类号
-// 既不能当普号也不能当会员号用：当会员号派出去会在需要会员的模型上撞 403
-// user_not_entitled。
-func planUnknown(meta map[string]interface{}) bool {
-	if meta == nil {
-		return true
-	}
-	return strings.TrimSpace(stringValue(meta["plan"])) == ""
-}
-
-// markPlanUnknownDead 把选号时遇到的 plan 未探测账号置为死号，等重新探测到
-// plan 后再由额度刷新恢复。
-func (s *V1Service) markPlanUnknownDead(ctx context.Context, pool, id string) {
-	s.tokens.Update(ctx, pool, id, map[string]any{"status": "disabled", "dead": true})
-}
-
-// prioritizeSubAccounts 对非 Seedance 模型按 普号 → 子号 → 母号 的顺序排序：
-// 先消耗普号，普号不可用再用低积分子号，最后才动 vip 母号。
-func prioritizeSubAccounts(active []model.TokenAccount) []model.TokenAccount {
-	var frees, subs, mothers []model.TokenAccount
-	for _, a := range active {
-		switch {
-		case isFreeAccount(a.Meta):
-			frees = append(frees, a)
-		case isLowCredits(a.Meta):
-			subs = append(subs, a)
-		default:
-			mothers = append(mothers, a)
-		}
-	}
-	return append(append(frees, subs...), mothers...)
-}
-
-// isVipMotherAccount 正向识别 VIP 母号：plan 已知且非 free，且 is_sub_account
-// 显式为 false。只看身份不看积分余额（低积分母号也可用）；plan 未探测或
-// is_sub_account 缺失的账号返回 false，等刷新补齐后才可被 Seedance 调度。
-func isVipMotherAccount(meta map[string]interface{}) bool {
-	if meta == nil {
-		return false
-	}
-	plan := strings.ToLower(strings.TrimSpace(stringValue(meta["plan"])))
-	if plan == "" || plan == "free" {
-		return false
-	}
-	v, ok := meta["is_sub_account"]
-	if !ok {
-		return false
-	}
-	switch val := v.(type) {
-	case bool:
-		return !val
-	case float64:
-		return val == 0
-	}
-	return false
-}
-
-func isLowCredits(meta map[string]interface{}) bool {
-	if meta == nil {
-		return false
-	}
-	if v, ok := meta["is_sub_account"]; ok {
-		switch val := v.(type) {
-		case bool:
-			return val
-		case float64:
-			return val != 0
-		}
-	}
-	// 兼容存量账号：is_sub_account 字段不存在时，用积分余额判断（>0 且 ≤4000 视为子号）
-	if rem, ok := jsonMapInt(meta, "cached_quota_remaining"); ok {
-		return rem > 0 && rem <= 4000
-	}
-	return false
 }
