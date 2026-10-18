@@ -72,6 +72,8 @@ services:
       RUSTFS_SECRET_KEY: vividai-secret-change-me
       CORS_ORIGINS: http://localhost:2000
       COOKIE_SECURE: "false"
+      # 渠道上游 API Key 的 AES-GCM 加密密钥——生产环境务必改成随机值并保持不变
+      CHANNEL_SECRET: change-me-channel-secret
     volumes:
       - generated:/app/data/generated
     depends_on:

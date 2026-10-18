@@ -1,55 +1,27 @@
-# Vivid AI Backend
+# image2api backend
 
-Go backend for `vivid-ai`, using:
+Go backend for `image2api` — a vivid-protocol gateway that routes generation
+jobs across same-protocol upstream channels. Stack: Gin · GORM (PostgreSQL) ·
+go-redis.
 
-- Gin
-- GORM
-- PostgreSQL
-- Redis
+## Architecture sketch
 
-## Current scope
-
-This is an in-progress rewrite. The current skeleton already includes:
-
-- app bootstrap
-- PostgreSQL and Redis initialization
-- GORM auto-migrations
-- session storage in Redis
-- image access control for `/images/:user/:name`
-- public site endpoint: `/admin/api/site`
-- public showcase endpoint: `/admin/api/showcase`
-- session-based auth endpoint: `/admin/api/auth/me`
+- `internal/upstream` — vivid-protocol client (NDJSON generate + jobId resume,
+  `/v1/uploads`, `/v1/models`, `/v1/balance`, error classification)
+- `internal/service/channel.go` — channel CRUD, upstream model sync (save =
+  full sync), AES-GCM key storage
+- `internal/service/v1.go` — channel-weighted dispatch, billing, job lifecycle,
+  stale-job resume
+- `internal/http/handler/v1.go` — public vivid endpoints
+  (`/v1/generate` `/v1/uploads` `/v1/models` `/v1/balance`)
 
 ## Environment
 
-Set these before running:
+See `.env.example`. Required: `POSTGRES_DSN`, `REDIS_ADDR`, `RUSTFS_*`.
+Important: `CHANNEL_SECRET` encrypts stored channel API keys (AES-GCM) — set a
+random value and keep it stable; rotating it makes saved keys undecryptable.
 
-```powershell
-$env:POSTGRES_DSN="host=127.0.0.1 user=postgres password=postgres dbname=vivid_ai port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-$env:REDIS_ADDR="127.0.0.1:6379"
-$env:HTTP_ADDR=":6061"
+```bash
+cp .env.example .env   # fill in values
+go build -o bin/api ./cmd/api && ./bin/api
 ```
-
-Optional:
-
-```powershell
-$env:APP_ENV="development"
-$env:APP_TITLE="Vivid AI"
-$env:SESSION_COOKIE_NAME="vivid_session"
-$env:CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
-```
-
-## Run
-
-```powershell
-go run ./cmd/api
-```
-
-## Notes
-
-- Generated media defaults to `../../ai-gateway/data/generated` relative to the backend working directory.
-- Private images require either:
-  - session cookie
-  - bearer session token
-  - bearer API key
-- Showcase images are public.

@@ -30,7 +30,7 @@ const videoModels = computed(() => models.value.filter((m) => m.type === 'video'
 function pubName(m) {
   return m?.alias || m?.id || ''
 }
-const sampleImage = computed(() => pubName(imageModels.value[0]) || 'gpt-image-2')
+const sampleImage = computed(() => pubName(imageModels.value[0]) || 'image-model')
 const sampleVideo = computed(() => pubName(videoModels.value[0]) || 'video-model')
 const sampleQuality = computed(() => (imageModels.value[0]?.resolutions || [])[0] || '1K')
 const sampleVQuality = computed(() => (videoModels.value[0]?.resolutions || [])[0] || '720p')

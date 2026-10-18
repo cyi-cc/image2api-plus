@@ -26,7 +26,7 @@ onMounted(async () => {
   }
 })
 
-// ---- API Key (REAL: minted + verified server-side; OpenAI-compatible) ----
+// ---- API Key (REAL: minted + verified server-side; vivid /v1 protocol) ----
 // The full plaintext is returned only once, right after minting. On reload we
 // only have the server's masked preview (the plaintext is never stored).
 const apiKey = ref('')        // full plaintext — present only right after minting

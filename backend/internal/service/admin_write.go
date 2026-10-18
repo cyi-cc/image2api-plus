@@ -653,8 +653,8 @@ func boolValueWithDefault(v any, fallback bool) bool {
 
 // resolutionsFromPrices mirrors Python models_store._resolutions_from_prices:
 // an image model's quality tiers ARE its price keys (the admin form never sends
-// `resolutions` for images), returned in canonical 1K/2K/4K order. gpt-image-2,
-// for example, only ever has a "1K" price, so it resolves to exactly ["1K"].
+// `resolutions` for images), returned in canonical 1K/2K/4K order. A model that
+// only ever has a "1K" price, for example, resolves to exactly ["1K"].
 func resolutionsFromPrices(prices datatypes.JSONMap) datatypes.JSON {
 	out := []string{}
 	for _, r := range []string{"1K", "2K", "4K"} {

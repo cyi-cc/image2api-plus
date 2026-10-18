@@ -82,6 +82,8 @@ services:
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-vividai_secret_2026}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://vividai.run,http://www.vividai.run,http://206.168.190.183}
       COOKIE_SECURE: "false"
+      # 渠道上游 API Key 的 AES-GCM 加密密钥——务必配置随机值;丢失/变更后已存的渠道密钥无法解密
+      CHANNEL_SECRET: ${CHANNEL_SECRET:-change-me-channel-secret}
     volumes:
       - generated:/app/data/generated
     depends_on:

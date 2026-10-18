@@ -1,7 +1,8 @@
-# ai-gateway frontend
+# image2api frontend
 
-Vue 3 + Vite admin console for the ai-gateway backend. This replaces the old
-single-file `static/admin.html`.
+Vue 3 + Vite frontend for `image2api`: user-facing generation UI (playground,
+gallery, docs, billing) plus the admin console (channels, models, users,
+orders, logs, config).
 
 ## Develop
 
@@ -10,27 +11,10 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-The dev server proxies `/admin`, `/health`, `/generated`, `/v1` to the backend.
-Start the backend separately:
+The dev server proxies `/admin`, `/health`, `/images`, `/v1` to the backend.
+Start the Go backend separately (see `backend/README.md`).
 
 ```bash
-# from repo root
-python app.py      # http://0.0.0.0:6060
+# from ../backend
+go build -o bin/api ./cmd/api && ./bin/api   # http://127.0.0.1:6666
 ```
-
-If the backend runs elsewhere, set `VITE_BACKEND` before `npm run dev`:
-
-```bash
-VITE_BACKEND=http://192.168.1.10:6060 npm run dev
-```
-
-## Build
-
-```bash
-npm run build      # outputs static assets to ./dist
-npm run preview    # serve the production build locally
-```
-
-When hosting `dist/` on a different origin than the API, set `VITE_API_BASE`
-(e.g. `VITE_API_BASE=http://api-host:6060`) at build time, and add that frontend
-origin to the backend's `CORS_ORIGINS` env var.

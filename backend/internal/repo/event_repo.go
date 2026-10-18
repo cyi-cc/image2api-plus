@@ -184,7 +184,7 @@ type DashboardWindow struct {
 	Pending int64   `json:"pending"`
 	Image   int64   `json:"image"`
 	Video   int64   `json:"video"`
-	API     int64   `json:"api"` // source = 'v1' (OpenAI-compatible key)
+	API     int64   `json:"api"` // source = 'v1' (vk_ external API key)
 	Web     int64   `json:"web"` // everything else (web / playground)
 	Spent   float64 `json:"spent"`
 }

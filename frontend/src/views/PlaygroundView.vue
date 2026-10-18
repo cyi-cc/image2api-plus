@@ -116,9 +116,8 @@ const maxRefs = computed(() => {
     const extra = familyPreset.value ? 0 : maxVideos.value + maxAudios.value
     return Math.max(a, b) + extra
   }
-  // Image-to-image: honor the model's configured max (gpt-image-2=3,
-  // seedream-4.5=6, flux-klein-2=4 …). Fall back to 1 when image_to_image is on
-  // but no count was set.
+  // Image-to-image: honor the model's configured max (e.g. 3 or 6 refs, set per
+  // model). Fall back to 1 when image_to_image is on but no count was set.
   const m = Number(model.value?.max_reference_images || 0)
   if (m > 0) return m
   return model.value?.image_to_image ? 1 : 0
