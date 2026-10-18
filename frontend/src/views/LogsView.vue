@@ -278,7 +278,7 @@ const sourcePill = (s) => ({
               <span v-else class="text-white/25">—</span>
             </td>
             <td class="px-3 py-3.5 align-middle">
-              <span class="chip ring-1" :class="statusPill(e.status)">
+              <span class="chip ring-1" :class="statusPill(e.status)" :title="e.error || ''">
                 <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(e.status)"></span>
                 {{ statusLabel(e.status) }}
               </span>

@@ -10,6 +10,8 @@ const channels = ref([])
 const loading = ref(false)
 const err = ref('')
 const warn = ref('')          // 保存后自动同步的非致命告警
+const okMsg = ref('')         // 手动同步成功提示
+const syncing = ref(false)
 
 // create/edit form
 const form = ref(null)
@@ -31,12 +33,6 @@ async function load() {
   loading.value = false
 }
 
-function modelSummary(c) {
-  const names = c.models || []
-  if (!names.length) return ''
-  return names.length <= 2 ? names.join('、') : `${names[0]}、${names[1]} 等`
-}
-
 function openAdd() {
   formErr.value = ''
   form.value = { id: '', name: '', base_url: '', api_key: '', concurrency: 5, weight: 1, enabled: true }
@@ -54,6 +50,7 @@ async function save() {
   if (saving.value) return
   saving.value = true
   formErr.value = ''
+  okMsg.value = ''
   const r = await api('/channels', jsonBody('POST', {
     id: f.id, name: f.name, base_url: f.base_url, api_key: f.api_key,
     enabled: !!f.enabled, concurrency: f.concurrency || 0, weight: f.weight || 1,
@@ -83,13 +80,34 @@ async function del(c) {
   channels.value = channels.value.filter((x) => x.id !== c.id)
 }
 
-// 表单内拉模型：编辑态走库内渠道（密钥不用重填）；新渠道用表单里的地址+key 预览。
+// 已保存渠道手动「同步上游模型」：直接全量同步（新模型入库绑定，上游消失的
+// 解绑/清孤儿），拉取失败直接报错；新渠道则只用表单地址+key 预览不落库。
+async function syncModels(c) {
+  if (syncing.value) return
+  syncing.value = true
+  err.value = ''
+  warn.value = ''
+  okMsg.value = ''
+  try {
+    const r = await api('/channels/sync-models', jsonBody('POST', { id: c.id }))
+    if (!r.ok) { err.value = r.data?.detail || '同步失败'; return }
+    const msg = r.data?.message || '已同步上游模型'
+    if (msg === '已同步上游模型') okMsg.value = msg
+    else warn.value = msg
+    load()
+  } finally {
+    syncing.value = false
+  }
+}
+
+// 表单内拉模型：编辑态直接全量同步；新渠道用表单里的地址+key 预览（导入时自动保存）。
 function fetchFromForm() {
   const f = form.value
   if (!f) return
+  if (f.id) { syncModels(f); return }
   if (!/^https?:\/\/\S+$/.test((f.base_url || '').trim())) { formErr.value = '上游地址需以 http(s):// 开头'; return }
-  if (!f.id && !f.api_key) { formErr.value = '请填写 API Key'; return }
-  openFetch({ id: f.id || '', name: f.name || f.base_url, base_url: f.base_url, api_key: f.api_key, concurrency: f.concurrency, weight: f.weight, enabled: !!f.enabled })
+  if (!f.api_key) { formErr.value = '请填写 API Key'; return }
+  openFetch({ id: '', name: f.name || f.base_url, base_url: f.base_url, api_key: f.api_key, concurrency: f.concurrency, weight: f.weight, enabled: !!f.enabled })
 }
 
 async function openFetch(c) {
@@ -109,6 +127,10 @@ async function openFetch(c) {
 // 新渠道尚未入库时，第一次勾选会先自动保存渠道再绑定。
 async function toggleBind(s) {
   if (s.busy) return
+  if (!s.bound && s.alias && s.alias === s.id) {
+    fetchErr.value = `「${s.id}」别名不能与上游模型同名，留空即可`
+    return
+  }
   s.busy = true
   fetchErr.value = ''
   try {
@@ -172,6 +194,7 @@ onMounted(load)
 
     <p v-if="err" class="text-xs text-rose-300">{{ err }}</p>
     <p v-if="warn" class="text-xs text-amber-300">{{ warn }}</p>
+    <p v-if="okMsg" class="text-xs text-emerald-300">{{ okMsg }}</p>
 
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
@@ -179,8 +202,6 @@ onMounted(load)
           <thead>
             <tr>
               <th>渠道</th>
-              <th>上游地址</th>
-              <th>模型</th>
               <th>并发</th>
               <th>配比</th>
               <th class="text-right">成功调用</th>
@@ -197,14 +218,7 @@ onMounted(load)
                 <div class="font-medium text-white/85">{{ c.name }}</div>
                 <div class="text-[11px] text-white/35 font-mono">{{ c.id }}</div>
               </td>
-              <td>
-                <div class="max-w-[240px] truncate font-mono text-xs text-white/55" :title="c.base_url">{{ c.base_url }}</div>
-              </td>
-              <td>
-                <div class="tabular-nums text-white/80">{{ (c.models || []).length }}</div>
-                <div class="text-[11px] text-white/35 max-w-[180px] truncate" :title="(c.models || []).join('、')">{{ modelSummary(c) }}</div>
-              </td>
-              <td class="tabular-nums">{{ c.concurrency || '默认' }}</td>
+              <td class="tabular-nums">{{ c.concurrency || '不限' }}</td>
               <td class="tabular-nums">{{ c.weight || 1 }}</td>
               <td class="text-right tabular-nums">{{ (c.success_total || 0).toLocaleString() }}</td>
               <td class="text-right tabular-nums">{{ (c.used_credits || 0).toLocaleString() }}</td>
@@ -218,13 +232,13 @@ onMounted(load)
               </td>
               <td class="text-xs text-white/45 whitespace-nowrap">{{ c.last_used_at ? fmtTs(c.last_used_at) : '-' }}</td>
               <td class="text-right whitespace-nowrap">
-                <button @click="openFetch(c)" class="op" title="拉取上游模型"><Icon name="spark" class="w-3.5 h-3.5" /></button>
+                <button @click="syncModels(c)" :disabled="syncing" class="op" title="同步上游模型"><Icon name="spark" class="w-3.5 h-3.5" /></button>
                 <button @click="openEdit(c)" class="op" title="编辑"><Icon name="config" class="w-3.5 h-3.5" /></button>
                 <button @click="del(c)" class="op danger" title="删除"><Icon name="trash" class="w-3.5 h-3.5" /></button>
               </td>
             </tr>
-            <tr v-if="loading"><td colspan="11" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
-            <tr v-else-if="!channels.length"><td colspan="11" class="py-10 text-center text-white/40 text-sm">没有渠道，点右上角「添加渠道」接入上游实例</td></tr>
+            <tr v-if="loading"><td colspan="9" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
+            <tr v-else-if="!channels.length"><td colspan="9" class="py-10 text-center text-white/40 text-sm">没有渠道，点右上角「添加渠道」接入上游实例</td></tr>
           </tbody>
         </table>
       </div>
@@ -255,8 +269,8 @@ onMounted(load)
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="lbl">并发数</label>
-              <input v-model.number="form.concurrency" type="number" min="0" max="100" class="field" />
-              <p class="mt-1 text-[11px] text-white/35">0 = 默认 5</p>
+              <input v-model.number="form.concurrency" type="number" min="0" max="2147483647" class="field" />
+              <p class="mt-1 text-[11px] text-white/35">0 = 不限</p>
             </div>
             <div>
               <label class="lbl">配比</label>
@@ -276,7 +290,7 @@ onMounted(load)
             <button type="button" @click="fetchFromForm" :disabled="fetching" class="btn-ghost text-xs">
               {{ fetching ? '拉取中…' : '获取模型列表' }}
             </button>
-            <span class="text-[11px] text-white/35">{{ form.id ? '用已保存的地址与密钥拉取' : '用上方的地址与 API Key 拉取；导入时会先自动保存渠道' }}</span>
+            <span class="text-[11px] text-white/35">{{ form.id ? '直接全量同步上游模型到模型列表' : '用上方的地址与 API Key 预览；导入时会先自动保存渠道' }}</span>
           </div>
           <p v-if="formErr" class="text-xs text-rose-300">{{ formErr }}</p>
         </div>

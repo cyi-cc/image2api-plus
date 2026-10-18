@@ -194,7 +194,7 @@ type Channel struct {
 	BaseURL   string `gorm:"size:500;not null"`
 	APIKeyEnc string `gorm:"type:text;not null"` // AES-GCM encrypted upstream API key
 	Enabled   bool   `gorm:"not null;default:true;index"`
-	// Concurrency caps simultaneous in-flight jobs on this channel. 0 = default.
+	// Concurrency caps simultaneous in-flight jobs on this channel. 0 = unlimited.
 	Concurrency int `gorm:"not null;default:0"`
 	// Weight biases weighted-random channel order: weight 2 is picked first at
 	// roughly 2x the rate of weight 1.

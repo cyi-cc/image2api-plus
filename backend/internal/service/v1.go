@@ -64,8 +64,8 @@ const videoGenBudget = 30 * time.Minute
 // imageGenBudget caps one image generation end-to-end.
 const imageGenBudget = 8 * time.Minute
 
-// defaultChannelConcurrency applies when a channel's Concurrency is 0.
-const defaultChannelConcurrency = 5
+// Channel concurrency semantics: 0 = unlimited (the Lua slot script passes
+// max=0 straight through), matching vivid's channel design.
 
 // maxChannelFailover caps how many channels one request may burn on
 // retryable/temporary errors before giving up, so an upstream-wide blip can't
@@ -100,11 +100,11 @@ type V1Service struct {
 	conc *ConcurrencyService
 }
 
-// chanAcquire takes one per-channel slot (capped at max; 0 = default), tagged
+// chanAcquire takes one per-channel slot (capped at max; 0 = unlimited), tagged
 // with the generation's eventID.
 func (s *V1Service) chanAcquire(ctx context.Context, channelID, eventID string, max int) bool {
-	if max < 1 {
-		max = defaultChannelConcurrency
+	if max < 0 {
+		max = 0
 	}
 	return s.conc.Acquire(ctx, "conc:c:"+channelID, max, eventID)
 }

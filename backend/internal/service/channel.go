@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -132,6 +133,9 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
 		return nil, "", errors.New("base_url must start with http:// or https://")
 	}
+	if d.Concurrency < 0 || d.Concurrency > math.MaxInt32 {
+		return nil, "", errors.New("并发数需在 0-2147483647 之间（0 = 不限制）")
+	}
 	weight := d.Weight
 	if weight < 1 {
 		weight = 1
@@ -159,7 +163,7 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 		if err := s.channels.Create(ctx, ch); err != nil {
 			return nil, "", err
 		}
-		return ch, s.syncChannelModels(ctx, ch.ID), nil
+		return ch, syncWarn(s.syncChannelModels(ctx, ch.ID)), nil
 	}
 	patch := map[string]any{
 		"name":        name,
@@ -179,31 +183,58 @@ func (s *ChannelService) Save(ctx context.Context, d SaveChannelDto) (*model.Cha
 	if err != nil {
 		return nil, "", err
 	}
-	return ch, s.syncChannelModels(ctx, d.ID), nil
+	return ch, syncWarn(s.syncChannelModels(ctx, d.ID)), nil
+}
+
+// syncWarn folds the sync error into the save-path warning (vivid parity: a
+// failed upstream fetch degrades to a non-fatal warning instead of blocking
+// the channel save).
+func syncWarn(warn string, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return warn
+}
+
+// SyncModels manually triggers a full upstream-model sync for a saved channel
+// (same truth semantics as the save path). Unlike Save, an unreachable upstream
+// or empty model list is a hard error, not a warning.
+func (s *ChannelService) SyncModels(ctx context.Context, channelID string) (string, error) {
+	if _, err := s.channels.Get(ctx, strings.TrimSpace(channelID)); err != nil {
+		return "", err
+	}
+	warn, err := s.syncChannelModels(ctx, channelID)
+	if err != nil {
+		return "", err
+	}
+	if warn != "" {
+		return warn, nil
+	}
+	return "已同步上游模型", nil
 }
 
 // syncChannelModels runs after Save: upstream /v1/models is the truth — every
 // sellable upstream model is upserted locally (alias = upstream id) and bound;
 // bindings on this channel not in the upstream list are removed, and orphan
-// local models are deleted. An unreachable upstream or empty/anomalous list
-// only produces a warning — the DB is left untouched.
-func (s *ChannelService) syncChannelModels(ctx context.Context, channelID string) string {
+// local models are deleted. An unreachable upstream or empty list is an error
+// (the save path degrades it to a warning); warn carries non-fatal skips.
+func (s *ChannelService) syncChannelModels(ctx context.Context, channelID string) (string, error) {
 	ch, err := s.channels.Get(ctx, channelID)
 	if err != nil {
-		return "模型自动同步失败：" + err.Error()
+		return "", fmt.Errorf("模型同步失败：%w", err)
 	}
 	key := s.decrypt(ch.APIKeyEnc)
 	if key == "" {
-		return "模型自动同步失败：无法解密上游密钥"
+		return "", errors.New("模型同步失败：无法解密上游密钥")
 	}
 	fctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	models, err := s.up.Models(fctx, ch.BaseURL, key)
 	if err != nil {
-		return "模型自动同步失败：" + err.Error()
+		return "", fmt.Errorf("模型同步失败：%w", err)
 	}
 	if len(models) == 0 {
-		return "上游未返回任何模型，已跳过同步"
+		return "", errors.New("上游未返回任何模型，已跳过同步")
 	}
 	specs := make([]ChannelModelSpec, 0, len(models))
 	upstreamIDs := make([]string, 0, len(models))
@@ -218,13 +249,13 @@ func (s *ChannelService) syncChannelModels(ctx context.Context, channelID string
 		upstreamIDs = append(upstreamIDs, spec.ID)
 	}
 	if len(upstreamIDs) == 0 {
-		return fmt.Sprintf("上游模型均规格异常，已跳过同步：%s", strings.Join(skipped, "；"))
+		return "", fmt.Errorf("上游模型均规格异常，已跳过同步：%s", strings.Join(skipped, "；"))
 	}
 	if err := s.ImportModels(ctx, channelID, specs); err != nil {
-		return "模型自动同步失败：" + err.Error()
+		return "", fmt.Errorf("模型同步失败：%w", err)
 	}
 	if err := s.channels.UnbindExcept(ctx, channelID, upstreamIDs); err != nil {
-		return "模型自动同步失败：" + err.Error()
+		return "", fmt.Errorf("模型同步失败：%w", err)
 	}
 	if orphans, oerr := s.channels.OrphanModelIDs(ctx); oerr == nil {
 		for _, mid := range orphans {
@@ -232,9 +263,9 @@ func (s *ChannelService) syncChannelModels(ctx context.Context, channelID string
 		}
 	}
 	if len(skipped) > 0 {
-		return fmt.Sprintf("已同步上游模型，跳过 %d 个异常项：%s", len(skipped), strings.Join(skipped, "；"))
+		return fmt.Sprintf("已同步上游模型，跳过 %d 个异常项：%s", len(skipped), strings.Join(skipped, "；")), nil
 	}
-	return ""
+	return "", nil
 }
 
 // normalizeRemoteModel validates an upstream /v1/models item into an import
@@ -419,7 +450,11 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 		if upID == "" {
 			continue
 		}
-		localID := strings.TrimSpace(spec.Alias)
+		alias := strings.TrimSpace(spec.Alias)
+		if alias == upID {
+			return fmt.Errorf("「%s」别名不能与上游模型同名，留空即可", upID)
+		}
+		localID := alias
 		if localID == "" {
 			localID = upID
 		}
@@ -459,8 +494,8 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 }
 
 // modelPatchFromSpec maps an upstream model spec onto model_configs columns.
-// Prices/enabled/alias are intentionally untouched on update so admin pricing
-// survives re-import.
+// Prices/alias are intentionally untouched on update so admin pricing survives
+// re-import.
 func modelPatchFromSpec(spec ChannelModelSpec, existing *model.ModelConfig) map[string]any {
 	patch := map[string]any{
 		"type":                  spec.Kind,

@@ -88,6 +88,25 @@ func (h *ChannelAdminHandler) FetchModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
 
+// SyncModels manually re-runs the full upstream model sync on a saved channel
+// (new models bound, disappeared ones unbound, orphans deleted). Fetch
+// failures are errors here — unlike the save path which degrades to a warning.
+func (h *ChannelAdminHandler) SyncModels(c *gin.Context) {
+	var body struct {
+		ID string `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.ID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "channel id required"})
+		return
+	}
+	msg, err := h.channels.SyncModels(c.Request.Context(), body.ID)
+	if err != nil {
+		writeUpstreamErr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "message": msg})
+}
+
 // ImportModels binds the ticked upstream models to the channel (creating local
 // model rows on first import).
 func (h *ChannelAdminHandler) ImportModels(c *gin.Context) {
