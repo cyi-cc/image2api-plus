@@ -668,6 +668,29 @@ func (r *EventRepository) SetAccount(ctx context.Context, eventID, accountID, ac
 		Updates(map[string]any{"account_id": accountID, "account_email": accountEmail}).Error
 }
 
+// FailedByAccount counts failed events grouped by account_id (channel id) —
+// the channel list's 失败数 column.
+func (r *EventRepository) FailedByAccount(ctx context.Context) (map[string]int64, error) {
+	type row struct {
+		AccountID string `gorm:"column:account_id"`
+		Count     int64  `gorm:"column:count"`
+	}
+	var rows []row
+	if err := r.db.WithContext(ctx).
+		Model(&model.EventLog{}).
+		Select("account_id, COUNT(*) AS count").
+		Where("status = ? AND account_id <> ''", "failed").
+		Group("account_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[string]int64, len(rows))
+	for _, item := range rows {
+		out[item.AccountID] = item.Count
+	}
+	return out, nil
+}
+
 // InFlightByAccount counts pending (in-flight) events grouped by account_id, for
 // the accounts view's live "in-flight" column.
 func (r *EventRepository) InFlightByAccount(ctx context.Context) (map[string]int64, error) {

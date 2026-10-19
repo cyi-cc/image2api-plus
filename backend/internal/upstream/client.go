@@ -422,8 +422,13 @@ func (c *Client) Download(ctx context.Context, url string) ([]byte, string, erro
 	if len(data) == 0 {
 		return nil, "", fmt.Errorf("%w: empty result", ErrRetryable)
 	}
+	// Content-Type fallback chain: only trust image/* video/* headers (upstreams
+	// often mislabel results text/plain or octet-stream), else sniff magic bytes.
 	ct := strings.TrimSpace(resp.Header.Get("Content-Type"))
-	if ct == "" || ct == "application/octet-stream" {
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	if !strings.HasPrefix(ct, "image/") && !strings.HasPrefix(ct, "video/") {
 		ct = http.DetectContentType(data)
 	}
 	return data, ct, nil

@@ -30,13 +30,15 @@ import (
 type ChannelService struct {
 	channels *repo.ChannelRepository
 	models   *repo.ModelRepository
+	events   *repo.EventRepository
+	conc     *ConcurrencyService
 	up       *upstream.Client
 	secret   []byte
 }
 
-func NewChannelService(channels *repo.ChannelRepository, models *repo.ModelRepository, up *upstream.Client, secret string) *ChannelService {
+func NewChannelService(channels *repo.ChannelRepository, models *repo.ModelRepository, events *repo.EventRepository, conc *ConcurrencyService, up *upstream.Client, secret string) *ChannelService {
 	sum := sha256.Sum256([]byte("image2api-channel-keys|" + secret))
-	return &ChannelService{channels: channels, models: models, up: up, secret: sum[:]}
+	return &ChannelService{channels: channels, models: models, events: events, conc: conc, up: up, secret: sum[:]}
 }
 
 // ChannelView is the admin list row: local stats + bound model names + a live
@@ -50,6 +52,10 @@ type ChannelView struct {
 	Concurrency     int      `json:"concurrency"`
 	Weight          int      `json:"weight"`
 	Models          []string `json:"models"`
+	// RunningCount 运行中 = Redis 并发槽位实时计数（与调度器同源）；
+	// FailCount 失败数 = event_logs 实时聚合（channel 数少，无需预计算）。
+	RunningCount    int64    `json:"running_count"`
+	FailCount       int64    `json:"fail_count"`
 	SuccessTotal    int64    `json:"success_total"`
 	UsedCredits     float64  `json:"used_credits"`
 	UpstreamBalance *int64   `json:"upstream_balance"`
@@ -63,6 +69,7 @@ func (s *ChannelService) List(ctx context.Context) ([]ChannelView, error) {
 	if err != nil {
 		return nil, err
 	}
+	fails, _ := s.events.FailedByAccount(ctx)
 	out := make([]ChannelView, len(items))
 	var wg sync.WaitGroup
 	for i, ch := range items {
@@ -73,6 +80,8 @@ func (s *ChannelService) List(ctx context.Context) ([]ChannelView, error) {
 			Enabled:      ch.Enabled,
 			Concurrency:  ch.Concurrency,
 			Weight:       ch.Weight,
+			RunningCount: int64(s.conc.Count(ctx, "conc:c:"+ch.ID)),
+			FailCount:    fails[ch.ID],
 			SuccessTotal: ch.SuccessTotal,
 			UsedCredits:  ch.UsedCredits,
 			CreatedAt:    ch.CreatedAt.Unix(),
@@ -354,37 +363,6 @@ func (s *ChannelService) FetchModels(ctx context.Context, d FetchModelsDto) ([]u
 	return items, nil
 }
 
-// UnbindModel detaches one upstream model from a channel; when the local model
-// row ends up bound to no channel at all it is deleted too (same orphan
-// semantics as deleting a whole channel).
-func (s *ChannelService) UnbindModel(ctx context.Context, channelID, upstreamModelID string) error {
-	upID := strings.TrimSpace(upstreamModelID)
-	if upID == "" {
-		return errors.New("model id required")
-	}
-	m, err := s.channels.UpstreamModelMap(ctx, channelID)
-	if err != nil {
-		return err
-	}
-	var localID string
-	for mid, up := range m {
-		if up == upID {
-			localID = mid
-			break
-		}
-	}
-	if localID == "" {
-		return nil // not bound — idempotent
-	}
-	if err := s.channels.Unbind(ctx, channelID, localID); err != nil {
-		return err
-	}
-	if rest, _ := s.channels.ChannelIDsByModel(ctx, localID); len(rest) == 0 {
-		_, _ = s.models.Delete(ctx, localID)
-	}
-	return nil
-}
-
 // PurgeOrphanModels sweeps model_configs rows left over from the provider era:
 // an unbound model can never be routed, so any row that didn't come through a
 // channel import (provider != "channel") is deleted at startup. Channel-typed
@@ -445,6 +423,10 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 	if err != nil {
 		return err
 	}
+	if len(specs) > 50 {
+		return errors.New("单次最多导入 50 个模型")
+	}
+	seenAliases := make(map[string]string, len(specs)) // localID → 上游 id，别名冲突当场拒绝
 	for _, spec := range specs {
 		upID := strings.TrimSpace(spec.ID)
 		if upID == "" {
@@ -458,9 +440,16 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 		if localID == "" {
 			localID = upID
 		}
+		if prev, dup := seenAliases[localID]; dup && prev != upID {
+			return fmt.Errorf("别名 %s 被多个上游模型复用", localID)
+		}
+		seenAliases[localID] = upID
 		existing, gerr := s.models.Get(ctx, localID)
 		if gerr != nil && !errors.Is(gerr, gorm.ErrRecordNotFound) {
 			existing = nil
+		}
+		if existing != nil && existing.Type != "" && spec.Kind != "" && existing.Type != spec.Kind {
+			return fmt.Errorf("模型 %s 已存在且类型不同（%s）", localID, existing.Type)
 		}
 		var local *model.ModelConfig
 		if existing != nil && existing.ID == localID {

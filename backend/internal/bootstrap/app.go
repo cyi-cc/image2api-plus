@@ -118,7 +118,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		// rows when CHANNEL_SECRET isn't set.
 		channelSecret = cfg.PostgresDSN
 	}
-	channelSvc := service.NewChannelService(channelRepo, modelRepo, upClient, channelSecret)
+	channelSvc := service.NewChannelService(channelRepo, modelRepo, eventRepo, concSvc, upClient, channelSecret)
 	// Sweep provider-era model rows: anything not bound to a channel can never
 	// be routed under the channel scheduler.
 	if n, err := channelSvc.PurgeOrphanModels(ctx); err != nil {

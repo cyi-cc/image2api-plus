@@ -10,19 +10,20 @@ const channels = ref([])
 const loading = ref(false)
 const err = ref('')
 const warn = ref('')          // 保存后自动同步的非致命告警
-const okMsg = ref('')         // 手动同步成功提示
-const syncing = ref(false)
+const okMsg = ref('')         // 同步模型成功提示
 
 // create/edit form
 const form = ref(null)
 const saving = ref(false)
 const formErr = ref('')
 
-// fetch-models → 勾选即绑定（选中自动导入到模型列表，取消即解绑）
-const fetchTarget = ref(null)   // channel snapshot being imported into
+// 同步上游模型弹窗：开关选择 + 别名，批量导入（保存渠道已自动全量同步）
+const fetchTarget = ref(null)   // saved channel being synced
 const fetching = ref(false)
 const fetchErr = ref('')
 const specs = ref([])
+const picked = ref(new Set())
+const importing = ref(false)
 
 async function load() {
   loading.value = true
@@ -80,84 +81,44 @@ async function del(c) {
   channels.value = channels.value.filter((x) => x.id !== c.id)
 }
 
-// 已保存渠道手动「同步上游模型」：直接全量同步（新模型入库绑定，上游消失的
-// 解绑/清孤儿），拉取失败直接报错；新渠道则只用表单地址+key 预览不落库。
-async function syncModels(c) {
-  if (syncing.value) return
-  syncing.value = true
-  err.value = ''
-  warn.value = ''
-  okMsg.value = ''
-  try {
-    const r = await api('/channels/sync-models', jsonBody('POST', { id: c.id }))
-    if (!r.ok) { err.value = r.data?.detail || '同步失败'; return }
-    const msg = r.data?.message || '已同步上游模型'
-    if (msg === '已同步上游模型') okMsg.value = msg
-    else warn.value = msg
-    load()
-  } finally {
-    syncing.value = false
-  }
-}
-
-// 表单内拉模型：编辑态直接全量同步；新渠道用表单里的地址+key 预览（导入时自动保存）。
-function fetchFromForm() {
-  const f = form.value
-  if (!f) return
-  if (f.id) { syncModels(f); return }
-  if (!/^https?:\/\/\S+$/.test((f.base_url || '').trim())) { formErr.value = '上游地址需以 http(s):// 开头'; return }
-  if (!f.api_key) { formErr.value = '请填写 API Key'; return }
-  openFetch({ id: '', name: f.name || f.base_url, base_url: f.base_url, api_key: f.api_key, concurrency: f.concurrency, weight: f.weight, enabled: !!f.enabled })
-}
-
+// 行内「同步上游模型」走开关 + 别名弹窗（渠道已保存，用库里凭据拉取）。
+// 默认全开：点「同步模型」把勾选项批量导入绑定；上游消失的模型由保存时的
+// 全量同步负责解绑。
 async function openFetch(c) {
   fetchTarget.value = c
   specs.value = []
+  picked.value = new Set()
   fetchErr.value = ''
   fetching.value = true
-  const r = await api('/channels/fetch-models', jsonBody('POST', {
-    id: c.id || '', base_url: c.base_url || '', api_key: c.api_key || '',
-  }))
+  const r = await api('/channels/fetch-models', jsonBody('POST', { id: c.id }))
   fetching.value = false
   if (!r.ok) { fetchErr.value = r.data?.detail || '拉取失败'; return }
-  specs.value = (r.data?.data || []).map((s) => ({ ...s, alias: s.alias || '', busy: false }))
+  specs.value = (r.data?.data || []).map((s) => ({ ...s, alias: '' }))
+  picked.value = new Set(specs.value.map((s) => s.id))
 }
 
-// 勾选 = 立即导入绑定；取消勾选 = 解绑（模型没有其他渠道接入时本地行一并删除）。
-// 新渠道尚未入库时，第一次勾选会先自动保存渠道再绑定。
-async function toggleBind(s) {
-  if (s.busy) return
-  if (!s.bound && s.alias && s.alias === s.id) {
-    fetchErr.value = `「${s.id}」别名不能与上游模型同名，留空即可`
-    return
-  }
-  s.busy = true
+function togglePick(id) {
+  const next = new Set(picked.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  picked.value = next
+}
+
+async function doImport() {
+  if (importing.value || !picked.value.size) return
+  const dup = specs.value.find((s) => picked.value.has(s.id) && s.alias && s.alias === s.id)
+  if (dup) { fetchErr.value = `${dup.id}的别名与上游模型名相同，别名只在需要改名时设置，同名请留空`; return }
+  const models = specs.value.filter((s) => picked.value.has(s.id))
+    .map((s) => { const { bound, ...rest } = s; return rest })
+  importing.value = true
   fetchErr.value = ''
   try {
-    const target = fetchTarget.value
-    if (!s.bound) {
-      if (!target.id) {
-        const sr = await api('/channels', jsonBody('POST', {
-          id: '', name: target.name || target.base_url, base_url: target.base_url, api_key: target.api_key,
-          enabled: target.enabled !== false, concurrency: target.concurrency || 0, weight: target.weight || 1,
-        }))
-        if (!sr.ok) { fetchErr.value = sr.data?.detail || '渠道保存失败'; return }
-        if (sr.data?.warning) warn.value = sr.data.warning
-        target.id = sr.data?.id
-        form.value = null
-      }
-      const { bound, busy, ...rest } = s
-      const r = await api('/channels/import-models', jsonBody('POST', { id: target.id, models: [rest] }))
-      if (!r.ok) { fetchErr.value = r.data?.detail || '导入失败'; return }
-      s.bound = true
-    } else {
-      const r = await api('/channels/unbind-model', jsonBody('POST', { id: target.id, model: s.id }))
-      if (!r.ok) { fetchErr.value = r.data?.detail || '解绑失败'; return }
-      s.bound = false
-    }
+    const r = await api('/channels/import-models', jsonBody('POST', { id: fetchTarget.value.id, models }))
+    if (!r.ok) { fetchErr.value = r.data?.detail || '导入失败'; return }
+    okMsg.value = `已导入 ${models.length} 个模型`
+    fetchTarget.value = null
     load()
   } finally {
-    s.busy = false
+    importing.value = false
   }
 }
 
@@ -204,7 +165,9 @@ onMounted(load)
               <th>渠道</th>
               <th>并发</th>
               <th>配比</th>
-              <th class="text-right">成功调用</th>
+              <th class="text-right">运行中</th>
+              <th class="text-right">成功数</th>
+              <th class="text-right">失败数</th>
               <th class="text-right">累计消耗</th>
               <th class="text-right">上游余额</th>
               <th>状态</th>
@@ -220,7 +183,9 @@ onMounted(load)
               </td>
               <td class="tabular-nums">{{ c.concurrency || '不限' }}</td>
               <td class="tabular-nums">{{ c.weight || 1 }}</td>
+              <td class="text-right tabular-nums" :class="c.running_count > 0 ? 'text-emerald-300' : ''">{{ c.running_count || 0 }}</td>
               <td class="text-right tabular-nums">{{ (c.success_total || 0).toLocaleString() }}</td>
+              <td class="text-right tabular-nums" :class="c.fail_count > 0 ? 'text-rose-300' : ''">{{ (c.fail_count || 0).toLocaleString() }}</td>
               <td class="text-right tabular-nums">{{ (c.used_credits || 0).toLocaleString() }}</td>
               <td class="text-right tabular-nums">{{ c.upstream_balance == null ? '-' : c.upstream_balance.toLocaleString() }}</td>
               <td>
@@ -232,13 +197,13 @@ onMounted(load)
               </td>
               <td class="text-xs text-white/45 whitespace-nowrap">{{ c.last_used_at ? fmtTs(c.last_used_at) : '-' }}</td>
               <td class="text-right whitespace-nowrap">
-                <button @click="syncModels(c)" :disabled="syncing" class="op" title="同步上游模型"><Icon name="spark" class="w-3.5 h-3.5" /></button>
+                <button @click="openFetch(c)" class="op" title="同步上游模型"><Icon name="spark" class="w-3.5 h-3.5" /></button>
                 <button @click="openEdit(c)" class="op" title="编辑"><Icon name="config" class="w-3.5 h-3.5" /></button>
                 <button @click="del(c)" class="op danger" title="删除"><Icon name="trash" class="w-3.5 h-3.5" /></button>
               </td>
             </tr>
-            <tr v-if="loading"><td colspan="9" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
-            <tr v-else-if="!channels.length"><td colspan="9" class="py-10 text-center text-white/40 text-sm">没有渠道，点右上角「添加渠道」接入上游实例</td></tr>
+            <tr v-if="loading"><td colspan="11" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
+            <tr v-else-if="!channels.length"><td colspan="11" class="py-10 text-center text-white/40 text-sm">没有渠道，点右上角「添加渠道」接入上游实例</td></tr>
           </tbody>
         </table>
       </div>
@@ -286,12 +251,6 @@ onMounted(load)
               {{ form.enabled ? '已启用' : '已停用' }}
             </button>
           </div>
-          <div class="flex items-center gap-3">
-            <button type="button" @click="fetchFromForm" :disabled="fetching" class="btn-ghost text-xs">
-              {{ fetching ? '拉取中…' : '获取模型列表' }}
-            </button>
-            <span class="text-[11px] text-white/35">{{ form.id ? '直接全量同步上游模型到模型列表' : '用上方的地址与 API Key 预览；导入时会先自动保存渠道' }}</span>
-          </div>
           <p v-if="formErr" class="text-xs text-rose-300">{{ formErr }}</p>
         </div>
         <div class="px-5 py-4 border-t border-white/[0.06] flex justify-end gap-2">
@@ -301,42 +260,40 @@ onMounted(load)
       </div>
     </div>
 
-    <!-- 拉取上游模型 → 勾选即导入绑定 -->
+    <!-- 同步上游模型：开关选择 + 别名，批量导入 -->
     <div v-if="fetchTarget" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4" @click.self="fetchTarget = null">
       <div class="card !shadow-2xl my-12 w-full max-w-2xl">
         <div class="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-          <h2 class="text-sm font-semibold">上游模型 · {{ fetchTarget.name || fetchTarget.base_url }}</h2>
+          <h2 class="text-sm font-semibold">同步上游模型 · {{ fetchTarget.name || fetchTarget.base_url }}</h2>
           <button @click="fetchTarget = null" class="text-white/40 hover:text-white transition-colors"><Icon name="close" class="w-5 h-5" /></button>
         </div>
         <div class="p-5">
           <div v-if="fetching" class="py-10 text-center text-white/40 text-sm">正在从上游拉取模型列表…</div>
           <template v-else>
-            <p class="text-xs text-white/45 mb-3">勾选即导入并绑定到本渠道，取消勾选即解绑（模型没有其他渠道接入时本地行一并删除）。能力参数随模型带入，导入后到「模型管理」配价上架。别名即本站模型标识（留空=与上游同名，绑定时生效）。注意：保存渠道会按上游清单全量重同步，手动解绑的模型若仍在上游列表中会被重新接入。</p>
+            <p class="text-xs text-white/45 mb-3 leading-relaxed">开启的模型会同步到本站模型列表，参数随上游带入；到「模型管理」配价后上架。别名即本站模型标识，留空 = 与上游同名。</p>
             <p v-if="fetchErr" class="text-xs text-rose-300 mb-3">{{ fetchErr }}</p>
             <div v-if="!specs.length" class="py-10 text-center text-white/40 text-sm">上游没有可售模型（模型需在上游已配价）</div>
-            <div v-else class="space-y-1.5 max-h-[380px] overflow-y-auto">
-              <div v-for="s in specs" :key="s.id" @click="toggleBind(s)"
-                   class="flex items-start gap-2.5 p-2.5 rounded-lg ring-1 ring-white/10 hover:bg-white/[0.04] cursor-pointer transition-colors"
-                   :class="[!s.bound && 'opacity-50', s.busy && 'pointer-events-none']">
-                <span class="mt-1 inline-block h-3.5 w-3.5 shrink-0 rounded-full ring-1 transition-all"
-                      :class="s.bound ? 'bg-sky-400 ring-sky-300' : 'bg-transparent ring-white/25'"></span>
-                <div class="flex-1 min-w-0 space-y-1.5">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <code class="font-mono text-xs text-white/85">{{ s.id }}</code>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold"
-                          :class="s.kind === 'video' ? 'bg-rose-400/15 text-rose-300' : 'bg-sky-400/15 text-sky-300'">
-                      {{ KIND_LABEL[s.kind] || s.kind }}
-                    </span>
-                    <span class="text-[11px] text-white/40">{{ specText(s) }}</span>
-                    <span v-if="s.busy" class="ml-auto text-[10px] text-white/40">处理中…</span>
-                    <span v-else-if="s.bound" class="ml-auto px-1.5 py-0.5 rounded bg-emerald-400/15 text-emerald-300 text-[10px] font-semibold">已接入</span>
-                  </div>
-                  <div class="flex items-center gap-2" @click.stop>
-                    <span class="text-[11px] text-white/35 shrink-0">别名</span>
-                    <input v-model.trim="s.alias" type="text" maxlength="64" :disabled="s.bound"
-                           class="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-white/[0.04] ring-1 ring-white/10 text-xs text-white/80 disabled:opacity-40"
-                           :placeholder="s.bound ? '已绑定，到模型管理改别名' : '留空 = 与上游同名'" />
-                  </div>
+            <div v-else class="space-y-2 max-h-[400px] overflow-y-auto p-0.5">
+              <div v-for="s in specs" :key="s.id" @click="togglePick(s.id)"
+                   class="p-3 rounded-xl ring-1 ring-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:ring-white/20 cursor-pointer transition-all space-y-2"
+                   :class="!picked.has(s.id) && 'opacity-45'">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full shrink-0"
+                        :class="s.kind === 'video' ? 'bg-sky-400' : s.kind === 'text' ? 'bg-amber-400' : 'bg-indigo-400'"></span>
+                  <code class="font-mono text-[13px] font-semibold text-white/90 truncate">{{ s.id }}</code>
+                  <span class="text-[11px] font-semibold text-white/40 shrink-0">{{ KIND_LABEL[s.kind] || s.kind }}</span>
+                  <button type="button" class="ml-auto sw" :class="picked.has(s.id) && 'sw-on'"
+                          :aria-pressed="picked.has(s.id)" @click.stop="togglePick(s.id)">
+                    <span class="sw-thumb"></span>
+                  </button>
+                </div>
+                <div class="pl-[18px] text-[11px] text-white/50">{{ specText(s) }}</div>
+                <div class="pl-[18px]" @click.stop>
+                  <input v-model.trim="s.alias" type="text" maxlength="64" :disabled="!picked.has(s.id)"
+                         class="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-dashed border-white/15 text-xs text-white/80
+                                hover:border-solid focus:border-solid focus:border-white/30 focus:bg-white/[0.05] focus:outline-none
+                                disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                         placeholder="别名（留空 = 与上游同名）" />
                 </div>
               </div>
             </div>
@@ -344,6 +301,9 @@ onMounted(load)
         </div>
         <div class="px-5 py-4 border-t border-white/[0.06] flex justify-end gap-2">
           <button @click="fetchTarget = null" class="btn-ghost">关闭</button>
+          <button @click="doImport" :disabled="importing || !picked.size" class="btn-primary">
+            {{ importing ? '同步中…' : `同步模型（${picked.size}）` }}
+          </button>
         </div>
       </div>
     </div>
@@ -362,4 +322,10 @@ onMounted(load)
 .op { display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 7px; margin-left: 4px; border-radius: 7px; background: rgb(255 255 255 / 0.05); color: rgb(255 255 255 / 0.6); }
 .op:hover { background: rgb(255 255 255 / 0.1); color: white; }
 .op.danger:hover { background: rgb(244 63 94 / 0.15); color: rgb(251 113 133); }
+
+/* iOS-style switch for 模型开关 in the sync modal */
+.sw { position: relative; width: 2rem; height: 1.15rem; border-radius: 9999px; background: rgb(255 255 255 / 0.12); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); transition: background 0.18s ease; flex-shrink: 0; }
+.sw-thumb { position: absolute; top: 2px; left: 2px; width: calc(1.15rem - 4px); height: calc(1.15rem - 4px); border-radius: 9999px; background: white; box-shadow: 0 1px 2px rgb(15 23 42 / 0.3); transition: transform 0.18s ease; }
+.sw-on { background: rgb(16 185 129 / 0.7); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.5); }
+.sw-on .sw-thumb { transform: translateX(calc(2rem - 1.15rem)); }
 </style>

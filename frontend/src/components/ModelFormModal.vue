@@ -167,6 +167,10 @@ async function save() {
       duration_prices_agent,
       alias: alias.value.trim(),
       max_reference_images: e.max_reference_images || 0,
+      max_reference_videos: e.max_reference_videos || 0,
+      max_reference_audios: e.max_reference_audios || 0,
+      max_ref_video_seconds: e.max_ref_video_seconds || 0,
+      max_ref_audio_seconds: e.max_ref_audio_seconds || 0,
       reference_mode: e.reference_mode || 'none',
       weight: Number(weight.value) || 0,
     }

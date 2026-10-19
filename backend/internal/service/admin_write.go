@@ -402,6 +402,8 @@ func (s *AdminWriteService) CreateModel(ctx context.Context, body map[string]any
 		MaxReferenceImages:  intValue(body["max_reference_images"]),
 		MaxReferenceVideos:  intValue(body["max_reference_videos"]),
 		MaxReferenceAudios:  intValue(body["max_reference_audios"]),
+		MaxRefVideoSeconds:  intValue(body["max_ref_video_seconds"]),
+		MaxRefAudioSeconds:  intValue(body["max_ref_audio_seconds"]),
 		ReferenceMode:       defaultString(strings.TrimSpace(stringValue(body["reference_mode"])), "none"),
 		Weight:              intValue(body["weight"]),
 		CreatedAt:           time.Now(),
