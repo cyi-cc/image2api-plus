@@ -85,8 +85,11 @@ function goPage(n) {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading && !items.length"><td colspan="4" class="text-center text-xs text-white/40 py-10">加载中…</td></tr>
-          <tr v-else-if="!items.length"><td colspan="4" class="text-center text-xs text-white/40 py-10">{{ search.trim() ? '没有匹配的记录' : '还没有触发记录' }}</td></tr>
+          <tr v-if="loading && !items.length"><td colspan="4"><div class="empty"><span class="empty-text">加载中…</span></div></td></tr>
+          <tr v-else-if="!items.length"><td colspan="4"><div class="empty">
+            <span class="empty-ico"><Icon name="ban" class="w-6 h-6" /></span>
+            <span class="empty-text">{{ search.trim() ? '没有匹配的记录' : '还没有触发记录' }}</span>
+          </div></td></tr>
           <tr v-for="h in items" :key="h.id" class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors align-top">
             <td class="px-5 py-3.5 text-sm font-medium text-rose-300">{{ h.word }}</td>
             <td class="px-3 py-3.5">

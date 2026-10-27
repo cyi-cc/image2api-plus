@@ -275,7 +275,10 @@ async function copy(text) {
                 </div>
               </td>
             </tr>
-            <tr v-if="!models.length"><td colspan="4" class="px-4 py-10 text-center text-white/35">暂无可用模型</td></tr>
+            <tr v-if="!models.length"><td colspan="4"><div class="empty">
+              <span class="empty-ico"><Icon name="models" class="w-6 h-6" /></span>
+              <span class="empty-text">暂无可用模型</span>
+            </div></td></tr>
           </tbody>
         </table>
       </div>

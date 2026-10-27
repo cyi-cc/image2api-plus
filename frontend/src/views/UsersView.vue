@@ -258,13 +258,13 @@ async function doRecharge() {
 
     <!-- Table -->
     <div class="card overflow-hidden">
-      <div v-if="loading && !items.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
-      <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
-        <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center">
+      <div v-if="loading && !items.length" class="empty"><span class="empty-text">加载中…</span></div>
+      <div v-else-if="!filtered.length" class="empty">
+        <span class="empty-ico">
           <Icon name="accounts" class="w-6 h-6" />
         </span>
-        <span class="text-sm">{{ stats.total ? '没有匹配的用户' : '还没有用户' }}</span>
-        <button v-if="!stats.total" @click="showAdd = true" class="btn-soft mt-1">新建第一个</button>
+        <span class="empty-text">{{ stats.total ? '没有匹配的用户' : '还没有用户' }}</span>
+        <button v-if="!stats.total" @click="showAdd = true" class="btn-soft">新建第一个</button>
       </div>
 
       <div v-else class="overflow-x-auto">

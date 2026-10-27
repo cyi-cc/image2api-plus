@@ -218,9 +218,15 @@ const pageNumbers = computed(() => {
 
     <!-- table -->
     <div class="card overflow-hidden">
-      <div v-if="loading && !items.length" class="text-center text-sm text-white/40 py-16">加载中…</div>
-      <div v-else-if="!items.length && !stats.total" class="text-center text-sm text-white/40 py-16">还没有兑换码</div>
-      <div v-else-if="!items.length" class="text-center text-sm text-white/40 py-16">没有匹配的兑换码</div>
+      <div v-if="loading && !items.length" class="empty"><span class="empty-text">加载中…</span></div>
+      <div v-else-if="!items.length && !stats.total" class="empty">
+        <span class="empty-ico"><Icon name="key" class="w-6 h-6" /></span>
+        <span class="empty-text">还没有兑换码</span>
+      </div>
+      <div v-else-if="!items.length" class="empty">
+        <span class="empty-ico"><Icon name="key" class="w-6 h-6" /></span>
+        <span class="empty-text">没有匹配的兑换码</span>
+      </div>
       <table v-else class="w-full text-sm">
         <colgroup>
           <col class="w-9" />

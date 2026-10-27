@@ -95,8 +95,11 @@ function goPage(n) {
       </div>
     </div>
 
-    <div v-if="loading && !items.length" class="card text-center text-sm text-white/40 py-20">加载中…</div>
-    <div v-else-if="!total" class="card text-center text-sm text-white/40 py-20">暂无订单</div>
+    <div v-if="loading && !items.length" class="card empty"><span class="empty-text">加载中…</span></div>
+    <div v-else-if="!total" class="card empty">
+      <span class="empty-ico"><Icon name="receipt" class="w-6 h-6" /></span>
+      <span class="empty-text">暂无订单</span>
+    </div>
 
     <div v-else class="card overflow-x-auto !p-0">
       <table class="w-full text-sm log-table min-w-[820px]">

@@ -192,10 +192,10 @@ const sourcePill = (s) => ({
 
     <!-- Table -->
     <div class="card overflow-hidden">
-      <div v-if="loading && !items.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
-      <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
-        <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center"><Icon name="files" class="w-6 h-6" /></span>
-        <span class="text-sm">{{ search.trim() ? '没有匹配的记录' : '还没有日志' }}</span>
+      <div v-if="loading && !items.length" class="empty"><span class="empty-text">加载中…</span></div>
+      <div v-else-if="!filtered.length" class="empty">
+        <span class="empty-ico"><Icon name="files" class="w-6 h-6" /></span>
+        <span class="empty-text">{{ search.trim() ? '没有匹配的记录' : '还没有日志' }}</span>
       </div>
 
       <!-- Each row is a thumbnail + a stack of model/prompt + a meta line.

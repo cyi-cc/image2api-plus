@@ -359,6 +359,12 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 /* 表体单元格基线：没显式设颜色的 td 统一次要色，数字/名称列各自覆盖 */
 .theme-text .card table tbody td { color: var(--fg-2); }
 .theme-text .card table tbody tr.row-on td:first-child { box-shadow: inset 2px 0 0 #18181b; }
+
+/* ── 空占位：图标块 + 文案，全站表格/卡片共用 ── */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 4.5rem 1.5rem; color: var(--fg-3); text-align: center; }
+.empty-ico { width: 3.5rem; height: 3.5rem; border-radius: 1rem; background: var(--surface-2); border: 1px solid var(--hairline); display: grid; place-items: center; color: var(--fg-3); }
+.empty-text { font-size: 0.875rem; }
+.empty-sub { font-size: 0.75rem; color: var(--fg-3); margin-top: -0.375rem; }
 .public-dark .hover\:bg-slate-50:hover { background: rgb(255 255 255 / 0.04); }
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
 

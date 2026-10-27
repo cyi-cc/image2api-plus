@@ -204,8 +204,12 @@ onMounted(load)
                 <button @click="del(c)" class="op danger" title="删除"><Icon name="trash" class="w-3.5 h-3.5" /></button>
               </td>
             </tr>
-            <tr v-if="loading"><td colspan="11" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
-            <tr v-else-if="!channels.length"><td colspan="11" class="py-10 text-center text-white/40 text-sm">没有渠道，点上方「添加渠道」接入上游实例</td></tr>
+            <tr v-if="loading"><td colspan="11"><div class="empty"><span class="empty-text">正在加载渠道…</span></div></td></tr>
+            <tr v-else-if="!channels.length"><td colspan="11"><div class="empty">
+              <span class="empty-ico"><Icon name="plug" class="w-6 h-6" /></span>
+              <span class="empty-text">还没有渠道</span>
+              <span class="empty-sub">点上方「添加渠道」接入上游实例</span>
+            </div></td></tr>
           </tbody>
         </table>
       </div>
@@ -269,11 +273,11 @@ onMounted(load)
           <button @click="fetchTarget = null" class="text-white/40 hover:text-white transition-colors"><Icon name="close" class="w-5 h-5" /></button>
         </div>
         <div class="p-5">
-          <div v-if="fetching" class="py-10 text-center text-white/40 text-sm">正在从上游拉取模型列表…</div>
+          <div v-if="fetching" class="empty !py-10"><span class="empty-text">正在从上游拉取模型列表…</span></div>
           <template v-else>
             <p class="text-xs text-white/45 mb-3 leading-relaxed">开启的模型会同步到本站模型列表，参数随上游带入；到「模型管理」配价后上架。别名即本站模型标识，留空 = 与上游同名。</p>
             <p v-if="fetchErr" class="text-xs text-rose-300 mb-3">{{ fetchErr }}</p>
-            <div v-if="!specs.length" class="py-10 text-center text-white/40 text-sm">上游没有可售模型（模型需在上游已配价）</div>
+            <div v-if="!specs.length" class="empty !py-10"><span class="empty-text">上游没有可售模型（模型需在上游已配价）</span></div>
             <div v-else class="space-y-2 max-h-[400px] overflow-y-auto p-0.5">
               <div v-for="s in specs" :key="s.id" @click="togglePick(s.id)"
                    class="p-3 rounded-xl ring-1 ring-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:ring-white/20 cursor-pointer transition-all space-y-2"

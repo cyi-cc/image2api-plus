@@ -75,8 +75,11 @@ onMounted(load)
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading"><td colspan="5" class="text-center text-xs text-white/40 py-10">加载中…</td></tr>
-          <tr v-else-if="!items.length"><td colspan="5" class="text-center text-xs text-white/40 py-10">还没有分组</td></tr>
+          <tr v-if="loading"><td colspan="5"><div class="empty"><span class="empty-text">加载中…</span></div></td></tr>
+          <tr v-else-if="!items.length"><td colspan="5"><div class="empty">
+            <span class="empty-ico"><Icon name="layers" class="w-6 h-6" /></span>
+            <span class="empty-text">还没有分组</span>
+          </div></td></tr>
           <tr v-for="g in items" :key="g.id" class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
             <td class="px-5 py-3.5 align-middle text-sm font-medium text-white/90">{{ g.name }}</td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums">

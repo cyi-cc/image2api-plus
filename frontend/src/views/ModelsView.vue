@@ -110,11 +110,11 @@ onMounted(loadModels)
 
     <!-- Table -->
     <div class="card overflow-hidden">
-      <div v-if="loading && !models.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
-      <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
-        <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center"><Icon name="models" class="w-6 h-6" /></span>
-        <span v-if="models.length" class="text-sm">没有匹配的模型</span>
-        <router-link v-else to="/admin/channels" class="text-sm text-sky-300 underline underline-offset-2">还没有模型，先到「渠道管理」添加渠道，保存后会自动同步上游模型</router-link>
+      <div v-if="loading && !models.length" class="empty"><span class="empty-text">加载中…</span></div>
+      <div v-else-if="!filtered.length" class="empty">
+        <span class="empty-ico"><Icon name="models" class="w-6 h-6" /></span>
+        <span v-if="models.length" class="empty-text">没有匹配的模型</span>
+        <router-link v-else to="/admin/channels" class="empty-text underline underline-offset-2">还没有模型，先到「渠道管理」添加渠道，保存后会自动同步上游模型</router-link>
       </div>
 
       <table v-else class="w-full text-sm table-fixed min-w-[1080px]">
