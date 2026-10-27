@@ -310,7 +310,8 @@ async function doRecharge() {
         </thead>
         <tbody>
           <tr v-for="u in pagedItems" :key="u.id"
-              class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
+              class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+              :class="selected.has(u.id) && 'row-on'">
             <td class="px-3 py-3.5 align-middle text-center">
               <input type="checkbox" :checked="selected.has(u.id)" @change="toggleSelect(u.id)" @click.stop
                      class="chk" />

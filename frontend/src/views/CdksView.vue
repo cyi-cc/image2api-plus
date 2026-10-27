@@ -249,7 +249,8 @@ const pageNumbers = computed(() => {
         </thead>
         <tbody>
           <tr v-for="c in pagedItems" :key="c.code"
-              class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
+              class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+              :class="selected.has(c.code) && 'row-on'">
             <td class="px-3 py-3.5 align-middle text-center">
               <input type="checkbox" :checked="selected.has(c.code)" @change="toggleSelect(c.code)" @click.stop
                      class="chk" />

@@ -154,7 +154,7 @@ onMounted(load)
         <tbody>
           <tr v-if="loading && !items.length"><td colspan="5" class="text-center text-xs text-white/40 py-10">加载中…</td></tr>
           <tr v-else-if="!items.length"><td colspan="5" class="text-center text-xs text-white/40 py-10">还没有违禁词</td></tr>
-          <tr v-for="w in pagedItems" :key="w.id" class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
+          <tr v-for="w in pagedItems" :key="w.id" class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors" :class="selected.has(w.id) && 'row-on'">
             <td class="px-3 py-3.5 align-middle text-center">
               <input type="checkbox" :checked="selected.has(w.id)" @change="toggleSelect(w.id)" @click.stop class="chk" />
             </td>
