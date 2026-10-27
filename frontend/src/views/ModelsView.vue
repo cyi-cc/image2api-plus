@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 import ModelFormModal from '../components/ModelFormModal.vue'
 import TestModal from '../components/TestModal.vue'
 import { points } from '../credits'
@@ -15,6 +16,8 @@ const testing = ref(null) // model being tested, or null
 
 const kindFilter = ref('')      // '' | 'image' | 'video'
 const saleFilter = ref('')      // '' | 'sellable' | 'unsellable'
+const KIND_OPTS = [{ value: '', label: '全部类型' }, { value: 'image', label: '图像' }, { value: 'video', label: '视频' }]
+const SALE_OPTS = [{ value: '', label: '全部状态' }, { value: 'sellable', label: '已上架' }, { value: 'unsellable', label: '未上架' }]
 const search = ref('')
 
 const TYPE_LABEL = { image: '生图', video: '生视频' }
@@ -72,6 +75,10 @@ onMounted(loadModels)
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <h2 class="page-title">模型管理</h2>
+      <button @click="loadModels" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+    </div>
     <!-- KPI strip — same shape as LogsView / InvitesAdminView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
@@ -93,28 +100,12 @@ onMounted(loadModels)
     </div>
 
     <!-- Toolbar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1">
-        <button @click="kindFilter = ''" class="fp" :class="kindFilter === '' && 'fp-on'">全部</button>
-        <button @click="kindFilter = 'image'" class="fp" :class="kindFilter === 'image' && 'fp-on'">图像</button>
-        <button @click="kindFilter = 'video'" class="fp" :class="kindFilter === 'video' && 'fp-on'">视频</button>
-      </div>
-      <div class="w-px h-5 bg-white/10"></div>
-      <div class="flex items-center gap-1">
-        <button @click="saleFilter = ''" class="fp" :class="saleFilter === '' && 'fp-on'">全部</button>
-        <button @click="saleFilter = 'sellable'" class="fp" :class="saleFilter === 'sellable' && 'fp-emerald'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>上架
-        </button>
-        <button @click="saleFilter = 'unsellable'" class="fp" :class="saleFilter === 'unsellable' && 'fp-white'">
-          <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>未上架
-        </button>
-      </div>
+    <div class="card toolbar">
+      <SelectMenu v-model="kindFilter" compact :options="KIND_OPTS" />
+      <SelectMenu v-model="saleFilter" compact :options="SALE_OPTS" />
       <div class="flex-1 min-w-[200px]">
         <input v-model="search" class="field !py-1.5 text-xs" placeholder="搜索 模型 ID / 别名…" />
       </div>
-      <button @click="loadModels" class="btn-soft">
-        <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
-      </button>
     </div>
 
     <!-- Table -->

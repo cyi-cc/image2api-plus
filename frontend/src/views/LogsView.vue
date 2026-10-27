@@ -5,6 +5,7 @@ import { fmtTs, fmtDate, fmtClock } from '../utils/format'
 import { copyText } from '../utils/clipboard'
 import { generatedUrl, thumbUrl } from '../api'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
 
 const items = ref([])
@@ -83,6 +84,9 @@ function goPage(n) {
 }
 
 // Filters reset the cursor so a narrower view always starts on page 1.
+const KIND_OPTS = [{ value: '', label: '全部类型' }, { value: 'image', label: '图像' }, { value: 'video', label: '视频' }]
+const STATUS_OPTS = [{ value: '', label: '所有状态' }, { value: 'success', label: '成功' }, { value: 'failed', label: '失败' }, { value: 'pending', label: '进行中' }]
+const SOURCE_OPTS = [{ value: '', label: '所有来源' }, { value: 'user', label: '画图台' }, { value: 'v1', label: 'API' }, { value: 'admin', label: '测试' }]
 function setKind(v) { kindFilter.value = v; page.value = 1; load() }
 function setStatus(v) { statusFilter.value = v; page.value = 1; load() }
 function setSource(v) { sourceFilter.value = v; page.value = 1; load() }
@@ -153,6 +157,10 @@ const sourcePill = (s) => ({
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <h2 class="page-title">日志管理</h2>
+      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+    </div>
     <!-- KPI strip — dense pills aligned with the dashboard tints -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
@@ -174,32 +182,10 @@ const sourcePill = (s) => ({
     </div>
 
     <!-- Toolbar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1">
-        <button @click="setKind('')" class="fp" :class="kindFilter === '' && 'fp-on'">全部</button>
-        <button @click="setKind('image')" class="fp" :class="kindFilter === 'image' && 'fp-on'">图像</button>
-        <button @click="setKind('video')" class="fp" :class="kindFilter === 'video' && 'fp-on'">视频</button>
-      </div>
-      <div class="w-px h-5 bg-white/10"></div>
-      <div class="flex items-center gap-1">
-        <button @click="setStatus('')" class="fp" :class="statusFilter === '' && 'fp-on'">所有状态</button>
-        <button @click="setStatus('success')" class="fp" :class="statusFilter === 'success' && 'fp-emerald'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>成功
-        </button>
-        <button @click="setStatus('failed')" class="fp" :class="statusFilter === 'failed' && 'fp-rose'">
-          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>失败
-        </button>
-        <button @click="setStatus('pending')" class="fp" :class="statusFilter === 'pending' && 'fp-amber'">
-          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>进行中
-        </button>
-      </div>
-      <div class="w-px h-5 bg-white/10"></div>
-      <div class="flex items-center gap-1">
-        <button @click="setSource('')" class="fp" :class="sourceFilter === '' && 'fp-on'">所有来源</button>
-        <button @click="setSource('user')" class="fp" :class="sourceFilter === 'user' && 'fp-on'">画图台</button>
-        <button @click="setSource('v1')" class="fp" :class="sourceFilter === 'v1' && 'fp-on'">API</button>
-        <button @click="setSource('admin')" class="fp" :class="sourceFilter === 'admin' && 'fp-on'">测试</button>
-      </div>
+    <div class="card toolbar">
+      <SelectMenu :model-value="kindFilter" compact :options="KIND_OPTS" @update:model-value="setKind" />
+      <SelectMenu :model-value="statusFilter" compact :options="STATUS_OPTS" @update:model-value="setStatus" />
+      <SelectMenu :model-value="sourceFilter" compact :options="SOURCE_OPTS" @update:model-value="setSource" />
       <div class="w-44">
         <input v-model="userSearch" @keyup.enter="doUserSearch" @change="doUserSearch"
                class="field !py-1.5 text-xs" placeholder="搜索用户 名称/邮箱/ID…" />
@@ -208,9 +194,6 @@ const sourcePill = (s) => ({
         <input v-model="search" @keyup.enter="doUserSearch" @change="doUserSearch"
                class="field !py-1.5 text-xs" placeholder="搜索 模型 / 提示词 / 错误…" />
       </div>
-      <button @click="load" class="btn-soft">
-        <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
-      </button>
     </div>
 
     <!-- Table -->

@@ -85,7 +85,14 @@ function goPage(n) {
   if (target !== page.value) page.value = target
 }
 watch(page, () => { load() })
-function setFilter(fn) { fn(); resetAndLoad() }
+const ROLE_OPTS = [
+  { value: '', label: '全部角色' }, { value: 'admin', label: '管理员' },
+  { value: 'agent', label: '代理' }, { value: 'user', label: '用户' },
+]
+const STATUS_OPTS = [
+  { value: '', label: '所有状态' }, { value: 'active', label: '正常' }, { value: 'disabled', label: '禁用' },
+]
+watch([roleFilter, statusFilter], resetAndLoad)
 function resetAndLoad() {
   if (page.value !== 1) page.value = 1
   else load()
@@ -210,6 +217,10 @@ async function doRecharge() {
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <h2 class="page-title">用户管理</h2>
+      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+    </div>
     <!-- KPI strip — same shape as LogsView / ModelsView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
@@ -231,35 +242,14 @@ async function doRecharge() {
     </div>
 
     <!-- Toolbar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1">
-        <button @click="setFilter(() => roleFilter = '')" class="fp" :class="roleFilter === '' && 'fp-on'">全部角色</button>
-        <button @click="setFilter(() => roleFilter = 'admin')" class="fp" :class="roleFilter === 'admin' && 'fp-orange'">
-          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>管理员
-        </button>
-        <button @click="setFilter(() => roleFilter = 'agent')" class="fp" :class="roleFilter === 'agent' && 'fp-amber'">
-          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>代理
-        </button>
-        <button @click="setFilter(() => roleFilter = 'user')" class="fp" :class="roleFilter === 'user' && 'fp-on'">用户</button>
-      </div>
-      <div class="w-px h-5 bg-white/10"></div>
-      <div class="flex items-center gap-1">
-        <button @click="setFilter(() => statusFilter = '')" class="fp" :class="statusFilter === '' && 'fp-on'">所有状态</button>
-        <button @click="setFilter(() => statusFilter = 'active')" class="fp" :class="statusFilter === 'active' && 'fp-emerald'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>正常
-        </button>
-        <button @click="setFilter(() => statusFilter = 'disabled')" class="fp" :class="statusFilter === 'disabled' && 'fp-rose'">
-          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>禁用
-        </button>
-      </div>
+    <div class="card toolbar">
+      <SelectMenu v-model="roleFilter" compact :options="ROLE_OPTS" />
+      <SelectMenu v-model="statusFilter" compact :options="STATUS_OPTS" />
       <div class="flex-1 min-w-[200px]">
         <input v-model="search" class="field !py-1.5 text-xs" placeholder="搜索 邮箱 / 用户名 / ID…" />
       </div>
       <button v-if="selected.size" @click="delSelected" class="btn-soft danger" title="删除选中的用户">
         <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ selected.size }})
-      </button>
-      <button @click="load" class="btn-soft">
-        <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
       </button>
       <button @click="showAdd = true" class="btn-primary">
         <Icon name="plus" class="w-3.5 h-3.5" /> 新建用户
@@ -278,7 +268,7 @@ async function doRecharge() {
       </div>
 
       <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm table-fixed min-w-[1360px]">
+      <table class="w-full text-sm table-fixed min-w-[1500px]">
         <colgroup>
           <col class="w-9" />      <!-- select -->
           <col class="w-36" />     <!-- username -->

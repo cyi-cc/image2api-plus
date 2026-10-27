@@ -112,7 +112,7 @@ html:not(.dark) .theme-text :is(.text-white, [class*="text-white/9"], [class*="t
 html:not(.dark) .theme-text :is([class*="text-white/7"], [class*="text-white/6"]) { color: rgb(24 21 36 / 0.7); }
 html:not(.dark) .theme-text :is([class*="text-white/5"], [class*="text-white/4"]) { color: rgb(24 21 36 / 0.52); }
 html:not(.dark) .theme-text :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"]) { color: rgb(24 21 36 / 0.4); }
-html:not(.dark) .theme-text [class*="bg-white/"] { background-color: var(--surface-2); }
+html:not(.dark) .theme-text :is([class^="bg-white/"], [class*=" bg-white/"]) { background-color: var(--surface-2); }
 html:not(.dark) .theme-text [class*="border-white/"] { border-color: var(--hairline); }
 html:not(.dark) .theme-text [class*="ring-white/"] { --tw-ring-color: var(--hairline); }
 /* White placeholders (placeholder:text-white/30 etc.) — the rescue above only
@@ -127,7 +127,7 @@ html:not(.dark) .theme-text :is([class*="bg-slate-900"], [class*="bg-slate-800"]
    matcher also catches the /80 opacity variants. Badges keep their pale tinted
    bg (bg-*-500/10) which reads fine on white. */
 html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(24 24 27); }
-html:not(.dark) .theme-text :is([class*="text-orange-300"], [class*="text-orange-200"]) { color: rgb(124 58 237); }
+html:not(.dark) .theme-text :is([class*="text-orange-300"], [class*="text-orange-200"]) { color: rgb(24 24 27); }
 html:not(.dark) .theme-text :is([class*="text-rose-300"], [class*="text-rose-200"]) { color: rgb(225 29 72); }
 html:not(.dark) .theme-text :is([class*="text-emerald-300"], [class*="text-emerald-200"]) { color: rgb(5 150 105); }
 html:not(.dark) .theme-text :is([class*="text-sky-300"], [class*="text-sky-200"]) { color: rgb(2 132 199); }
@@ -337,313 +337,32 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
    over-media tables are untouched; specificity outranks the per-view
    Tailwind hover utilities and the light-mode white rescue. */
 .theme-text .card table thead {
-  background: linear-gradient(180deg, rgb(24 24 27 / 0.07), rgb(24 24 27 / 0.025));
+  background: #fafafa;
+  border-bottom: 1px solid rgb(24 24 27 / 0.07);
 }
-html.dark .theme-text .card table thead {
-  background: linear-gradient(180deg, rgb(24 24 27 / 0.13), rgb(24 24 27 / 0.05));
-}
-.theme-text .card table tbody tr { transition: background-color 0.15s ease; }
-.theme-text .card table tbody tr:hover { background-color: rgb(24 24 27 / 0.08); }
-html.dark .theme-text .card table tbody tr:hover { background-color: rgb(24 24 27 / 0.11); }
-/* Checkbox column + first data column get a hair more air against the
-   card edge so dense tables don't feel cramped. */
-.theme-text .card table tbody tr:hover :is(td, th):first-child {
-  box-shadow: inset 2px 0 0 rgb(24 24 27 / 0.55);
-}
-
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: rgb(24 21 36 / 0.2); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: rgb(24 21 36 / 0.38); background-clip: content-box; }
-::-webkit-scrollbar-track { background: transparent; }
-html.dark ::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); background-clip: content-box; }
-html.dark ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.32); background-clip: content-box; }
-
-/* ===== Ambient background — aurora wash used by the public shell ===== */
-.ambient-bg {
-  background-color: var(--app-bg);
-  }
-html.dark .ambient-bg {
-  background-image:
-    radial-gradient(60rem 40rem at 12% -10%, rgb(24 24 27 / 0.2), transparent 60%),
-    radial-gradient(52rem 36rem at 92% 8%, rgb(24 24 27 / 0.13), transparent 60%),
-    radial-gradient(46rem 32rem at 8% 96%, rgb(24 24 27 / 0.1), transparent 60%);
-}
-
-/* ===== Glass / aurora design kit =====
-   Frosted surfaces, hairline edges, soft layered shadows and violet→cyan
-   gradient accents. Same class names as the previous memphis kit so every
-   view picks the new look up without markup changes. */
-
-/* Gradient headline text — violet → cyan swipe. */
-.anime-grad-text {
-  background: linear-gradient(100deg, #18181b 0%, #3f3f46 45%, #52525b 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  padding: 0 0.05em;
-}
-html.dark .anime-grad-text {
-  background: linear-gradient(100deg, #71717a 0%, #e879f9 45%, #67e8f9 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-/* Section eyebrow — tiny uppercase kicker with a leading star. */
-.anime-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-.anime-eyebrow::before { content: '✦'; font-size: 0.85em; }
-
-/* Sticker label — glass chip with a soft glow. */
-.sticker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.34rem 0.85rem;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--fg);
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-
-/* Chunky CTA — violet→cyan gradient with a glow. */
-.bubble-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.4rem;
-  border-radius: 0.8rem;
-  font-size: 14px;
-  font-weight: 800;
-  color: #fff;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  cursor: pointer;
-  background: linear-gradient(120deg, #18181b, #27272a 55%, #52525b);
-  box-shadow: 0 8px 24px var(--accent-glow);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-}
-.bubble-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--accent-glow); filter: brightness(1.06); }
-.bubble-btn:active { transform: scale(0.97) translateY(1px); box-shadow: 0 4px 12px var(--accent-glow); }
-
-/* Glass card — frosted surface, hairline edge, soft shadow. */
-.anime-card {
-  position: relative;
-  border-radius: 1.1rem;
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.anime-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--glass-shadow-lg);
-}
-
-/* Selected pill — gradient fill with a glow. */
-.chip-on {
-  color: #fff !important;
-  background: linear-gradient(120deg, #18181b, #27272a) !important;
-  border: 1px solid transparent !important;
-  box-shadow: 0 4px 16px var(--accent-glow) !important;
-}
-
-/* Twinkling star field — drop into any relatively-positioned decorative layer.
-   Uses layered radial-gradients so it's a single element, no extra DOM. */
-.anime-stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1.5px 1.5px at 12% 22%, rgb(24 24 27 / 0.7), transparent),
-    radial-gradient(1.5px 1.5px at 78% 12%, rgb(24 24 27 / 0.7), transparent),
-    radial-gradient(1px 1px at 42% 62%, rgb(24 24 27 / 0.6), transparent),
-    radial-gradient(1.5px 1.5px at 88% 72%, rgb(24 24 27 / 0.6), transparent),
-    radial-gradient(1px 1px at 24% 84%, rgb(24 24 27 / 0.55), transparent),
-    radial-gradient(1px 1px at 62% 34%, rgb(167 139 250 / 0.55), transparent);
-  animation: twinkle 4.5s ease-in-out infinite;
-}
-@keyframes twinkle { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.4; } }
-@media (prefers-reduced-motion: reduce) { .anime-stars { animation: none; } }
-.ambient-grain::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22><filter id=%22n%22><feTurbulence baseFrequency=%220.9%22 numOctaves=%222%22 seed=%225%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.4%22/></svg>');
-  opacity: 0.035;
-  mix-blend-mode: multiply;
-  z-index: 1;
-}
-
-/* Float a soft mesh "orb" anywhere */
-.mesh-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(80px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ===== Glass utilities ===== */
-/* Dot texture layer — kept faint so it reads as grain, not polka dots. */
-.memphis-dots {
-  background-image: radial-gradient(circle, rgb(24 21 36 / 0.07) 1.1px, transparent 1.1px);
-  background-size: 26px 26px;
-}
-html.dark .memphis-dots {
-  background-image: radial-gradient(circle, rgb(255 255 255 / 0.05) 1.1px, transparent 1.1px);
-}
-/* Frosted surface helpers for one-off markup. */
-.ink-card {
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-lg);
-}
-.ink-card-sm {
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-/* Lift on hover — the signature card interaction. */
-.chunky-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-.chunky-hover:hover { transform: translateY(-3px); box-shadow: var(--glass-shadow-lg); }
-/* Squishy press for buttons. */
-.memphis-press { transition: transform 0.15s ease; }
-.memphis-press:active { transform: scale(0.97) translateY(1px); }
-
-/* Empty-state badge — frosted tile with a gradient star. */
-.empty-badge {
-  width: 4.5rem;
-  height: 4.5rem;
-  display: grid;
-  place-items: center;
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: #fff;
-  background: linear-gradient(135deg, #18181b, #52525b);
-  border: 1px solid rgb(255 255 255 / 0.2);
-  border-radius: 1.2rem;
-  box-shadow: 0 12px 32px var(--accent-glow);
-  animation: memphis-float 6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) { .empty-badge { animation: none; } }
-
-@keyframes memphis-wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-@keyframes memphis-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(1.5deg); } }
-@keyframes memphis-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-.animate-memphis-wiggle { animation: memphis-wiggle 2s ease-in-out infinite; }
-.animate-memphis-float { animation: memphis-float 6s ease-in-out infinite; }
-.animate-memphis-bounce { animation: memphis-bounce 2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .animate-memphis-wiggle, .animate-memphis-float, .animate-memphis-bounce { animation: none; }
-}
-
-/* ===== Dark public-shell theme overrides =====
-   Apply by adding `.public-dark` to a wrapper element. Views can keep their
-   existing Tailwind classes (text-slate-*, .card, .field) — these rules
-   remap them to the dark palette. */
-.public-dark { color: rgb(255 255 255 / 0.9); }
-.public-dark .card {
-  background: rgb(255 255 255 / 0.04);
-  border-color: rgb(255 255 255 / 0.1);
-  color: rgb(255 255 255 / 0.92);
-  box-shadow: var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.07);
-}
-.public-dark .field {
-  background: rgb(255 255 255 / 0.04);
-  border-color: rgb(255 255 255 / 0.12);
-  color: rgb(255 255 255 / 0.95);
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-}
-.public-dark .field::placeholder { color: rgb(255 255 255 / 0.3); }
-/* Single focus treatment shared by every <.field> across the admin shell —
-   a violet glow ring, matching the light theme's focus affordance. */
-.public-dark .field:focus,
-.public-dark .field:focus-visible {
-  border-color: rgb(24 24 27 / 0.7);
-  background: rgb(255 255 255 / 0.06);
-  box-shadow: 0 0 0 3px rgb(24 24 27 / 0.25);
-  outline: none;
-}
-.public-dark .btn-soft {
-  background: rgb(255 255 255 / 0.05);
-  border-color: rgb(255 255 255 / 0.12);
-  color: rgb(255 255 255 / 0.85);
-}
-.public-dark .btn-soft:hover { background: rgb(24 24 27 / 0.25); color: white; }
-.public-dark .btn-ghost { color: rgb(255 255 255 / 0.65); border-color: transparent; }
-.public-dark .btn-ghost:hover { background: rgb(24 24 27 / 0.18); color: white; }
-.public-dark .btn-primary {
-  background: linear-gradient(120deg, #18181b, #27272a); color: #fff;
-  box-shadow: 0 6px 18px var(--accent-glow);
-}
-.public-dark .btn-primary:hover { filter: brightness(1.08); }
-.public-dark .pill { background: rgb(255 255 255 / 0.06); color: rgb(255 255 255 / 0.85); border-color: rgb(255 255 255 / 0.12); }
-
-/* Remap slate text tokens */
-.public-dark .text-slate-900,
-.public-dark .text-slate-800,
-.public-dark .text-slate-700 { color: rgb(255 255 255 / 0.95); }
-.public-dark .text-slate-600 { color: rgb(255 255 255 / 0.75); }
-.public-dark .text-slate-500 { color: rgb(255 255 255 / 0.55); }
-.public-dark .text-slate-400 { color: rgb(255 255 255 / 0.4); }
-.public-dark .text-slate-300 { color: rgb(255 255 255 / 0.3); }
-
-/* Backgrounds & borders that views used */
-.public-dark .bg-white { background: rgb(255 255 255 / 0.12); color: rgb(255 255 255 / 0.95); }
-.public-dark .bg-slate-50, .public-dark .bg-slate-50\/60 { background: rgb(255 255 255 / 0.025); }
-.public-dark .bg-slate-100 { background: rgb(255 255 255 / 0.06); }
-.public-dark .bg-slate-200 { background: rgb(255 255 255 / 0.1); }
-.public-dark .border-slate-100,
-.public-dark .border-slate-200,
-.public-dark .border-slate-300 { border-color: rgb(255 255 255 / 0.08); }
-.public-dark .ring-slate-200 { --tw-ring-color: rgb(255 255 255 / 0.08); }
-
-/* Tables in dark */
-.public-dark .th { color: rgb(255 255 255 / 0.4); }
-.public-dark .row { border-color: rgb(255 255 255 / 0.06); }
-.public-dark .row:hover { background: rgb(24 24 27 / 0.07); }
-
-/* Inline code blocks (pill highlight) — only for inline <code>, NOT code inside
-   a <pre> block (docs examples), which would get an unwanted full-width tint. */
-.public-dark code { background: rgb(255 255 255 / 0.08); color: rgb(255 255 255 / 0.9); }
-.public-dark pre code { background: transparent; padding: 0; }
-
-/* Filter pills + segmented controls that admin pages stamp with bg-slate-900
-   for the "selected" state — that lands invisible on the dark shell. Treat
-   slate-900 as a strong-contrast surface in the dark palette. */
-.public-dark .bg-slate-900 { background: rgb(255 255 255 / 0.92); color: rgb(15 23 42); }
-.public-dark .hover\:bg-slate-700:hover { background: rgb(255 255 255 / 0.85); color: rgb(15 23 42); }
-.public-dark .text-slate-700 { color: rgb(255 255 255 / 0.85); }
-.public-dark .text-slate-200 { color: rgb(255 255 255 / 0.7); }
-.public-dark .text-slate-100 { color: rgb(255 255 255 / 0.92); }
-
-/* Divider utilities used by lists (recent activity, table rows). */
-.public-dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
-.public-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgb(255 255 255 / 0.05);
-}
-.public-dark .border-slate-100\/80 { border-color: rgb(255 255 255 / 0.06); }
+.theme-text .card table thead :is(th, td) { font-weight: 700; letter-spacing: 0.04em; }
+.theme-text .card table tbody tr { transition: background-color 0.12s ease; }
+.theme-text .card table tbody tr:hover { background-color: #f7f7f8; }
+.theme-text .card table tbody tr:last-child { border-bottom: 0; }
 .public-dark .hover\:bg-slate-50:hover { background: rgb(255 255 255 / 0.04); }
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
+
+/* ===== 后台页头 + 统一工具栏 ===== */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
+.toolbar .field { height: 36px; padding-top: 0 !important; padding-bottom: 0 !important; font-size: 13px !important; }
+.toolbar input.field:not([type]), .toolbar input.field[type="text"], .toolbar input.field[type="search"] {
+  padding-left: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 11px center;
+  background-size: 16px;
+}
+.toolbar :is(.btn-soft, .btn-primary) { height: 36px; padding: 0 14px; font-size: 13px; }
+.toolbar > .flex-1 { flex: 0 1 300px; min-width: 200px; }
+.toolbar > .w-44 { flex: 0 1 240px; width: auto; }
+.toolbar > .btn-primary { margin-left: auto; }
 
 @layer components {
   /* surfaces — frosted card with a hairline glass edge + soft shadow.
@@ -651,11 +370,9 @@ html.dark .memphis-dots {
      visible on white, reads as a subtle rim-light in dark mode. */
   .card {
     @apply rounded-2xl;
-    background: var(--surface);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.55);
+    background: #fff;
+    border: 1px solid rgb(24 24 27 / 0.07);
+    box-shadow: 0 1px 2px rgb(24 24 27 / 0.03), 0 10px 28px -16px rgb(24 24 27 / 0.12);
   }
 
   /* buttons — each variant is self-contained (Tailwind v4 can't @apply a custom class) */
@@ -663,31 +380,26 @@ html.dark .memphis-dots {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-bold
            disabled:opacity-50 disabled:cursor-not-allowed px-3.5 py-2;
     color: #fff;
-    background: linear-gradient(120deg, #18181b, #27272a 60%, #52525b 140%);
-    border: 1px solid rgb(255 255 255 / 0.16);
-    box-shadow: 0 6px 18px var(--accent-glow);
-    transition: transform 0.13s ease, box-shadow 0.13s ease, filter 0.13s ease;
+    background: #18181b;
+    border: 1px solid #18181b;
+    box-shadow: 0 6px 16px -6px rgb(9 9 11 / 0.45);
+    transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.13s ease;
   }
-  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px var(--accent-glow); filter: brightness(1.07); }
-  .btn-primary:active:not(:disabled) { transform: scale(0.97) translateY(1px); box-shadow: 0 3px 10px var(--accent-glow); }
+  .btn-primary:hover:not(:disabled) { background: #27272a; box-shadow: 0 10px 22px -8px rgb(9 9 11 / 0.5); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.97); box-shadow: none; }
   .btn-soft {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold
            disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
-    color: var(--fg-2);
-    background: var(--surface);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--ink-soft);
-    transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    color: var(--fg);
+    background: #fff;
+    border: 1px solid rgb(24 24 27 / 0.12);
+    transition: transform 0.13s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .btn-soft:hover:not(:disabled) {
-    color: var(--fg);
-    background: var(--hover);
-    border-color: rgb(24 24 27 / 0.45);
-    box-shadow: 0 4px 14px rgb(24 24 27 / 0.16);
+    background: #fafafa;
+    border-color: rgb(24 24 27 / 0.3);
   }
-  html.dark .btn-soft:hover:not(:disabled) { border-color: rgb(24 24 27 / 0.5); box-shadow: 0 4px 14px rgb(24 24 27 / 0.22); }
-  .btn-soft:active:not(:disabled) { transform: scale(0.97) translateY(1px); box-shadow: none; }
+  .btn-soft:active:not(:disabled) { transform: scale(0.97); }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium
            disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;
@@ -697,8 +409,7 @@ html.dark .memphis-dots {
   }
   .btn-ghost:hover:not(:disabled) {
     color: var(--fg);
-    background: var(--hover);
-    border-color: rgb(24 24 27 / 0.3);
+    background: rgb(24 24 27 / 0.06);
   }
 
   /* text link / quiet action */
@@ -710,13 +421,14 @@ html.dark .memphis-dots {
     @apply w-full rounded-lg px-3 py-2 text-sm
            outline-none placeholder:text-slate-400;
     color: var(--fg);
-    background: var(--surface);
-    border: 1px solid var(--ink-soft);
+    background: #fff;
+    border: 1px solid rgb(24 24 27 / 0.12);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
+  .field:hover { border-color: rgb(24 24 27 / 0.22); }
   .field:focus, .field:focus-visible {
-    border-color: rgb(24 24 27 / 0.65);
-    box-shadow: 0 0 0 3px rgb(24 24 27 / 0.18);
+    border-color: #18181b;
+    box-shadow: 0 0 0 3px rgb(24 24 27 / 0.08);
   }
   html.dark .field:focus, html.dark .field:focus-visible {
     border-color: rgb(24 24 27 / 0.7);
@@ -748,20 +460,20 @@ html.dark .memphis-dots {
 
   /* status pill */
   .pill {
-    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
-    border: 1px solid var(--ink-soft);
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    border: 1px solid transparent;
   }
 
   /* table primitives */
-  .th { @apply text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider; color: var(--fg-faint); }
+  .th { @apply text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider; color: var(--fg-3); }
   .td { @apply px-4 py-3.5 align-middle; }
   .row { @apply border-t transition-colors; border-color: var(--hairline); }
-  .row:hover { background: rgb(24 24 27 / 0.06); }
+  .row:hover { background: #f7f7f8; }
 
   /* avatar chip for identity columns */
   .avatar {
     @apply w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0;
-    border: 1px solid var(--ink);
-    background: var(--surface-2);
+    border: 1px solid rgb(24 24 27 / 0.1);
+    background: #f4f4f5;
   }
 }

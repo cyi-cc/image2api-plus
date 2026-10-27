@@ -5,6 +5,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { api, jsonBody } from '../api'
 import { fmtTs } from '../utils/format'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 
 const items = ref([])
 const stats = ref({ total: 0, active: 0, redeemed: 0, active_amount: 0, redeemed_amount: 0 })
@@ -14,7 +15,9 @@ const loading = ref(false)
 const statusFilter = ref('')   // '' | 'active'(未使用) | 'used'(已使用)
 const typeFilter = ref('')     // '' | 'normal' | 'marketing'
 const search = ref('')
-function setFilter(fn) { fn(); resetAndLoad() }
+const TYPE_OPTS = [{ value: '', label: '全部类型' }, { value: 'normal', label: '普通' }, { value: 'marketing', label: '营销' }]
+const STATUS_OPTS = [{ value: '', label: '所有状态' }, { value: 'active', label: '未使用' }, { value: 'used', label: '已使用' }]
+watch([typeFilter, statusFilter], resetAndLoad)
 function resetAndLoad() {
   if (page.value !== 1) page.value = 1
   else load()
@@ -140,6 +143,10 @@ const pageNumbers = computed(() => {
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <h2 class="page-title">兑换码管理</h2>
+      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+    </div>
     <!-- KPI strip — same shape as LogsView / InvitesAdminView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
@@ -198,30 +205,14 @@ const pageNumbers = computed(() => {
     </div>
 
     <!-- Toolbar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1">
-        <button @click="setFilter(() => typeFilter = '')" class="fp" :class="typeFilter === '' && 'fp-on'">全部类型</button>
-        <button @click="setFilter(() => typeFilter = 'normal')" class="fp" :class="typeFilter === 'normal' && 'fp-on'">普通</button>
-        <button @click="setFilter(() => typeFilter = 'marketing')" class="fp" :class="typeFilter === 'marketing' && 'fp-rose'">
-          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>营销
-        </button>
-      </div>
-      <div class="w-px h-5 bg-white/10"></div>
-      <div class="flex items-center gap-1">
-        <button @click="setFilter(() => statusFilter = '')" class="fp" :class="statusFilter === '' && 'fp-on'">所有状态</button>
-        <button @click="setFilter(() => statusFilter = 'active')" class="fp" :class="statusFilter === 'active' && 'fp-emerald'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>未使用
-        </button>
-        <button @click="setFilter(() => statusFilter = 'used')" class="fp" :class="statusFilter === 'used' && 'fp-on'">已使用</button>
-      </div>
+    <div class="card toolbar">
+      <SelectMenu v-model="typeFilter" compact :options="TYPE_OPTS" />
+      <SelectMenu v-model="statusFilter" compact :options="STATUS_OPTS" />
       <div class="flex-1 min-w-[160px]">
         <input v-model="search" class="field !py-1.5 text-xs" placeholder="搜索兑换码…" />
       </div>
       <button v-if="selected.size" @click="delSelected" class="btn-soft danger" title="删除选中的兑换码">
         <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ selected.size }})
-      </button>
-      <button @click="load" class="btn-soft">
-        <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
       </button>
     </div>
 

@@ -244,7 +244,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Filter bar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
+    <div class="card toolbar">
       <div class="flex items-center gap-1.5">
         <button @click="setKind('')" class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
                 :class="kindFilter === '' ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">全部</button>

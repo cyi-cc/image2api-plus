@@ -100,7 +100,7 @@ async function cont(o) {
     </div>
 
     <!-- Filter bar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
+    <div class="card toolbar">
       <div class="flex items-center gap-1.5">
         <button v-for="s in [['','全部'],['pending','待支付'],['paid','已支付'],['cancelled','已取消']]" :key="s[0]"
                 @click="setStatus(s[0])"

@@ -10,6 +10,7 @@ import { fmtDate, fmtClock, fmtTs } from '../utils/format'
 import { copyText } from '../utils/clipboard'
 import { points } from '../credits'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
 
 const router = useRouter()
@@ -44,6 +45,8 @@ async function copyError(e) {
 
 // 来源筛选走服务端:画图台 = source "user",API = source "v1"。
 const SOURCE_PARAM = { web: 'user', api: 'v1' }
+const STATUS_OPTS = [{ value: '', label: '所有状态' }, { value: 'success', label: '成功' }, { value: 'failed', label: '失败' }, { value: 'pending', label: '进行中' }]
+const SOURCE_OPTS = [{ value: '', label: '全部来源' }, { value: 'web', label: '画图台' }, { value: 'api', label: 'API' }]
 
 // 服务端分页 —— 不再只拉前 200 条;按页向后端取,可翻到全部历史。
 async function load() {
@@ -158,20 +161,9 @@ const params = (e) => {
     </div>
 
     <!-- Filter bar -->
-    <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1.5">
-        <button v-for="s in [['','全部'],['success','成功'],['failed','失败'],['pending','进行中']]" :key="s[0]"
-                @click="setStatus(s[0])"
-                class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="statusFilter === s[0] ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">{{ s[1] }}</button>
-      </div>
-      <div class="w-px h-5 bg-slate-200"></div>
-      <div class="flex items-center gap-1.5">
-        <button v-for="s in [['','全部来源'],['web','画图台'],['api','API']]" :key="s[0]"
-                @click="setSource(s[0])"
-                class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="sourceFilter === s[0] ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">{{ s[1] }}</button>
-      </div>
+    <div class="card toolbar">
+      <SelectMenu :model-value="statusFilter" compact :options="STATUS_OPTS" @update:model-value="setStatus" />
+      <SelectMenu :model-value="sourceFilter" compact :options="SOURCE_OPTS" @update:model-value="setSource" />
       <div class="flex-1 min-w-[180px]">
         <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
                class="field !py-1.5 text-xs" placeholder="搜索 提示词 / 模型 / 错误…" />
