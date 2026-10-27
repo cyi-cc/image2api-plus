@@ -7,6 +7,7 @@ import { api, jsonBody, loadImageBlob, loadImageData } from '../api'
 import { auth } from '../auth'
 import { normalizeDoc, newId, ratioToSize, serializeDoc, screenToWorld, rectsIntersect, DEFAULT_SCALE } from '../utils/canvas'
 import CanvasStage from '../components/canvas/CanvasStage.vue'
+import Icon from '../components/Icon.vue'
 import SelectMenu from '../components/SelectMenu.vue'
 
 const stage = ref(null)
@@ -916,10 +917,11 @@ const saveLabel = computed(() => ({
        站点固定顶栏(z-40)盖住,画布工具栏无法点击。 -->
   <Teleport to="body">
     <div class="cv-page">
-    <!-- 顶栏 -->
+    <!-- 悬浮岛：左上画布切换 / 右上撤销缩放 -->
     <div class="cv-top">
-      <div class="cv-top__left">
-        <button class="cv-btn" title="返回" @click="$router.push('/user')">←</button>
+      <div class="cv-island cv-top__left">
+        <button class="cv-btn cv-btn--ghost" title="返回" @click="$router.push('/user')"><Icon name="arrow" :size="15" style="transform: rotate(180deg)" /></button>
+        <span class="cv-sep" />
         <SelectMenu
           class="cv-dd cv-dd--canvas"
           :model-value="currentId"
@@ -927,26 +929,30 @@ const saveLabel = computed(() => ({
           placeholder="选择画布"
           @update:model-value="switchCanvas"
         />
-        <button class="cv-btn" title="重命名" @click="renameCanvas">✎</button>
-        <button class="cv-btn" title="新建画布" @click="newCanvas">＋</button>
-        <button class="cv-btn cv-btn--danger" title="删除画布" @click="deleteCanvas">🗑</button>
-      </div>
-
-      <div class="cv-top__right">
-        <button class="cv-btn" :disabled="!undoCount" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
-        <button class="cv-btn" :disabled="!redoCount" title="重做 (Ctrl+Shift+Z)" @click="redo">↪</button>
-        <span class="cv-sep" />
-        <button class="cv-btn" title="缩小 10%" @click="stage?.zoomStep(-1)">−</button>
-        <span class="cv-zoom">{{ scalePct }}%</span>
-        <button class="cv-btn" title="放大 10%" @click="stage?.zoomStep(1)">＋</button>
-        <button class="cv-btn" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: DEFAULT_SCALE })">⌂</button>
-        <button class="cv-btn" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
-        <span class="cv-sep" />
-        <button class="cv-btn cv-btn--accent" @click="addNote">＋ 笔记</button>
-        <button class="cv-btn cv-btn--accent" @click="openPicker">🗂 图片库</button>
-        <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFilePicked">
+        <button class="cv-btn cv-btn--ghost" title="重命名" @click="renameCanvas">✎</button>
+        <button class="cv-btn cv-btn--ghost" title="新建画布" @click="newCanvas"><Icon name="plus" :size="15" /></button>
+        <button class="cv-btn cv-btn--ghost cv-btn--danger" title="删除画布" @click="deleteCanvas"><Icon name="trash" :size="15" /></button>
         <span v-if="saveLabel" class="cv-save" :data-state="saveState">{{ saveLabel }}</span>
       </div>
+
+      <div class="cv-island cv-top__right">
+        <button class="cv-btn cv-btn--ghost" :disabled="!undoCount" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
+        <button class="cv-btn cv-btn--ghost" :disabled="!redoCount" title="重做 (Ctrl+Shift+Z)" @click="redo">↪</button>
+        <span class="cv-sep" />
+        <button class="cv-btn cv-btn--ghost" title="缩小 10%" @click="stage?.zoomStep(-1)">−</button>
+        <span class="cv-zoom">{{ scalePct }}%</span>
+        <button class="cv-btn cv-btn--ghost" title="放大 10%" @click="stage?.zoomStep(1)"><Icon name="plus" :size="15" /></button>
+        <span class="cv-sep" />
+        <button class="cv-btn cv-btn--ghost" title="重置视图 (0)" @click="stage?.setViewport({ x: 0, y: 0, scale: DEFAULT_SCALE })">⌂</button>
+        <button class="cv-btn cv-btn--ghost" title="适应内容 (1)" @click="stage?.fitToContent?.()">⤢</button>
+      </div>
+    </div>
+
+    <!-- 左侧工具坞 -->
+    <div class="cv-tools">
+      <button class="cv-tool" title="添加笔记" @click="addNote"><Icon name="plus" :size="18" /><span>笔记</span></button>
+      <button class="cv-tool" title="从图片库添加" @click="openPicker"><Icon name="image" :size="18" /><span>图片库</span></button>
+      <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFilePicked">
     </div>
 
     <!-- 舞台 + 生成面板 -->
@@ -1171,25 +1177,77 @@ const saveLabel = computed(() => ({
   background: var(--app-bg);
 }
 .cv-top {
-  position: relative;
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
   z-index: 20; /* 下拉面板不能被舞台盖住 */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 14px;
-  border-bottom: 1px solid rgb(24 24 27 / 0.07);
+  pointer-events: none;
+}
+.cv-island {
+  pointer-events: auto;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px solid rgb(24 24 27 / 0.08);
   background: rgb(255 255 255 / 0.92);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  flex-wrap: wrap;
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 12px 32px -12px rgb(24 24 27 / 0.2);
 }
+.cv-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  width: 32px;
+  padding: 0;
+  height: 32px;
+  border-radius: 10px;
+}
+.cv-tools {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid rgb(24 24 27 / 0.08);
+  background: rgb(255 255 255 / 0.92);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 12px 32px -12px rgb(24 24 27 / 0.2);
+}
+.cv-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 56px;
+  padding: 9px 0 7px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--fg-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.cv-tool:hover { background: rgb(24 24 27 / 0.06); color: #18181b; }
 .cv-top__left,
 .cv-top__right {
   display: flex;
   align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 /* 统一自定义下拉的宽度/紧凑度(SelectMenu 内部是 .field 按钮) */
 .cv-dd {
@@ -1211,11 +1269,9 @@ const saveLabel = computed(() => ({
   display: none;
 }
 .cv-sep {
-  width: 2.5px;
-  height: 20px;
-  border-radius: 2px;
-  background: var(--ink);
-  opacity: 0.25;
+  width: 1px;
+  height: 18px;
+  background: rgb(24 24 27 / 0.12);
   margin: 0 4px;
 }
 .cv-zoom {
@@ -1224,10 +1280,10 @@ const saveLabel = computed(() => ({
   color: var(--fg);
   min-width: 46px;
   text-align: center;
-  background: var(--hover);
-  border: 1px solid rgb(24 24 27 / 0.35);
-  border-radius: 999px;
-  padding: 1px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 1px 4px;
 }
 .cv-save {
   font-size: 11px;
