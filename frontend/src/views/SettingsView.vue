@@ -416,8 +416,8 @@ async function recharge() {
   box-shadow: inset 0 0 0 1px var(--hairline);
   color: var(--fg-2);
 }
-.st-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--fg-faint); margin-bottom: 4px; }
-.st-value { font-size: 14px; font-weight: 600; color: var(--fg); }
+.st-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--fg-faint); margin-bottom: 9px; }
+.st-value { font-size: 14.5px; font-weight: 600; color: var(--fg); line-height: 1.5; }
 .st-num { font-variant-numeric: tabular-nums; }
 .key-code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
 .key-box {
