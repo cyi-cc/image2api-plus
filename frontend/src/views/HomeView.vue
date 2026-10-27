@@ -145,7 +145,7 @@
             <div class="f-logo">
               <img v-if="site.logo" :src="site.logo" :alt="site.title" class="f-logo-img" />
               <Logo v-else :size="30" />
-              <span class="f-word">{{ site.title }}</span>
+              <span class="f-word brand-word">{{ site.title }}</span>
             </div>
             <p class="f-desc">按需计费的 AI 视觉创作平台——{{ onlineModels.length }} 个模型在线，按真实模型档位计费，只为实际生成的内容付费。</p>
             <div class="f-social">

@@ -347,6 +347,27 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 .public-dark .hover\:bg-slate-50:hover { background: rgb(255 255 255 / 0.04); }
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
 
+/* ===== 站名 logo 字：圆润可爱的字体（自托管子集）=====
+   英文用 Fredoka；汉字用站酷快乐体，unicode-range 限定后只有站名含汉字时才会下载。 */
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ZCOOL KuaiLe';
+  src: url('/fonts/zcool-kuaile.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+4E00-9FFF, U+3000-303F, U+FF00-FFEF, U+2014, U+2018-201D, U+2026;
+}
+.brand-word {
+  font-family: 'Fredoka', 'ZCOOL KuaiLe', ui-rounded, 'Hiragino Maru Gothic ProN', 'Arial Rounded MT Bold', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+}
+
 /* ===== 后台页头 + 统一工具栏 ===== */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }

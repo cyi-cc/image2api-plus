@@ -51,7 +51,7 @@ watch(() => route.path, () => {
         <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 rounded-[10px] object-contain ring-1 ring-[color:var(--ink)]" />
         <Logo v-else :size="32" />
         <div class="leading-tight min-w-0">
-          <div class="text-sm font-extrabold truncate tracking-tight text-[color:var(--fg)]">{{ site.title }}</div>
+          <div class="brand-word text-[15px] truncate max-w-full">{{ site.title }}</div>
           <div class="admin-tag text-[11px] font-bold uppercase tracking-widest truncate">Admin</div>
         </div>
       </router-link>

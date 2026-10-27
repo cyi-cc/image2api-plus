@@ -77,7 +77,7 @@ async function onLogout() {
         <router-link to="/" class="flex items-center gap-2.5 shrink-0 transition-transform hover:scale-[1.03]">
           <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 object-contain" />
           <Logo v-else :size="30" />
-          <span class="text-[17px] font-bold tracking-tight text-[color:var(--fg)]">{{ site.title }}</span>
+          <span class="brand-word text-[19px]">{{ site.title }}</span>
           <span class="brand-spark" aria-hidden="true">✦</span>
         </router-link>
 
