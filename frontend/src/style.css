@@ -328,6 +328,8 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
    columns, let the card scroll horizontally. overflow-y is left to the card's
    own utility so vertical clipping / rounded corners are preserved. */
 .card:has(> table) { overflow-x: auto; }
+/* 后台卡片统一纯白——90% 半透明白叠在米色页底上会发灰 */
+.theme-text .card { background: var(--surface-solid); }
 
 /* ===== Admin table polish =====
    Every data table lives in a `.card` and views hand-roll their own
