@@ -82,20 +82,20 @@ onMounted(loadModels)
     <!-- KPI strip — same shape as LogsView / InvitesAdminView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">总数</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总数</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-sky-300/80">图像</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-sky-300">{{ stats.image }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">图像</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.image }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">视频</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.video }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">视频</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.video }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">上架</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.sellable }}<span class="text-white/35 text-lg ml-1">/ {{ stats.total }}</span></div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">上架</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.sellable }}<span class="text-white/35 text-lg ml-1">/ {{ stats.total }}</span></div>
       </div>
     </div>
 
@@ -207,7 +207,7 @@ onMounted(loadModels)
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                     :class="m.sellable
-                      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
+                      ? 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25'
                       : 'bg-white/[0.05] text-white/40 ring-white/10'"
                     :title="m.sellable ? '全部档位有价且有启用渠道,对前台可见' : '配齐全部档位价格并绑定启用渠道后自动上架'">
                 {{ m.sellable ? '已上架' : '未上架' }}

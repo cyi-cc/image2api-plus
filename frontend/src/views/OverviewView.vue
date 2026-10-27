@@ -113,15 +113,15 @@ const recentLogs = computed(() => logs.value.slice(0, 12))
 
 // ---- formatters ----
 function statusLabel(s) { return s === 'healthy' ? '健康' : s === 'warning' ? '告警' : '未配置' }
-function statusDot(s) { return s === 'healthy' ? 'bg-emerald-400' : s === 'warning' ? 'bg-amber-400' : 'bg-rose-500' }
+function statusDot(s) { return s === 'healthy' ? 'bg-emerald-500' : s === 'warning' ? 'bg-amber-500' : 'bg-rose-500' }
 function statusPill(s) {
-  if (s === 'healthy') return 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
-  if (s === 'warning') return 'bg-amber-500/10 text-amber-300 ring-amber-400/30'
-  return 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
+  if (s === 'healthy') return 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25'
+  if (s === 'warning') return 'bg-amber-500/10 text-amber-600 ring-amber-500/25'
+  return 'bg-rose-500/10 text-rose-600 ring-rose-500/25'
 }
 function logDot(status) {
-  if (status === 'success') return 'bg-emerald-400'
-  if (status === 'pending') return 'bg-amber-400'
+  if (status === 'success') return 'bg-emerald-500'
+  if (status === 'pending') return 'bg-amber-500'
   return 'bg-rose-500'
 }
 function fmtMs(ms) {

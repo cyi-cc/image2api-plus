@@ -121,7 +121,7 @@ function goPage(n) {
             <td class="px-3 py-3.5 align-middle text-xs text-white/55 whitespace-nowrap">{{ fmt(o.created_at) }}</td>
             <td class="px-3 py-3.5 align-middle text-xs text-white/55 whitespace-nowrap">{{ fmt(o.paid_at) }}</td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums text-white/85">{{ o.source && o.source !== 'epay' ? '—' : '¥' + o.amount }}</td>
-            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="o.points < 0 ? 'text-rose-300' : 'text-orange-300'">{{ o.points }}</td>
+            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="o.points < 0 ? 'text-rose-600' : 'text-orange-600'">{{ o.points }}</td>
             <td class="px-3 py-3.5 align-middle">
               <span class="chip" :class="chipClass(o.status)">{{ STATUS[o.status] }}<span class="opacity-50 ml-1">· {{ METHOD[o.pay_type] || o.pay_type }}</span></span>
             </td>
@@ -147,8 +147,8 @@ function goPage(n) {
 .fp { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; font-size: 0.72rem; border-radius: 0.55rem; color: var(--fg-2); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--hairline); transition: background 0.15s, color 0.15s; }
 .fp:hover { background: var(--hover); color: var(--fg); }
 .fp-on { background: var(--surface-solid); color: rgb(15 23 42); box-shadow: none; }
-.fp-emerald { background: rgb(16 185 129 / 0.22); color: rgb(110 231 183); box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45); }
-.fp-amber { background: rgb(245 158 11 / 0.22); color: rgb(252 211 77); box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.45); }
+.fp-emerald { background: rgb(16 185 129 / 0.1); color: #059669; box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.22); }
+.fp-amber { background: rgb(245 158 11 / 0.12); color: #b45309; box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.25); }
 .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.18rem 0.55rem; font-size: 0.7rem; font-weight: 500; border-radius: 9999px; white-space: nowrap; background: var(--surface-2); color: var(--fg-3); box-shadow: inset 0 0 0 1px var(--hairline); }
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td { border-bottom: 1px solid var(--hairline); transition: background-color 0.15s ease, box-shadow 0.15s ease; }

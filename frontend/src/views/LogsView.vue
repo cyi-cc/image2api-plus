@@ -134,23 +134,23 @@ onUnmounted(() => {
 // ---- chip helpers ----
 const statusLabel = (s) => ({ success: '成功', failed: '失败', pending: '进行中' }[s] || s)
 const statusPill = (s) => ({
-  success: 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30',
-  failed:  'bg-rose-500/10 text-rose-300 ring-rose-400/30',
-  pending: 'bg-amber-500/10 text-amber-300 ring-amber-400/30',
+  success: 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25',
+  failed:  'bg-rose-500/10 text-rose-600 ring-rose-500/25',
+  pending: 'bg-amber-500/10 text-amber-600 ring-amber-500/25',
 }[s] || 'bg-white/[0.06] text-white/65 ring-white/15')
 const statusDot = (s) => ({
-  success: 'bg-emerald-400',
-  failed:  'bg-rose-400',
-  pending: 'bg-amber-400',
+  success: 'bg-emerald-500',
+  failed:  'bg-rose-500',
+  pending: 'bg-amber-500',
 }[s] || 'bg-white/40')
 
 // Source: backend stamps "v1" (API key), "user" (画图台), "admin" (后台测试模型).
 const sourceLabel = (s) => ({ v1: 'API', user: '画图台', admin: '测试' }[s] || '画图台')
 const sourcePill = (s) => ({
-  v1:    'bg-orange-500/15 text-orange-300 ring-orange-400/30',
-  admin: 'bg-amber-500/15 text-amber-300 ring-amber-400/30',
-  user:  'bg-sky-500/15 text-sky-300 ring-sky-400/30',
-}[s] || 'bg-sky-500/15 text-sky-300 ring-sky-400/30')
+  v1:    'bg-orange-500/15 text-orange-600 ring-orange-500/25',
+  admin: 'bg-amber-500/15 text-amber-600 ring-amber-500/25',
+  user:  'bg-sky-500/15 text-sky-600 ring-sky-500/25',
+}[s] || 'bg-sky-500/15 text-sky-600 ring-sky-500/25')
 </script>
 
 <template>
@@ -162,20 +162,20 @@ const sourcePill = (s) => ({
     <!-- KPI strip — dense pills aligned with the dashboard tints -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">总计</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总计</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">成功</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.success }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">成功</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.success }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">失败</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.failed }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">失败</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.failed }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-amber-300/80">进行中</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ stats.pending }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">进行中</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.pending }}</div>
       </div>
     </div>
 
@@ -231,7 +231,7 @@ const sourcePill = (s) => ({
             <td class="px-4 py-3.5 align-middle text-center">
               <button v-if="e.status === 'success' && e.file && e.source !== 'v1'"
                       @click="openPreview(e)"
-                      class="block w-12 h-12 mx-auto rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-rose-400/60 transition-all">
+                      class="block w-12 h-12 mx-auto rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-rose-500/25 transition-all">
                 <img v-if="e.kind !== 'video' || !thumbFail[e.id]" :src="thumbUrl(e.file)" loading="lazy"
                      class="w-full h-full object-cover"
                      @error="e.kind === 'video' && (thumbFail[e.id] = true)" />
@@ -240,8 +240,8 @@ const sourcePill = (s) => ({
                        @mouseenter="$event.target.play && $event.target.play()"
                        @mouseleave="$event.target.pause && $event.target.pause()" />
               </button>
-              <div v-else-if="e.status === 'pending'" class="w-12 h-12 mx-auto rounded-lg bg-amber-500/10 ring-1 ring-amber-400/30 grid place-items-center">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              <div v-else-if="e.status === 'pending'" class="w-12 h-12 mx-auto rounded-lg bg-amber-500/10 ring-1 ring-amber-500/25 grid place-items-center">
+                <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
               </div>
               <!-- failed (and any non-success/non-pending) rows: no thumbnail, just a dash.
                    The 状态 column already flags the failure. -->
@@ -268,7 +268,7 @@ const sourcePill = (s) => ({
               <div class="font-mono text-xs text-white/90 break-all" :title="e.model">{{ e.model }}</div>
               <div class="mt-1 flex items-center gap-1.5 min-w-0">
                 <span class="text-[10px] uppercase tracking-wider font-medium truncate min-w-0"
-                      :class="e.kind === 'video' ? 'text-rose-300/80' : 'text-sky-300/80'">
+                      :class="e.kind === 'video' ? 'text-rose-600' : 'text-sky-600'">
                   {{ e.kind === 'video' ? '视频' : '图像' }}
                   <span v-if="e.provider" class="text-white/30 ml-1">· {{ e.provider }}</span>
                 </span>
@@ -283,7 +283,7 @@ const sourcePill = (s) => ({
                    :class="e.prompt ? 'cursor-pointer hover:text-white' : ''"
                    :title="e.prompt ? '点击复制提示词' : ''"
                    @click="e.prompt && copyPrompt(e)">{{ e.prompt || '—' }}</div>
-              <div v-if="e.error" class="mt-1 text-[11px] text-rose-300/85 truncate flex items-center gap-1.5 cursor-pointer hover:text-rose-200 transition-colors"
+              <div v-if="e.error" class="mt-1 text-[11px] text-rose-600 truncate flex items-center gap-1.5 cursor-pointer hover:text-rose-500 transition-colors"
                    :title="e.error + ' — 点击复制'"
                    @click.stop="copyError(e)">
                 {{ e.error }}
@@ -308,7 +308,7 @@ const sourcePill = (s) => ({
               </template>
             </td>
             <td class="px-3 py-3.5 text-right text-xs tabular-nums align-middle whitespace-nowrap">
-              <span v-if="e.cost > 0" class="text-amber-300 font-medium">{{ e.cost }}</span>
+              <span v-if="e.cost > 0" class="text-amber-600 font-medium">{{ e.cost }}</span>
               <span v-else class="text-white/25">0</span>
             </td>
             <td class="px-4 py-3.5 text-right text-xs tabular-nums align-middle whitespace-nowrap text-white/85">
@@ -371,21 +371,9 @@ const sourcePill = (s) => ({
   color: rgb(15 23 42);
   box-shadow: none;
 }
-.fp-emerald {
-  background: rgb(16 185 129 / 0.22);
-  color: rgb(110 231 183);
-  box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45);
-}
-.fp-rose {
-  background: rgb(244 63 94 / 0.22);
-  color: rgb(253 164 175);
-  box-shadow: inset 0 0 0 1px rgb(253 164 175 / 0.45);
-}
-.fp-amber {
-  background: rgb(245 158 11 / 0.22);
-  color: rgb(252 211 77);
-  box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.45);
-}
+.fp-emerald { background: rgb(16 185 129 / 0.1); color: #059669; box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.22); }
+.fp-rose { background: rgb(239 68 68 / 0.09); color: #dc2626; box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.2); }
+.fp-amber { background: rgb(245 158 11 / 0.12); color: #b45309; box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.25); }
 
 /* --- type / status chip used inside table rows --- */
 .chip {

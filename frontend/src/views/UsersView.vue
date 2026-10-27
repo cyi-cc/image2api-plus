@@ -224,20 +224,20 @@ async function doRecharge() {
     <!-- KPI strip — same shape as LogsView / ModelsView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">用户总数</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">用户总数</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">正常</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.active }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">正常</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.active }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">管理员</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.admins }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">管理员</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.admins }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-amber-300/80">总积分</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ points(stats.credits_total).toLocaleString('en-US') }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总积分</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ points(stats.credits_total).toLocaleString('en-US') }}</div>
       </div>
     </div>
 
@@ -331,12 +331,12 @@ async function doRecharge() {
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 whitespace-nowrap"
                     :class="u.role === 'admin'
-                      ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
+                      ? 'bg-rose-500/10 text-rose-600 ring-rose-500/25'
                       : u.role === 'agent'
-                        ? 'bg-amber-500/10 text-amber-300 ring-amber-400/30'
+                        ? 'bg-amber-500/10 text-amber-600 ring-amber-500/25'
                         : 'bg-white/[0.06] text-white/70 ring-white/15'">
                 <span class="w-1.5 h-1.5 rounded-full"
-                      :class="u.role === 'admin' ? 'bg-rose-400' : u.role === 'agent' ? 'bg-amber-400' : 'bg-slate-400'"></span>
+                      :class="u.role === 'admin' ? 'bg-rose-500' : u.role === 'agent' ? 'bg-amber-500' : 'bg-slate-400'"></span>
                 {{ roleLabel(u.role) }}
               </span>
             </td>
@@ -352,7 +352,7 @@ async function doRecharge() {
               {{ points(u.credits).toLocaleString('en-US') }}
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                :class="u.recharge_total > 0 ? 'text-emerald-300' : 'text-white/25'">
+                :class="u.recharge_total > 0 ? 'text-emerald-600' : 'text-white/25'">
               ¥{{ (u.recharge_total || 0).toLocaleString('en-US') }}
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
@@ -360,7 +360,7 @@ async function doRecharge() {
               {{ (u.generation_count || 0).toLocaleString('en-US') }}
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                :class="u.banned_word_hits > 0 ? 'text-rose-300' : 'text-white/25'">
+                :class="u.banned_word_hits > 0 ? 'text-rose-600' : 'text-white/25'">
               {{ (u.banned_word_hits || 0).toLocaleString('en-US') }}
             </td>
             <td class="px-3 py-3.5 align-middle text-xs whitespace-nowrap">
@@ -427,7 +427,7 @@ async function doRecharge() {
         </div>
         <div class="p-5 space-y-3">
           <div>
-            <label class="lbl">邮箱 <span class="text-rose-300">*</span></label>
+            <label class="lbl">邮箱 <span class="text-rose-600">*</span></label>
             <input v-model="addForm.email" class="field" placeholder="user@example.com" />
           </div>
           <div>
@@ -577,26 +577,10 @@ async function doRecharge() {
 }
 .fp:hover { background: var(--hover); color: var(--fg); }
 .fp-on { background: var(--surface-solid); color: rgb(15 23 42); box-shadow: none; }
-.fp-emerald {
-  background: rgb(16 185 129 / 0.22);
-  color: rgb(110 231 183);
-  box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45);
-}
-.fp-rose {
-  background: rgb(244 63 94 / 0.22);
-  color: rgb(253 164 175);
-  box-shadow: inset 0 0 0 1px rgb(253 164 175 / 0.45);
-}
-.fp-orange {
-  background: rgb(249 115 22 / 0.22);
-  color: rgb(253 186 116);
-  box-shadow: inset 0 0 0 1px rgb(253 186 116 / 0.45);
-}
-.fp-amber {
-  background: rgb(245 158 11 / 0.22);
-  color: rgb(252 211 77);
-  box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.45);
-}
+.fp-emerald { background: rgb(16 185 129 / 0.1); color: #059669; box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.22); }
+.fp-rose { background: rgb(239 68 68 / 0.09); color: #dc2626; box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.2); }
+.fp-orange { background: rgb(249 115 22 / 0.12); color: #c2410c; box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.25); }
+.fp-amber { background: rgb(245 158 11 / 0.12); color: #b45309; box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.25); }
 
 /* --- icon-only action buttons */
 .act {
@@ -642,10 +626,7 @@ async function doRecharge() {
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.3);
   transition: transform 0.18s ease;
 }
-.sw-on {
-  background: rgb(16 185 129 / 0.7);
-  box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.5);
-}
+.sw-on { background: #18181b; box-shadow: inset 0 0 0 1px #18181b; }
 .sw-on .sw-thumb { transform: translateX(calc(2.25rem - 1.3rem)); }
 
 /* --- numbered pagination buttons */

@@ -209,7 +209,7 @@ async function copy(text) {
             <dt class="text-white/45">你的 Key</dt><dd class="font-mono text-white/70">{{ keyHint }}</dd>
           </div>
         </dl>
-        <p class="text-[11px] text-white/40 mt-4">还没有 Key?去 <router-link to="/settings" class="text-orange-300 underline">设置 → API Key</router-link> 生成。</p>
+        <p class="text-[11px] text-white/40 mt-4">还没有 Key?去 <router-link to="/settings" class="text-orange-600 underline">设置 → API Key</router-link> 生成。</p>
       </div>
 
       <div class="card p-6">
@@ -229,7 +229,7 @@ async function copy(text) {
       <div class="card overflow-hidden">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-left text-[11px] uppercase tracking-wider text-white/40 border-b border-white/[0.08]">
+            <tr class="text-left text-[11px] uppercase tracking-wider text-[color:var(--fg-3)] border-b border-white/[0.08]">
               <th class="px-4 py-3 font-medium whitespace-nowrap">model</th>
               <th class="px-4 py-3 font-medium whitespace-nowrap">类型</th>
               <th class="px-4 py-3 font-medium whitespace-nowrap" title="视频价 = 分辨率价 + 时长价">定价 <span class="normal-case text-white/30">积分</span></th>
@@ -290,7 +290,7 @@ async function copy(text) {
         <h2 class="text-lg font-semibold mb-3">生成参数 <span class="text-xs font-normal text-white/40">POST /v1/generate</span></h2>
         <div class="card overflow-hidden">
           <table class="w-full text-sm">
-            <thead><tr class="text-left text-[11px] uppercase tracking-wider text-white/40 border-b border-white/[0.08]">
+            <thead><tr class="text-left text-[11px] uppercase tracking-wider text-[color:var(--fg-3)] border-b border-white/[0.08]">
               <th class="px-4 py-2.5 font-medium">参数</th><th class="px-4 py-2.5 font-medium">类型</th><th class="px-4 py-2.5 font-medium">必填</th><th class="px-4 py-2.5 font-medium">说明</th>
             </tr></thead>
             <tbody>
@@ -309,7 +309,7 @@ async function copy(text) {
         <h2 class="text-lg font-semibold mb-3">上传参数 <span class="text-xs font-normal text-white/40">POST /v1/uploads</span></h2>
         <div class="card overflow-hidden">
           <table class="w-full text-sm">
-            <thead><tr class="text-left text-[11px] uppercase tracking-wider text-white/40 border-b border-white/[0.08]">
+            <thead><tr class="text-left text-[11px] uppercase tracking-wider text-[color:var(--fg-3)] border-b border-white/[0.08]">
               <th class="px-4 py-2.5 font-medium">参数</th><th class="px-4 py-2.5 font-medium">类型</th><th class="px-4 py-2.5 font-medium">必填</th><th class="px-4 py-2.5 font-medium">说明</th>
             </tr></thead>
             <tbody>

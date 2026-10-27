@@ -225,7 +225,7 @@ async function save() {
             <SelectMenu v-if="!isEdit" v-model="selectedId" :options="addOptions"
                         placeholder="选择一个支持的模型" />
             <div v-else class="field font-mono !cursor-default opacity-90">{{ entry?.id }}</div>
-            <p v-if="!isEdit && !addOptions.length" class="text-[11px] text-amber-300/80 mt-1.5">
+            <p v-if="!isEdit && !addOptions.length" class="text-[11px] text-amber-600 mt-1.5">
               模型经「渠道管理 → 拉取上游模型」导入。
             </p>
           </div>
@@ -240,8 +240,8 @@ async function save() {
           <div v-if="entry" class="rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] p-3.5 space-y-2.5">
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
-                    :class="isVideo ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
-                                    : 'bg-sky-500/10 text-sky-300 ring-sky-400/30'">
+                    :class="isVideo ? 'bg-rose-500/10 text-rose-600 ring-rose-500/25'
+                                    : 'bg-sky-500/10 text-sky-600 ring-sky-500/25'">
                 {{ isVideo ? '生视频' : '生图' }}
               </span>
               <span class="text-[11px] text-white/45 capitalize">{{ entry.provider }}</span>
@@ -306,7 +306,7 @@ async function save() {
                     </div>
                     <div class="relative flex-1">
                       <input v-model="imagePricesAgent[r]" type="number" min="0" step="1" class="field !pr-10" placeholder="跟随普通" />
-                      <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-300/40 text-[10px]">代理</span>
+                      <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-600 text-[10px]">代理</span>
                     </div>
                   </div>
                   <p v-if="!resolutions.length" class="text-xs text-white/35">该模型未声明分辨率档位</p>
@@ -329,7 +329,7 @@ async function save() {
                     </div>
                     <div class="relative flex-1">
                       <input v-model="videoPricesAgent[d]" type="number" min="0" step="1" class="field !pr-10" placeholder="跟随普通" />
-                      <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-300/40 text-[10px]">代理</span>
+                      <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-600 text-[10px]">代理</span>
                     </div>
                   </div>
                 </div>
@@ -347,7 +347,7 @@ async function save() {
             </div>
           </template>
 
-          <p v-if="error" class="text-xs text-rose-300">{{ error }}</p>
+          <p v-if="error" class="text-xs text-rose-600">{{ error }}</p>
 
           <div class="flex justify-end gap-2 pt-1">
             <button @click="emit('close')" class="btn-soft">取消</button>

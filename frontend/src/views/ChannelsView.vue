@@ -155,9 +155,9 @@ onMounted(load)
 
     <div class="page-bar"><button @click="openAdd" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> 添加渠道</button></div>
 
-    <p v-if="err" class="text-xs text-rose-300">{{ err }}</p>
-    <p v-if="warn" class="text-xs text-amber-300">{{ warn }}</p>
-    <p v-if="okMsg" class="text-xs text-emerald-300">{{ okMsg }}</p>
+    <p v-if="err" class="text-xs text-rose-600">{{ err }}</p>
+    <p v-if="warn" class="text-xs text-amber-600">{{ warn }}</p>
+    <p v-if="okMsg" class="text-xs text-emerald-600">{{ okMsg }}</p>
 
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
@@ -185,15 +185,15 @@ onMounted(load)
               </td>
               <td class="tabular-nums">{{ c.concurrency || '不限' }}</td>
               <td class="tabular-nums">{{ c.weight || 1 }}</td>
-              <td class="text-right tabular-nums" :class="c.running_count > 0 ? 'text-emerald-300' : ''">{{ c.running_count || 0 }}</td>
+              <td class="text-right tabular-nums" :class="c.running_count > 0 ? 'text-emerald-600' : ''">{{ c.running_count || 0 }}</td>
               <td class="text-right tabular-nums">{{ (c.success_total || 0).toLocaleString() }}</td>
-              <td class="text-right tabular-nums" :class="c.fail_count > 0 ? 'text-rose-300' : ''">{{ (c.fail_count || 0).toLocaleString() }}</td>
+              <td class="text-right tabular-nums" :class="c.fail_count > 0 ? 'text-rose-600' : ''">{{ (c.fail_count || 0).toLocaleString() }}</td>
               <td class="text-right tabular-nums">{{ (c.used_credits || 0).toLocaleString() }}</td>
               <td class="text-right tabular-nums">{{ c.upstream_balance == null ? '-' : c.upstream_balance.toLocaleString() }}</td>
               <td>
                 <button @click="toggle(c)" class="inline-flex items-center gap-1.5 text-xs"
-                        :class="c.enabled ? 'text-emerald-300' : 'text-white/40'">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="c.enabled ? 'bg-emerald-400' : 'bg-white/25'"></span>
+                        :class="c.enabled ? 'text-emerald-600' : 'text-white/40'">
+                  <span class="w-1.5 h-1.5 rounded-full" :class="c.enabled ? 'bg-emerald-500' : 'bg-white/25'"></span>
                   {{ c.enabled ? '启用' : '停用' }}
                 </button>
               </td>
@@ -228,12 +228,12 @@ onMounted(load)
             <input v-model.trim="form.name" type="text" maxlength="64" class="field" placeholder="例如：主站" />
           </div>
           <div>
-            <label class="lbl">上游地址 <span class="text-rose-300">*</span></label>
+            <label class="lbl">上游地址 <span class="text-rose-600">*</span></label>
             <input v-model.trim="form.base_url" type="text" maxlength="300" class="field" placeholder="https://example.com" />
             <p class="mt-1 text-[11px] text-white/35">同构 /v1 协议实例的站点地址，不带路径</p>
           </div>
           <div>
-            <label class="lbl">API Key <span v-if="!form.id" class="text-rose-300">*</span></label>
+            <label class="lbl">API Key <span v-if="!form.id" class="text-rose-600">*</span></label>
             <input v-model.trim="form.api_key" type="text" class="field" :placeholder="form.id ? '留空保持不变' : 'vk_…'" autocomplete="off" />
             <p class="mt-1 text-[11px] text-white/35">上游站点的用户 API Key（vk_ 前缀），密文存储，不回显</p>
           </div>
@@ -256,7 +256,7 @@ onMounted(load)
             </button>
             <span class="text-xs" :class="form.enabled ? 'text-emerald-600' : 'text-[var(--fg-3)]'">{{ form.enabled ? '已启用' : '已停用' }}</span>
           </div>
-          <p v-if="formErr" class="text-xs text-rose-300">{{ formErr }}</p>
+          <p v-if="formErr" class="text-xs text-rose-600">{{ formErr }}</p>
         </div>
         <div class="px-5 py-4 border-t border-white/[0.06] flex justify-end gap-2">
           <button @click="form = null" class="btn-ghost">取消</button>
@@ -276,7 +276,7 @@ onMounted(load)
           <div v-if="fetching" class="empty !py-10"><span class="empty-text">正在从上游拉取模型列表…</span></div>
           <template v-else>
             <p class="text-xs text-white/45 mb-3 leading-relaxed">开启的模型会同步到本站模型列表，参数随上游带入；到「模型管理」配价后上架。别名即本站模型标识，留空 = 与上游同名。</p>
-            <p v-if="fetchErr" class="text-xs text-rose-300 mb-3">{{ fetchErr }}</p>
+            <p v-if="fetchErr" class="text-xs text-rose-600 mb-3">{{ fetchErr }}</p>
             <div v-if="!specs.length" class="empty !py-10"><span class="empty-text">上游没有可售模型（模型需在上游已配价）</span></div>
             <div v-else class="space-y-2 max-h-[400px] overflow-y-auto p-0.5">
               <div v-for="s in specs" :key="s.id" @click="togglePick(s.id)"
@@ -284,7 +284,7 @@ onMounted(load)
                    :class="!picked.has(s.id) && 'opacity-45'">
                 <div class="flex items-center gap-2.5 min-w-0">
                   <span class="w-2 h-2 rounded-full shrink-0"
-                        :class="s.kind === 'video' ? 'bg-sky-400' : s.kind === 'text' ? 'bg-amber-400' : 'bg-zinc-500'"></span>
+                        :class="s.kind === 'video' ? 'bg-sky-500' : s.kind === 'text' ? 'bg-amber-500' : 'bg-zinc-500'"></span>
                   <code class="font-mono text-[13px] font-semibold text-white/90 truncate">{{ s.id }}</code>
                   <span class="text-[11px] font-semibold text-white/40 shrink-0">{{ KIND_LABEL[s.kind] || s.kind }}</span>
                   <button type="button" class="ml-auto sw" :class="picked.has(s.id) && 'sw-on'"
@@ -331,6 +331,6 @@ onMounted(load)
 /* iOS-style switch for 模型开关 in the sync modal */
 .sw { position: relative; width: 2rem; height: 1.15rem; border-radius: 9999px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--hairline); transition: background 0.18s ease; flex-shrink: 0; }
 .sw-thumb { position: absolute; top: 2px; left: 2px; width: calc(1.15rem - 4px); height: calc(1.15rem - 4px); border-radius: 9999px; background: var(--surface-solid); box-shadow: 0 1px 2px rgb(15 23 42 / 0.3); transition: transform 0.18s ease; }
-.sw-on { background: rgb(16 185 129 / 0.7); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.5); }
+.sw-on { background: #18181b; box-shadow: inset 0 0 0 1px #18181b; }
 .sw-on .sw-thumb { transform: translateX(calc(2rem - 1.15rem)); }
 </style>

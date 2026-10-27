@@ -91,7 +91,7 @@ function goPage(n) {
             <span class="empty-text">{{ search.trim() ? '没有匹配的记录' : '还没有触发记录' }}</span>
           </div></td></tr>
           <tr v-for="h in items" :key="h.id" class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors align-top">
-            <td class="px-5 py-3.5 text-sm font-medium text-rose-300">{{ h.word }}</td>
+            <td class="px-5 py-3.5 text-sm font-medium text-rose-600">{{ h.word }}</td>
             <td class="px-3 py-3.5">
               <div class="text-sm text-white/85 truncate" :title="h.user_name">{{ h.user_name || '—' }}</div>
             </td>

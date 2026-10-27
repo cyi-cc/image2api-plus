@@ -258,7 +258,7 @@ async function recover() {
         <div v-if="maxRefs > 0">
           <label class="lbl">
             {{ refsLabel }}
-            <span v-if="refsRequired" class="text-rose-300">*</span>
+            <span v-if="refsRequired" class="text-rose-600">*</span>
           </label>
           <div class="flex gap-2 flex-wrap items-start">
             <div v-for="(img, i) in refImages" :key="i"
@@ -286,7 +286,7 @@ async function recover() {
         </button>
 
         <p v-if="status" class="text-xs text-white/55">{{ status }}</p>
-        <p v-if="error" class="text-xs text-rose-300 break-all">{{ error }}</p>
+        <p v-if="error" class="text-xs text-rose-600 break-all">{{ error }}</p>
 
         <div v-if="resultUrl" class="rounded-xl ring-1 ring-white/10 bg-white/[0.03] overflow-hidden grid place-items-center min-h-[220px]">
           <video v-if="resultKind === 'video'" :src="resultUrl" controls autoplay

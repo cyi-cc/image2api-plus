@@ -165,7 +165,7 @@ function toast(m) {
                 class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
               <td class="px-5 py-3.5 align-middle font-medium text-white/90 truncate">{{ r.name }}</td>
               <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                  :class="r.reward ? 'text-emerald-300' : 'text-white/25'">
+                  :class="r.reward ? 'text-emerald-600' : 'text-white/25'">
                 {{ r.reward ? '+' + r.reward : '—' }}
               </td>
               <td class="px-3 py-3.5 align-middle text-xs text-white/55 tabular-nums whitespace-nowrap">
@@ -177,10 +177,10 @@ function toast(m) {
               <td class="px-5 py-3.5 align-middle text-right">
                 <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                       :class="r.status === 'completed'
-                        ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
-                        : 'bg-amber-500/10 text-amber-300 ring-amber-400/30'">
+                        ? 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25'
+                        : 'bg-amber-500/10 text-amber-600 ring-amber-500/25'">
                   <span class="w-1.5 h-1.5 rounded-full"
-                        :class="r.status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400'"></span>
+                        :class="r.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
                   {{ r.status === 'completed' ? '已完成' : '待生图' }}
                 </span>
               </td>

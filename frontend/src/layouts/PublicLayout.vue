@@ -68,7 +68,7 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30"
+  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-500/30"
        :class="{ 'home-bg': isHome }">
     <!-- ===== Top bar：悬浮胶囊，滚动展开为通栏 ===== -->
     <header class="top-nav fixed top-0 inset-x-0 z-40" :class="{ scrolled }">

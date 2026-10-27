@@ -219,20 +219,20 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
          consistent. /images returns all four numbers in one payload. -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">总计</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总计</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-sky-300/80">图像</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-sky-300">{{ stats.image }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">图像</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.image }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">视频</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ stats.video }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">视频</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.video }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-amber-300/80">存储</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ fmtSize(stats.size_bytes) }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">存储</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ fmtSize(stats.size_bytes) }}</div>
       </div>
     </div>
 
@@ -330,9 +330,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           <div class="text-[10px] text-white/55 flex items-center justify-between gap-2 tabular-nums">
             <span class="truncate" :title="f.model || ''">{{ f.model || '—' }}</span>
             <span class="shrink-0 flex items-center gap-1">
-              <span v-if="f.resolution" class="text-emerald-300/90">{{ f.resolution }}</span>
+              <span v-if="f.resolution" class="text-emerald-600">{{ f.resolution }}</span>
               <span v-if="f.ratio" class="text-white/40">{{ f.ratio }}</span>
-              <span v-if="f.kind === 'video' && f.duration" class="text-rose-300/80">{{ f.duration }}</span>
+              <span v-if="f.kind === 'video' && f.duration" class="text-rose-600">{{ f.duration }}</span>
               <span v-if="f.deai" class="text-[#71717a]">去AI</span>
             </span>
           </div>

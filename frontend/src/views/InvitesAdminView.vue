@@ -33,20 +33,20 @@ onMounted(load)
          consistent. /invites already returns the stats payload. -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">总邀请</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总邀请</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">已完成</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.completed }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">已完成</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.completed }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-amber-300/80">待生图</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ stats.pending }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">待生图</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.pending }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">已发奖励</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ Number(stats.reward_paid || 0).toLocaleString('en-US') }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">已发奖励</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ Number(stats.reward_paid || 0).toLocaleString('en-US') }}</div>
       </div>
     </div>
 
@@ -83,7 +83,7 @@ onMounted(load)
             <td class="px-5 py-3.5 align-middle font-medium text-white/90 truncate">{{ r.inviter }}</td>
             <td class="px-3 py-3.5 align-middle text-white/75 truncate">{{ r.invitee }}</td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                :class="r.reward ? 'text-emerald-300' : 'text-white/25'">
+                :class="r.reward ? 'text-emerald-600' : 'text-white/25'">
               {{ r.reward ? '+' + r.reward : '—' }}
             </td>
             <td class="px-3 py-3.5 align-middle text-xs text-white/55 tabular-nums whitespace-nowrap">
@@ -95,10 +95,10 @@ onMounted(load)
             <td class="px-5 py-3.5 align-middle text-right">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                     :class="r.status === 'completed'
-                      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
-                      : 'bg-amber-500/10 text-amber-300 ring-amber-400/30'">
+                      ? 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25'
+                      : 'bg-amber-500/10 text-amber-600 ring-amber-500/25'">
                 <span class="w-1.5 h-1.5 rounded-full"
-                      :class="r.status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400'"></span>
+                      :class="r.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
                 {{ r.status === 'completed' ? '已完成' : '待生图' }}
               </span>
             </td>

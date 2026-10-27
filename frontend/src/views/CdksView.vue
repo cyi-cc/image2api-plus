@@ -150,20 +150,20 @@ const pageNumbers = computed(() => {
     <!-- KPI strip — same shape as LogsView / InvitesAdminView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/45">总数</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">总数</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.total }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-emerald-300/80">未使用</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-emerald-300">{{ stats.active }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">未使用</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ stats.active }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-white/35">已使用</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">已使用</div>
         <div class="text-2xl font-semibold mt-1 tabular-nums text-white/60">{{ stats.redeemed }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-[11px] uppercase tracking-wider text-rose-300/80">未使用面额</div>
-        <div class="text-2xl font-semibold mt-1 tabular-nums text-rose-300">{{ Number(stats.active_amount || 0).toLocaleString('en-US') }}</div>
+        <div class="text-[11px] uppercase tracking-wider text-[color:var(--fg-3)]">未使用面额</div>
+        <div class="text-2xl font-semibold mt-1 tabular-nums">{{ Number(stats.active_amount || 0).toLocaleString('en-US') }}</div>
       </div>
     </div>
 
@@ -190,7 +190,7 @@ const pageNumbers = computed(() => {
         </div>
         <button @click="generate" class="btn-primary"><Icon name="plus" class="w-3.5 h-3.5" /> 生成</button>
       </div>
-      <p v-if="form.type === 'marketing'" class="text-[11px] text-rose-300/80 mt-2">营销兑换码:同一批次每个用户只能兑换一次。</p>
+      <p v-if="form.type === 'marketing'" class="text-[11px] text-rose-600 mt-2">营销兑换码:同一批次每个用户只能兑换一次。</p>
 
       <!-- last batch -->
       <div v-if="lastBatch.length" class="mt-4 rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-4">
@@ -264,7 +264,7 @@ const pageNumbers = computed(() => {
             <td class="px-5 py-3.5 align-middle font-mono text-xs text-white/90 truncate" :title="c.code">
               <span class="inline-flex items-center gap-2">
                 <span class="truncate">{{ c.code }}</span>
-                <span v-if="c.type === 'marketing'" class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-sans font-medium bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/25">营销</span>
+                <span v-if="c.type === 'marketing'" class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-sans font-medium bg-rose-500/15 text-rose-600 ring-1 ring-rose-500/25">营销</span>
               </span>
             </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums text-white/85 whitespace-nowrap">
@@ -273,10 +273,10 @@ const pageNumbers = computed(() => {
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
                     :class="c.status === 'active'
-                      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/30'
+                      ? 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/25'
                       : 'bg-white/[0.06] text-white/55 ring-white/15'">
                 <span class="w-1.5 h-1.5 rounded-full"
-                      :class="c.status === 'active' ? 'bg-emerald-400' : 'bg-slate-400'"></span>
+                      :class="c.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'"></span>
                 {{ c.status === 'active' ? '未使用' : '已使用' }}
               </span>
             </td>
@@ -358,16 +358,8 @@ const pageNumbers = computed(() => {
 }
 .fp:hover { background: var(--hover); color: var(--fg); }
 .fp-on { background: var(--surface-solid); color: rgb(15 23 42); box-shadow: none; }
-.fp-emerald {
-  background: rgb(16 185 129 / 0.22);
-  color: rgb(110 231 183);
-  box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45);
-}
-.fp-rose {
-  background: rgb(244 63 94 / 0.22);
-  color: rgb(254 205 211);
-  box-shadow: inset 0 0 0 1px rgb(254 205 211 / 0.45);
-}
+.fp-emerald { background: rgb(16 185 129 / 0.1); color: #059669; box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.22); }
+.fp-rose { background: rgb(239 68 68 / 0.09); color: #dc2626; box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.2); }
 
 .pg {
   min-width: 1.75rem;

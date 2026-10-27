@@ -306,7 +306,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">网站</h2>
-        <span v-if="siteSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="siteSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <div class="space-y-3">
         <label class="row">
@@ -319,7 +319,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
             <div @click="pickLogo" @drop="onLogoDrop" @dragover.prevent="logoDragOver = true" @dragleave="logoDragOver = false"
                  title="点击或拖拽图片替换"
                  class="w-16 h-16 rounded-xl grid place-items-center overflow-hidden shrink-0 cursor-pointer transition-all"
-                 :class="logoDragOver ? 'ring-2 ring-sky-400 bg-sky-50/40' : ''">
+                 :class="logoDragOver ? 'ring-2 ring-sky-500/25 bg-sky-50/40' : ''">
               <img v-if="logoPreview" :src="logoPreview" class="w-full h-full object-cover" />
               <Logo v-else :size="64" class="w-full h-full" />
             </div>
@@ -366,7 +366,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">注册与登录</h2>
-        <span v-if="regSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="regSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <div class="space-y-3">
         <label class="row">
@@ -409,7 +409,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">邮件服务 (SMTP)</h2>
-        <span v-if="smtpSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="smtpSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <p class="text-xs text-slate-400 mb-4">用于发送注册 / 找回密码的验证码邮件。465 端口自动用 SSL,其余端口可选 STARTTLS。</p>
       <div class="grid sm:grid-cols-2 gap-3">
@@ -440,7 +440,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
           </button>
         </div>
         <p v-if="!smtpConfigured" class="text-xs text-slate-400 mt-1.5">请先保存 SMTP 配置后再测试。</p>
-        <p v-else-if="testMsg" class="text-xs mt-1.5" :class="testOk ? 'text-emerald-300' : 'text-rose-300'">{{ testMsg }}</p>
+        <p v-else-if="testMsg" class="text-xs mt-1.5" :class="testOk ? 'text-emerald-600' : 'text-rose-600'">{{ testMsg }}</p>
       </div>
     </div>
 
@@ -448,7 +448,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">代理 (生图请求)</h2>
-        <span v-if="proxySaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="proxySaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <p class="text-xs text-slate-400 mb-4">调用上游生成图片/视频时统一使用的 HTTP 代理,留空 = 直连。格式如 <code class="px-1 bg-slate-100 rounded">http://127.0.0.1:7890</code>。修改即时生效,无需重启。</p>
       <input v-model="proxy.proxy" placeholder="留空 = 直连,如 http://127.0.0.1:7890" class="field" />
@@ -456,14 +456,14 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
         <button @click="saveProxy" :disabled="proxyBusy" class="btn-primary">{{ proxyBusy ? '保存中…' : '保存设置' }}</button>
         <button @click="testProxy" :disabled="proxyTestBusy || !proxy.proxy.trim()" class="btn-ghost">{{ proxyTestBusy ? '测试中…' : '代理测试' }}</button>
       </div>
-      <p v-if="proxyTest.msg" class="text-xs mt-2" :class="proxyTest.ok ? 'text-emerald-300' : 'text-rose-300'">{{ proxyTest.msg }}</p>
+      <p v-if="proxyTest.msg" class="text-xs mt-2" :class="proxyTest.ok ? 'text-emerald-600' : 'text-rose-600'">{{ proxyTest.msg }}</p>
     </div>
 
     <!-- rewards -->
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">积分奖励</h2>
-        <span v-if="credSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="credSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <div class="space-y-3">
         <label class="row">
@@ -494,7 +494,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">去AI特征</h2>
-        <span v-if="deaiSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="deaiSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <p class="text-xs text-slate-400 mb-4">画图台开启「去AI特征」后,按画质档位在模型价格之上额外扣除的积分。仅对图片生成生效。</p>
       <div class="space-y-3">
@@ -580,7 +580,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">日志</h2>
-        <span v-if="logsSaved" class="text-xs text-emerald-300">已保存 ✓</span>
+        <span v-if="logsSaved" class="text-xs text-emerald-600">已保存 ✓</span>
       </div>
       <div class="space-y-3">
         <label class="row">
@@ -601,7 +601,7 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">生成文件 (图片 / 视频)</h2>
-        <span v-if="mediaSaved" class="text-xs text-emerald-300">
+        <span v-if="mediaSaved" class="text-xs text-emerald-600">
           已保存 ✓<span v-if="mediaRemoved" class="text-white/45"> · 立即清理 {{ mediaRemoved }} 个文件</span>
         </span>
       </div>

@@ -162,7 +162,7 @@ onMounted(load)
               <input type="checkbox" :checked="selected.has(w.id)" @change="toggleSelect(w.id)" @click.stop class="chk" />
             </td>
             <td class="px-5 py-3.5 align-middle text-sm font-medium text-white/90">{{ w.word }}</td>
-            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="w.hits > 0 ? 'text-rose-300' : 'text-white/50'">{{ w.hits }}</td>
+            <td class="px-3 py-3.5 align-middle text-right tabular-nums" :class="w.hits > 0 ? 'text-rose-600' : 'text-white/50'">{{ w.hits }}</td>
             <td class="px-3 py-3.5 align-middle text-xs text-white/50">{{ new Date(w.created_at).toLocaleString() }}</td>
             <td class="px-3 py-3.5 align-middle text-right">
               <button @click="del(w)" class="act danger" title="删除"><Icon name="trash" class="w-3.5 h-3.5" /></button>

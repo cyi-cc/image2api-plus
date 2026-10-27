@@ -312,7 +312,7 @@ onUnmounted(() => {
           <div>
             <Icon name="close" class="w-6 h-6 mx-auto mb-2 opacity-60" />
             <div>生成失败</div>
-            <div v-if="e.error" class="text-[10px] text-rose-400 line-clamp-2 mt-1">{{ e.error }}</div>
+            <div v-if="e.error" class="text-[10px] text-rose-600 line-clamp-2 mt-1">{{ e.error }}</div>
           </div>
         </div>
 
@@ -355,9 +355,9 @@ onUnmounted(() => {
           <div class="text-[10px] text-white/55 flex items-center justify-between gap-2 tabular-nums">
             <span class="break-all" :title="e.model || ''">{{ e.model || '—' }}</span>
             <span class="shrink-0 flex items-center gap-1">
-              <span v-if="e.resolution" class="text-emerald-300/90">{{ e.resolution }}</span>
+              <span v-if="e.resolution" class="text-emerald-600">{{ e.resolution }}</span>
               <span v-if="e.ratio" class="text-white/40">{{ e.ratio }}</span>
-              <span v-if="e.kind === 'video' && e.duration" class="text-rose-300/80">{{ e.duration }}</span>
+              <span v-if="e.kind === 'video' && e.duration" class="text-rose-600">{{ e.duration }}</span>
               <span v-if="e.deai" class="text-[#71717a]">去AI</span>
             </span>
           </div>
