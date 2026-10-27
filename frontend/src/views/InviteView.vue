@@ -88,7 +88,7 @@ function toast(m) {
     <section class="relative rounded-2xl p-7 md:p-8 overflow-hidden ink-card">
       <div class="memphis-dots absolute inset-0 opacity-30 pointer-events-none"></div>
       <div class="relative inline-grid w-11 h-11 rounded-xl text-white place-items-center"
-           style="background: linear-gradient(135deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">
+           style="background: linear-gradient(135deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">
         <Icon name="accounts" class="w-5 h-5" />
       </div>
 
@@ -114,7 +114,7 @@ function toast(m) {
           </button>
           <button @click="copyInvite"
                   class="rounded-xl border border-white/20 text-white px-5 py-3 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
-                  style="background: linear-gradient(120deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">
+                  style="background: linear-gradient(120deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">
             复制链接
           </button>
         </div>

@@ -17,7 +17,7 @@ const html = computed(() => marked.parse(announcement.content.trim() || '暂无�
         <div class="px-6 py-4 border-b border-b-[color:var(--ink-soft)] flex items-center justify-between gap-3 shrink-0">
           <div class="flex items-center gap-2">
             <span class="w-7 h-7 rounded-lg text-white grid place-items-center"
-                  style="background: linear-gradient(135deg, #7c5cfc, #22d3ee); box-shadow: 0 4px 12px var(--accent-glow)">
+                  style="background: linear-gradient(135deg, #18181b, #52525b); box-shadow: 0 4px 12px var(--accent-glow)">
               <Icon name="spark" class="w-4 h-4" />
             </span>
             <h2 class="text-base font-extrabold">公告</h2>
@@ -30,7 +30,7 @@ const html = computed(() => marked.parse(announcement.content.trim() || '暂无�
         <div class="px-6 py-4 border-t border-t-[color:var(--ink-soft)] flex justify-end shrink-0">
           <button @click="dismissAnnouncement"
                   class="rounded-lg text-white border border-white/20 px-5 py-2 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
-                  style="background: linear-gradient(120deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">
+                  style="background: linear-gradient(120deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">
             我知道了
           </button>
         </div>
@@ -55,7 +55,7 @@ const html = computed(() => marked.parse(announcement.content.trim() || '暂无�
 .ann-body :deep(li) { margin: 0.2em 0; }
 .ann-body :deep(a) { color: var(--m-orange); text-decoration: underline; }
 .ann-body :deep(strong) { font-weight: 700; color: var(--fg); }
-.ann-body :deep(code) { background: rgb(124 92 252 / 0.12); padding: 0.1em 0.35em; border-radius: 0.3rem; font-size: 0.85em; }
+.ann-body :deep(code) { background: rgb(24 24 27 / 0.12); padding: 0.1em 0.35em; border-radius: 0.3rem; font-size: 0.85em; }
 .ann-body :deep(pre) { background: #111; color: #f5f5f5; padding: 0.8em; border-radius: 0.5rem; overflow-x: auto; margin: 0.6em 0; }
 .ann-body :deep(pre code) { background: none; padding: 0; }
 .ann-body :deep(blockquote) { border-left: 3px solid var(--m-orange); padding-left: 0.9em; color: var(--fg-3); margin: 0.6em 0; }

@@ -7,8 +7,8 @@ const contact = computed(() => site.contact || {})
 const powers = [
   { icon: 't2i', title: '文字生图', desc: '一句话出图，画幅与分辨率随模型可选。', tint: 'linear-gradient(135deg,#34d399,#2dd4bf)' },
   { icon: 'i2i', title: '参考图生图', desc: '上传参考换风格、改构图、做变体。', tint: 'linear-gradient(135deg,#e879f9,#f472b6)' },
-  { icon: 't2v', title: '文字生视频', desc: '一段描述生成短片，时长分辨率可选。', tint: 'linear-gradient(135deg,#38bdf8,#22d3ee)' },
-  { icon: 'i2v', title: '图生视频', desc: '给张参考图，让静态画面动起来。', tint: 'linear-gradient(135deg,#7c5cfc,#a855f7)' },
+  { icon: 't2v', title: '文字生视频', desc: '一段描述生成短片，时长分辨率可选。', tint: 'linear-gradient(135deg,#38bdf8,#52525b)' },
+  { icon: 'i2v', title: '图生视频', desc: '给张参考图，让静态画面动起来。', tint: 'linear-gradient(135deg,#18181b,#3f3f46)' },
 ]
 </script>
 
@@ -154,7 +154,7 @@ const powers = [
   box-shadow: var(--glass-shadow);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
-.power-card:hover { transform: translateY(-3px); border-color: rgb(124 92 252 / 0.45); box-shadow: var(--glass-shadow-lg); }
+.power-card:hover { transform: translateY(-3px); border-color: rgb(24 24 27 / 0.45); box-shadow: var(--glass-shadow-lg); }
 .power-ico {
   width: 2.6rem;
   height: 2.6rem;
@@ -162,7 +162,7 @@ const powers = [
   display: grid;
   place-items: center;
   color: #fff;
-  box-shadow: 0 6px 16px rgb(124 92 252 / 0.28);
+  box-shadow: 0 6px 16px rgb(24 24 27 / 0.28);
 }
 .power-ico svg { width: 1.3rem; height: 1.3rem; }
 @media (max-width: 768px) { .ab-cluster { display: none; } }

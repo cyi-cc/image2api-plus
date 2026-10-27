@@ -2,7 +2,6 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { auth, isAuthed, isAdmin, openLogin, openRegister, logout } from '../auth'
-import { isDark, toggleTheme } from '../theme'
 import { site } from '../site'
 import Icon from '../components/Icon.vue'
 import Logo from '../components/Logo.vue'
@@ -77,7 +76,7 @@ async function onLogout() {
 
 <template>
   <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30"
-       :class="{ 'home-bg': isHome && !isDark }">
+       :class="{ 'home-bg': isHome }">
     <!-- ===== Top bar：悬浮胶囊，滚动展开为通栏 ===== -->
     <header class="top-nav fixed top-0 inset-x-0 z-40" :class="{ scrolled }">
       <div class="nav-inner mx-auto flex items-center gap-3">
@@ -104,13 +103,6 @@ async function onLogout() {
                      class="hidden sm:block text-xs text-[color:var(--fg-2)] hover:text-[color:var(--fg)] tabular-nums transition-colors">
           余额 <span class="text-[color:var(--fg)] font-semibold">{{ creditsLabel }}</span>
         </router-link>
-
-        <!-- theme（登录后可见，游客态与 vivid 一致只留登录入口） -->
-        <button v-if="isAuthed()" type="button" @click="toggleTheme" class="round-btn"
-                :title="isDark ? '切换到亮色' : '切换到暗色'">
-          <svg v-if="isDark" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-          <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-        </button>
 
         <!-- 公告 -->
         <button v-if="isAuthed() && announcement.content.trim()" type="button"
@@ -171,17 +163,6 @@ async function onLogout() {
 
     <!-- ===== Main column ===== -->
     <div class="relative">
-      <!-- aurora backdrop: drifting gradient orbs + faint grain (首页用平铺浅色底，不渲染) -->
-      <div v-if="!isHome" aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
-        <div class="memphis-dots absolute inset-0 opacity-50"></div>
-        <div class="absolute -top-40 left-1/4 w-[42rem] h-[42rem] rounded-full opacity-[0.5]"
-             style="background: radial-gradient(circle, rgb(139 92 246 / 0.35), transparent 60%); filter: blur(100px)"></div>
-        <div class="absolute top-1/3 -right-48 w-[38rem] h-[38rem] rounded-full opacity-[0.45]"
-             style="background: radial-gradient(circle, rgb(34 211 238 / 0.3), transparent 60%); filter: blur(100px)"></div>
-        <div class="absolute bottom-0 -left-24 w-[34rem] h-[34rem] rounded-full opacity-[0.4]"
-             style="background: radial-gradient(circle, rgb(232 121 249 / 0.28), transparent 60%); filter: blur(100px)"></div>
-        <div class="anime-stars"></div>
-      </div>
 
       <!-- Route label header — the home page brings its own hero instead. -->
       <header v-if="!isHome" class="relative z-10 mx-auto max-w-[1400px] px-4 md:px-8 pt-[104px] pb-4">
@@ -189,8 +170,7 @@ async function onLogout() {
       </header>
 
       <main :class="['relative z-10 mx-auto max-w-[1400px] pb-24',
-                     isHome ? 'pt-0 px-0' : 'px-4 md:px-8 pt-2',
-                     { 'public-dark': isDark }]">
+                     isHome ? 'pt-0 px-0' : 'px-4 md:px-8 pt-2',]">
         <router-view v-slot="{ Component, route: viewRoute }">
           <component :is="Component" v-if="viewRoute.path === '/canvas'" />
           <transition v-else name="fade" mode="out-in">
@@ -264,7 +244,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 .top-link.on {
   color: var(--m-orange);
   font-weight: 700;
-  background: rgb(124 92 252 / 0.12);
+  background: rgb(24 24 27 / 0.12);
 }
 
 .brand-spark {
@@ -291,11 +271,11 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.m-link:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.3); }
+.m-link:hover { color: var(--fg); background: var(--hover); border-color: rgb(24 24 27 / 0.3); }
 .m-link.m-on {
   color: #fff;
   font-weight: 700;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  background: linear-gradient(120deg, #18181b, #27272a);
   border-color: transparent;
   box-shadow: 0 4px 14px var(--accent-glow);
 }
@@ -313,7 +293,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   border: 1px solid var(--ink-soft);
   transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
-.round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.4); box-shadow: 0 4px 14px rgb(124 92 252 / 0.16); transform: translateY(-1px); }
+.round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(24 24 27 / 0.4); box-shadow: 0 4px 14px rgb(24 24 27 / 0.16); transform: translateY(-1px); }
 /* 首页整页淡紫渐变底（铺满整个页面高度） */
 .home-bg {
   background: #fafaf8 !important;
@@ -343,7 +323,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   font-size: 13.5px;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee 140%);
+  background: linear-gradient(120deg, #18181b, #27272a 55%, #52525b 140%);
   border: 1px solid rgb(255 255 255 / 0.16);
   cursor: pointer;
   box-shadow: 0 6px 18px var(--accent-glow);
@@ -372,8 +352,8 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 }
 .name-btn:hover {
   background: var(--hover);
-  border-color: rgb(124 92 252 / 0.4);
-  box-shadow: 0 4px 14px rgb(124 92 252 / 0.16);
+  border-color: rgb(24 24 27 / 0.4);
+  box-shadow: 0 4px 14px rgb(24 24 27 / 0.16);
   transform: translateY(-1px);
 }
 .name-txt {

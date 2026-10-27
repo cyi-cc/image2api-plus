@@ -279,7 +279,7 @@ onMounted(load)
                    :class="!picked.has(s.id) && 'opacity-45'">
                 <div class="flex items-center gap-2.5 min-w-0">
                   <span class="w-2 h-2 rounded-full shrink-0"
-                        :class="s.kind === 'video' ? 'bg-sky-400' : s.kind === 'text' ? 'bg-amber-400' : 'bg-indigo-400'"></span>
+                        :class="s.kind === 'video' ? 'bg-sky-400' : s.kind === 'text' ? 'bg-amber-400' : 'bg-zinc-500'"></span>
                   <code class="font-mono text-[13px] font-semibold text-white/90 truncate">{{ s.id }}</code>
                   <span class="text-[11px] font-semibold text-white/40 shrink-0">{{ KIND_LABEL[s.kind] || s.kind }}</span>
                   <button type="button" class="ml-auto sw" :class="picked.has(s.id) && 'sw-on'"

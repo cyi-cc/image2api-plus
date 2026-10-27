@@ -656,7 +656,7 @@ html.dark .hint b { color: rgb(253 164 175); }   /* rose — visible warning, no
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.2);
   transition: transform 0.18s ease;
 }
-.sw:checked { background: #4f46e5; }   /* sky-600 — matches btn-primary */
+.sw:checked { background: #27272a; }   /* sky-600 — matches btn-primary */
 .sw:checked::after { transform: translateX(calc(2.25rem - 1.3rem)); }
 .sw:focus-visible { box-shadow: 0 0 0 3px rgb(236 91 19 / 0.3); }
 .sw:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -677,8 +677,8 @@ html.dark .num, html.dark .txt, html.dark .field {
 }
 .num::placeholder, .txt::placeholder, .field::placeholder { color: var(--fg-faint); }
 .num:focus, .txt:focus, .field:focus {
-  border-color: rgb(124 92 252 / 0.65);
-  box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
+  border-color: rgb(24 24 27 / 0.65);
+  box-shadow: 0 0 0 3px rgb(24 24 27 / 0.18);
 }
 .num:disabled, .txt:disabled, .field:disabled { opacity: 0.45; cursor: not-allowed; }
 .num { width: 6rem; padding: 0.4rem 0.55rem; font-size: 0.8rem; text-align: right; -moz-appearance: textfield; appearance: textfield; }
@@ -692,7 +692,7 @@ html.dark .num, html.dark .txt, html.dark .field {
 .btn-primary {
   padding: 0.55rem 1.15rem; border-radius: 0.6rem;
   font-size: 0.8rem; font-weight: 800; color: white;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  background: linear-gradient(120deg, #18181b, #27272a);
   border: 1px solid rgb(255 255 255 / 0.16);
   box-shadow: 0 6px 18px var(--accent-glow);
   transition: filter 0.15s, transform 0.12s, box-shadow 0.15s, opacity 0.15s;

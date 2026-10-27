@@ -739,7 +739,7 @@ html.dark .art { border-color: var(--ink-soft); }
   height: 40px;
   border-radius: 12px;
   background: rgba(24, 24, 27, 0.12);
-  color: #7c3aed;
+  color: #18181b;
 }
 .feature h3 {
   margin-top: 16px;

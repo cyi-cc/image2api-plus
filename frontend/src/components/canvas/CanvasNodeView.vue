@@ -240,8 +240,8 @@ defineExpose({ startEdit, commitNote })
   overflow: hidden;
 }
 .cv-node.is-selected {
-  border-color: rgb(124 92 252 / 0.7);
-  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(124 92 252 / 0.25), 0 10px 30px var(--accent-glow);
+  border-color: rgb(24 24 27 / 0.7);
+  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(24 24 27 / 0.25), 0 10px 30px var(--accent-glow);
 }
 .cv-node:active {
   cursor: grabbing;
@@ -337,8 +337,8 @@ html.dark .cv-node--note {
   justify-content: center;
   gap: 10px;
   background:
-    radial-gradient(130% 130% at 15% 0%, rgb(124 92 252 / 0.14), transparent 55%),
-    radial-gradient(130% 130% at 85% 100%, rgb(34 211 238 / 0.12), transparent 55%),
+    radial-gradient(130% 130% at 15% 0%, rgb(24 24 27 / 0.14), transparent 55%),
+    radial-gradient(130% 130% at 85% 100%, rgb(24 24 27 / 0.12), transparent 55%),
     var(--surface);
 }
 .cv-node__gen::after {
@@ -371,7 +371,7 @@ html.dark .cv-node--note {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 3px solid rgb(124 92 252 / 0.2);
+  border: 3px solid rgb(24 24 27 / 0.2);
   border-top-color: var(--m-orange);
   border-right-color: var(--m-orange-2);
   animation: cv-spin 0.9s linear infinite;
@@ -417,7 +417,7 @@ html.dark .cv-node--note {
 }
 .cv-port:hover::after, .cv-port:focus-visible::after, .cv-port.is-active::after {
   transform: scale(1.3);
-  box-shadow: 0 0 0 4px rgb(124 92 252 / 0.25), 0 2px 10px var(--accent-glow);
+  box-shadow: 0 0 0 4px rgb(24 24 27 / 0.25), 0 2px 10px var(--accent-glow);
 }
 .cv-port.is-active::after { background: var(--m-orange); }
 .cv-port:focus-visible { outline: 2px solid var(--m-orange); outline-offset: -2px; border-radius: 50%; }

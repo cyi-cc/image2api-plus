@@ -1076,7 +1076,7 @@ onUnmounted(() => {
               <div class="pg-cap text-[11px] leading-tight font-medium line-clamp-2 transition-colors"
                    :class="item.prompt ? 'pointer-events-auto cursor-pointer' : ''"
                    :title="item.prompt ? '点击复制提示词' : ''" @click.stop="copyPrompt(item)">{{ item.prompt }}</div>
-              <div class="pg-cap-sub text-[9px] mt-0.5 font-mono truncate">{{ item.model }}<span v-if="item.deai"> · <span class="text-[#a78bfa]">去AI</span></span><span v-if="item.elapsed_ms"> · {{ (item.elapsed_ms / 1000).toFixed(1) }}s</span></div>
+              <div class="pg-cap-sub text-[9px] mt-0.5 font-mono truncate">{{ item.model }}<span v-if="item.deai"> · <span class="text-[#71717a]">去AI</span></span><span v-if="item.elapsed_ms"> · {{ (item.elapsed_ms / 1000).toFixed(1) }}s</span></div>
             </div>
           </template>
           <!-- pending / running -->

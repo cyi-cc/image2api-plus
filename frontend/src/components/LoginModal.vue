@@ -161,12 +161,9 @@ async function submit() {
 <template>
   <transition name="modal">
     <div v-if="auth.loginOpen" class="fixed inset-0 z-50 grid place-items-center px-4">
-      <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="closeLogin"></div>
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeLogin"></div>
 
       <div class="card relative z-10 w-full max-w-[26rem]">
-        <!-- ambient aurora washes -->
-        <div class="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#8b5cf6]/30 blur-3xl"></div>
-        <div class="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-[#22d3ee]/25 blur-3xl"></div>
 
         <div class="relative p-7">
           <button class="absolute top-4 right-4 grid h-7 w-7 place-items-center rounded-lg text-[color:var(--fg-3)] hover:text-[color:var(--fg)] hover:bg-[var(--hover)] transition-colors"
@@ -263,11 +260,9 @@ async function submit() {
 <style scoped>
 .card {
   border-radius: 1.2rem;
-  background: var(--menu-bg);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background: #ffffff;
   color: var(--fg);
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgb(24 24 27 / 0.08);
   box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
 }
@@ -277,7 +272,7 @@ html.dark .card {
 
 .logo-halo {
   position: relative;
-  filter: drop-shadow(0 6px 14px rgb(124 92 252 / 0.4));
+  filter: drop-shadow(0 6px 14px rgb(24 24 27 / 0.4));
 }
 
 /* segmented tab control */
@@ -296,7 +291,7 @@ html.dark .card {
 .tab:hover { color: var(--fg); }
 .tab-on {
   color: #fff;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
+  background: linear-gradient(120deg, #18181b, #27272a);
   border-color: transparent;
   box-shadow: 0 4px 14px var(--accent-glow);
 }
@@ -317,8 +312,8 @@ html.dark .card {
 }
 html.dark .fld { background: rgb(255 255 255 / 0.05); }
 .fld:focus {
-  border-color: rgb(124 92 252 / 0.65);
-  box-shadow: 0 0 0 3px rgb(124 92 252 / 0.18);
+  border-color: rgb(24 24 27 / 0.65);
+  box-shadow: 0 0 0 3px rgb(24 24 27 / 0.18);
 }
 .fld::placeholder { color: var(--fg-faint); }
 /* Keep autofill on-theme in dark (otherwise it paints white/yellow). */
@@ -345,11 +340,11 @@ html.dark .fld:-webkit-autofill:focus {
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 800; white-space: nowrap;
   color: var(--fg);
-  background: var(--hover); border: 1px solid rgb(124 92 252 / 0.4);
-  box-shadow: 0 2px 10px rgb(124 92 252 / 0.14);
+  background: var(--hover); border: 1px solid rgb(24 24 27 / 0.4);
+  box-shadow: 0 2px 10px rgb(24 24 27 / 0.14);
   transition: background 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
 }
-.code-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgb(124 92 252 / 0.22); }
+.code-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgb(24 24 27 / 0.22); }
 .code-btn:active:not(:disabled) { transform: scale(0.96) translateY(1px); box-shadow: none; }
 /* Disabled (sending / countdown): just dim — keep the theme text color so it
    never washes out to invisible white on the light card. */
@@ -361,7 +356,7 @@ html.dark .fld:-webkit-autofill:focus {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
   padding: 0.72rem 0; border-radius: 0.65rem; font-size: 0.9rem; font-weight: 800;
   letter-spacing: 0.02em; color: white; margin-top: 0.35rem;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8 55%, #22d3ee 140%);
+  background: linear-gradient(120deg, #18181b, #27272a 55%, #52525b 140%);
   border: 1px solid rgb(255 255 255 / 0.16);
   box-shadow: 0 8px 22px var(--accent-glow);
   transition: transform 0.13s, box-shadow 0.13s, filter 0.15s;

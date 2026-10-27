@@ -129,7 +129,7 @@ onUnmounted(clearTimers)
           <p class="text-sm text-[color:var(--fg-3)] mt-1">二维码已失效,订单已取消</p>
           <p class="text-xs text-[color:var(--fg-faint)] mt-1">如需充值请重新下单</p>
           <button @click="finish" class="mt-5 rounded-lg text-white border border-white/20 px-5 py-2 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
-                  style="background: linear-gradient(120deg, #7c5cfc, #22d3ee); box-shadow: 0 8px 20px var(--accent-glow)">关闭</button>
+                  style="background: linear-gradient(120deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">关闭</button>
         </div>
 
         <!-- pending -->
@@ -147,7 +147,7 @@ onUnmounted(clearTimers)
           <!-- jump (no qrcode): the cashier opened in a new tab — just monitor -->
           <template v-else>
             <div class="flex flex-col items-center justify-center py-7 mb-2">
-              <div class="w-12 h-12 rounded-full border-[3px] border-[rgb(124_92_252/0.2)] border-t-[#7c5cfc] animate-spin mb-3"></div>
+              <div class="w-12 h-12 rounded-full border-[3px] border-[rgb(124_92_252/0.2)] border-t-[#18181b] animate-spin mb-3"></div>
               <p class="text-sm font-medium text-[color:var(--fg)]">支付监控中…</p>
               <p class="text-xs text-[color:var(--fg-faint)] mt-1">已打开支付页面,完成后自动到账</p>
             </div>

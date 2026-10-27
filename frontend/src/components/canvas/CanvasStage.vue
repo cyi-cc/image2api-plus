@@ -811,7 +811,7 @@ defineExpose({
   stroke: rgb(95 108 248 / 0.85);
   stroke-width: 2.4;
   stroke-dasharray: 10 6;
-  filter: drop-shadow(0 0 5px rgb(124 92 252 / 0.3));
+  filter: drop-shadow(0 0 5px rgb(24 24 27 / 0.3));
 }
 .cv-edge--hot {
   stroke: var(--m-orange);
@@ -843,8 +843,8 @@ defineExpose({
 }
 .cv-marquee {
   position: absolute;
-  border: 2px dashed rgb(124 92 252 / 0.5);
-  background: rgb(124 92 252 / 0.08);
+  border: 2px dashed rgb(24 24 27 / 0.5);
+  background: rgb(24 24 27 / 0.08);
   pointer-events: none;
   border-radius: 4px;
 }

@@ -327,7 +327,7 @@ const sourcePill = (s) => ({
               </template>
               <template v-if="e.deai">
                 <span class="text-white/25 mx-1.5">·</span>
-                <span class="text-[#a78bfa]">去AI特征</span>
+                <span class="text-[#71717a]">去AI特征</span>
               </template>
             </td>
             <td class="px-3 py-3.5 text-right text-xs tabular-nums align-middle whitespace-nowrap">

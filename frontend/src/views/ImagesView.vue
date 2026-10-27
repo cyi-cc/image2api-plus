@@ -328,7 +328,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
               <span v-if="f.resolution" class="text-emerald-300/90">{{ f.resolution }}</span>
               <span v-if="f.ratio" class="text-white/40">{{ f.ratio }}</span>
               <span v-if="f.kind === 'video' && f.duration" class="text-rose-300/80">{{ f.duration }}</span>
-              <span v-if="f.deai" class="text-[#a78bfa]">去AI</span>
+              <span v-if="f.deai" class="text-[#71717a]">去AI</span>
             </span>
           </div>
           <div class="text-[10px] text-white/35 mt-0.5 tabular-nums">{{ fmtSize(f.size) }} · {{ fmtTs(f.mtime) }}</div>

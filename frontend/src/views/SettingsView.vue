@@ -273,7 +273,7 @@ async function recharge() {
       <section class="lg:col-span-2 card overflow-hidden">
         <div class="p-7 md:p-8 relative">
           <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30 blur-3xl"
-               style="background: radial-gradient(circle,#8b5cf6,transparent 60%)"></div>
+               style="background: radial-gradient(circle,#27272a,transparent 60%)"></div>
           <div class="relative grid md:grid-cols-[260px_1fr] gap-8 items-start">
             <div>
               <div class="inline-grid w-10 h-10 rounded-xl bg-orange-500/15 ring-1 ring-orange-400/30 grid place-items-center text-orange-300">
