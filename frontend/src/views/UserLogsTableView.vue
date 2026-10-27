@@ -130,14 +130,14 @@ const params = (e) => {
 <template>
   <section class="space-y-5 log-page">
     <!-- Header -->
-    <div class="flex items-end justify-between flex-wrap gap-3">
+    <div class="page-head">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">生成日志</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ total }} 条记录 · 含失败原因</p>
+        <h2 class="page-title">生成日志</h2>
+        <p class="page-sub">{{ total }} 条记录 · 含失败原因</p>
       </div>
-      <button @click="router.push('/user')" class="btn-primary">
-        <Icon name="spark" class="w-4 h-4" /> 去画图
-      </button>
+      <div class="page-actions">
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
+      </div>
     </div>
 
     <!-- KPI 统计(本人累计) -->
@@ -168,7 +168,7 @@ const params = (e) => {
         <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
                class="field !py-1.5 text-xs" placeholder="搜索 提示词 / 模型 / 错误…" />
       </div>
-      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      <button @click="router.push('/user')" class="btn-primary ml-auto"><Icon name="spark" class="w-3.5 h-3.5" /> 去画图</button>
     </div>
 
     <!-- States -->

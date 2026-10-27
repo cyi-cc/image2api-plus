@@ -6,6 +6,7 @@ import { fmtTs } from '../utils/format'
 import { copyText } from '../utils/clipboard'
 import { zipSync } from 'fflate'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
 
 const router = useRouter()
@@ -46,6 +47,7 @@ const filtered = computed(() => items.value)
 function doSearch() { page.value = 1; load() }
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
+const KIND_OPTS = [{ value: '', label: '全部类型' }, { value: 'image', label: '图像' }, { value: 'video', label: '视频' }]
 function setKind(v) { kindFilter.value = v; page.value = 1; load() }
 function goPage(n) {
   const target = Math.max(1, Math.min(totalPages.value, n))
@@ -231,44 +233,39 @@ onUnmounted(() => {
 <template>
   <section class="space-y-5">
     <!-- Header -->
-    <div class="flex items-end justify-between flex-wrap gap-3">
+    <div class="page-head">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">我的创作记录</h1>
-        <p class="text-sm text-slate-500 mt-1">
-          {{ total }} 条作品
-        </p>
+        <h2 class="page-title">我的创作记录</h2>
+        <p class="page-sub">{{ total }} 条作品</p>
       </div>
-      <button @click="router.push('/user')" class="btn-primary">
-        <Icon name="spark" class="w-4 h-4" /> 去画图
-      </button>
+      <div class="page-actions">
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
+      </div>
     </div>
 
     <!-- Filter bar -->
     <div class="card toolbar">
-      <div class="flex items-center gap-1.5">
-        <button @click="setKind('')" class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="kindFilter === '' ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">全部</button>
-        <button @click="setKind('image')" class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="kindFilter === 'image' ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">图像</button>
-        <button @click="setKind('video')" class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="kindFilter === 'video' ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">视频</button>
-      </div>
+      <SelectMenu :model-value="kindFilter" compact :options="KIND_OPTS" @update:model-value="setKind" />
       <div class="flex-1 min-w-[180px]">
         <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
-               class="field !py-1.5 text-xs" placeholder="搜索提示词或模型…" />
+               class="field" placeholder="搜索提示词或模型…" />
       </div>
-      <button @click="togglePickAll" class="text-xs rounded-lg px-2.5 py-1.5 transition-colors inline-flex items-center gap-1"
-              :class="pageAllPicked ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
-        <Icon name="check" class="w-3.5 h-3.5" /> 全选本页
-      </button>
-      <template v-if="picked.size">
-        <button @click="downloadPicked" :disabled="zipping" class="text-xs rounded-lg px-2.5 py-1.5 bg-slate-900 text-white hover:bg-slate-700 inline-flex items-center gap-1 disabled:opacity-50">
-          <Icon name="download" class="w-3.5 h-3.5" /> {{ zipping ? '打包中…' : `下载选中 (${picked.size})` }}
+      <div class="ml-auto flex items-center gap-2 flex-wrap">
+        <template v-if="picked.size">
+          <button @click="deletePicked" class="btn-soft danger">
+            <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ picked.size }})
+          </button>
+          <button @click="downloadPicked" :disabled="zipping" class="btn-soft disabled:opacity-50">
+            <Icon name="download" class="w-3.5 h-3.5" /> {{ zipping ? '打包中…' : `下载选中 (${picked.size})` }}
+          </button>
+        </template>
+        <button @click="togglePickAll" class="btn-soft">
+          <Icon name="check" class="w-3.5 h-3.5" /> {{ pageAllPicked ? '取消全选' : '全选本页' }}
         </button>
-        <button @click="deletePicked" class="text-xs rounded-lg px-2.5 py-1.5 bg-rose-600 text-white hover:bg-rose-500 inline-flex items-center gap-1">
-          <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ picked.size }})
+        <button @click="router.push('/user')" class="btn-primary">
+          <Icon name="spark" class="w-3.5 h-3.5" /> 去画图
         </button>
-      </template>
+      </div>
     </div>
 
     <!-- Empty -->

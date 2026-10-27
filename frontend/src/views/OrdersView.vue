@@ -8,6 +8,7 @@ import { api, jsonBody } from '../api'
 import { openPayment } from '../payment'
 import { refreshMe } from '../auth'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 
 const router = useRouter()
 const items = ref([])
@@ -34,6 +35,7 @@ function fmt(unix) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+const STATUS_OPTS = [{ value: '', label: '全部状态' }, { value: 'pending', label: '待支付' }, { value: 'paid', label: '已支付' }, { value: 'cancelled', label: '已取消' }]
 async function load() {
   loading.value = true
   const qs = new URLSearchParams({ limit: String(pageSize), offset: String((page.value - 1) * pageSize) })
@@ -91,27 +93,24 @@ async function cont(o) {
 
 <template>
   <section class="space-y-5 log-page">
-    <div class="flex items-end justify-between flex-wrap gap-3">
+    <div class="page-head">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">订单</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ total }} 笔充值订单 · 未支付可继续支付</p>
+        <h2 class="page-title">订单</h2>
+        <p class="page-sub">{{ total }} 笔充值订单 · 未支付可继续支付</p>
       </div>
-      <button @click="router.push('/settings')" class="btn-primary"><Icon name="spark" class="w-4 h-4" /> 去充值</button>
+      <div class="page-actions">
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
+      </div>
     </div>
 
     <!-- Filter bar -->
     <div class="card toolbar">
-      <div class="flex items-center gap-1.5">
-        <button v-for="s in [['','全部'],['pending','待支付'],['paid','已支付'],['cancelled','已取消']]" :key="s[0]"
-                @click="setStatus(s[0])"
-                class="text-xs rounded-lg px-2.5 py-1.5 transition-colors"
-                :class="status === s[0] ? 'chip-on' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">{{ s[1] }}</button>
-      </div>
+      <SelectMenu :model-value="status" compact :options="STATUS_OPTS" @update:model-value="setStatus" />
       <div class="flex-1 min-w-[180px]">
         <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
-               class="field !py-1.5 text-xs" placeholder="搜索 订单号 / 金额 / 方式…" />
+               class="field" placeholder="搜索 订单号 / 金额 / 方式…" />
       </div>
-      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      <button @click="router.push('/settings')" class="btn-primary ml-auto"><Icon name="spark" class="w-3.5 h-3.5" /> 去充值</button>
     </div>
 
     <div v-if="loading && !items.length" class="card text-center text-sm text-slate-400 py-24">加载中…</div>
