@@ -830,15 +830,15 @@ onUnmounted(() => {
          so several generations can run at once (concurrent). -->
     <div class="card p-5 space-y-5 lg:sticky lg:top-24 self-start">
       <!-- mode switch -->
-      <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+      <div class="mode-switch grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
         <button @click="setMode('image')" type="button"
                 class="rounded-lg py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed"
-                :class="mode === 'image' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                :class="mode === 'image' ? 'mode-on bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
           <Icon name="files" class="w-4 h-4 inline -mt-0.5" /> 生图
         </button>
         <button @click="setMode('video')" type="button"
                 class="rounded-lg py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed"
-                :class="mode === 'video' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                :class="mode === 'video' ? 'mode-on bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
           <Icon name="video" class="w-4 h-4 inline -mt-0.5" /> 生视频
         </button>
       </div>

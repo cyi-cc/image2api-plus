@@ -371,6 +371,22 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
   paint-order: stroke fill;
 }
 
+/* ===== 画图页选项胶囊的选中态（比例/画质/时长/张数）：墨黑底白字，一眼能看出选中 ===== */
+.chip-on {
+  background: #18181b !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px -4px rgb(24 24 27 / 0.45);
+}
+
+/* 生图 / 生视频 切换：容器稍深，选中项白底加描边与阴影 */
+.mode-switch { background: #ececef !important; }
+.mode-switch > .mode-on {
+  background: #fff !important;
+  color: #18181b !important;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(24 24 27 / 0.18), 0 0 0 1px rgb(24 24 27 / 0.08);
+}
+
 /* ===== 后台页头 + 统一工具栏 ===== */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
