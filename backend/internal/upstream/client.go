@@ -102,7 +102,7 @@ type RemoteModel struct {
 
 // RemoteDuration mirrors the duration spec of a vivid model item.
 type RemoteDuration struct {
-	Mode    string  `json:"mode"` // fixed | options | range
+	Mode    string  `json:"mode"` // options | range
 	Seconds int64   `json:"seconds,omitempty"`
 	Min     int64   `json:"min,omitempty"`
 	Max     int64   `json:"max,omitempty"`

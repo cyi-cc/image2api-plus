@@ -126,8 +126,7 @@ function specText(s) {
   const parts = []
   if (s.qualities?.length) parts.push(s.qualities.join('/'))
   if (s.duration) {
-    if (s.duration.mode === 'fixed') parts.push(`固定 ${s.duration.seconds}s`)
-    else if (s.duration.mode === 'range') parts.push(`${s.duration.min}-${s.duration.max}s`)
+    if (s.duration.mode === 'range') parts.push(`${s.duration.min}-${s.duration.max}s`)
     else if (s.duration.mode === 'options') parts.push((s.duration.options || []).map((d) => `${d}s`).join('/'))
   }
   const refs = []

@@ -299,6 +299,13 @@ func normalizeRemoteModel(m upstream.RemoteModel) (ChannelModelSpec, error) {
 	default:
 		return spec, fmt.Errorf("未知类型 %q", spec.Kind)
 	}
+	if spec.Duration != nil {
+		switch spec.Duration.Mode {
+		case "options", "range":
+		default:
+			return spec, errors.New("时长模式仅支持 options / range")
+		}
+	}
 	return spec, nil
 }
 
@@ -432,6 +439,9 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 		if upID == "" {
 			continue
 		}
+		if spec.Duration != nil && spec.Duration.Mode != "options" && spec.Duration.Mode != "range" {
+			return fmt.Errorf("模型 %s：时长模式仅支持 options / range", upID)
+		}
 		alias := strings.TrimSpace(spec.Alias)
 		if alias == upID {
 			return fmt.Errorf("「%s」别名不能与上游模型同名，留空即可", upID)
@@ -501,9 +511,6 @@ func modelPatchFromSpec(spec ChannelModelSpec, existing *model.ModelConfig) map[
 	}
 	if d := spec.Duration; d != nil {
 		switch d.Mode {
-		case "fixed":
-			patch["durations"] = jsonArray([]string{fmt.Sprintf("%ds", d.Seconds)})
-			patch["duration_min"], patch["duration_max"] = int64(0), int64(0)
 		case "options":
 			opts := make([]string, 0, len(d.Options))
 			for _, s := range d.Options {

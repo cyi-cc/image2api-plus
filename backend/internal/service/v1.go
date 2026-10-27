@@ -342,8 +342,9 @@ type V1ModelItem struct {
 	RefAudioSeconds int64       `json:"refAudioSeconds,omitempty"`
 }
 
-// V1ModelDur exposes a video model's duration capability: fixed=locked seconds,
-// options=discrete list, range=continuous interval.
+// V1ModelDur exposes a video model's duration capability: options=discrete
+// list (single-choice models too — "fixed" is never emitted), range=continuous
+// interval.
 type V1ModelDur struct {
 	Mode    string  `json:"mode"`
 	Seconds int64   `json:"seconds,omitempty"`
@@ -433,20 +434,19 @@ func modelDurationSpec(item *model.ModelConfig) *V1ModelDur {
 		return &V1ModelDur{Mode: "range", Min: int64(item.DurationMin), Max: int64(item.DurationMax)}
 	}
 	opts := repo.JSONStrings(item.Durations)
-	switch len(opts) {
-	case 0:
+	if len(opts) == 0 {
 		return nil
-	case 1:
-		return &V1ModelDur{Mode: "fixed", Seconds: int64(parseDurationSeconds(opts[0]))}
-	default:
-		vals := make([]int64, 0, len(opts))
-		for _, d := range opts {
-			if n := parseDurationSeconds(d); n > 0 {
-				vals = append(vals, int64(n))
-			}
-		}
-		return &V1ModelDur{Mode: "options", Options: vals}
 	}
+	vals := make([]int64, 0, len(opts))
+	for _, d := range opts {
+		if n := parseDurationSeconds(d); n > 0 {
+			vals = append(vals, int64(n))
+		}
+	}
+	if len(vals) == 0 {
+		return nil
+	}
+	return &V1ModelDur{Mode: "options", Options: vals}
 }
 
 // UserBalance — GET /v1/balance. Re-reads the user row so the number is live.
