@@ -22,7 +22,7 @@
 
 <br/>
 
-<img src="docs/screenshots/playground.png" alt="image2api — 画图台" width="860" />
+<img src="docs/screenshots/home.png" alt="image2api — 首页" width="860" />
 
 </div>
 
@@ -54,18 +54,28 @@
 ## 🖼️ 界面预览
 
 <div align="center">
-<sub>🎨 现代化画图前端 · 深 / 浅双主题管理后台 · 数据驱动的运营看板</sub>
+<sub>✨ Vivid 风格浅色界面 · 渠道化调度 · 数据驱动的运营看板</sub>
 </div>
 
 <table>
   <tr>
+    <td width="33%"><img src="docs/screenshots/playground.png" alt="画图台" /></td>
     <td width="33%"><img src="docs/screenshots/dashboard.png" alt="概览看板" /></td>
     <td width="33%"><img src="docs/screenshots/models.png" alt="模型管理" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>🎨 画图台</b><br/><sub>生图 / 生视频一站式 · 参考图上传 · 实时计价</sub></td>
+    <td align="center"><b>📊 概览看板</b><br/><sub>用户 / 生成量 / 渠道健康 / 24h 趋势</sub></td>
+    <td align="center"><b>🧩 模型管理</b><br/><sub>渠道绑定与权重 · 普通价 + 代理价 · 配价即上架</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/channels.png" alt="渠道管理" /></td>
+    <td width="33%"><img src="docs/screenshots/users.png" alt="用户管理" /></td>
     <td width="33%"><img src="docs/screenshots/logs.png" alt="调用日志" /></td>
   </tr>
   <tr>
-    <td align="center"><b>📊 概览看板</b><br/><sub>用户 / 生成量 / 渠道健康 / 24h 趋势</sub></td>
-    <td align="center"><b>🧩 模型管理</b><br/><sub>按模型独立配置能力、定价与权重,配价即上架</sub></td>
+    <td align="center"><b>🔌 渠道管理</b><br/><sub>保存即全量同步上游模型 · 余额实时探测 · 故障转移</sub></td>
+    <td align="center"><b>👥 用户管理</b><br/><sub>角色 / 并发组 / 积分 · 批量选中操作</sub></td>
     <td align="center"><b>📜 调用日志</b><br/><sub>成功 / 失败 / 进行中 · 提示词与耗时全留痕</sub></td>
   </tr>
 </table>
@@ -104,7 +114,7 @@
 #### 🖥️ 用户前台(Vue 3)
 - 画图台 · 创作记录画廊 · 生成日志(含失败原因 / 来源标签)
 - 作品画廊**多选批量操作**:全选本页 / 批量删除 / 批量下载(自动打包 zip)
-- **充值 · 订单** · API 文档 · API Key 管理 · 邀请 · 亮 / 暗主题
+- **充值 · 订单** · API 文档 · API Key 管理 · 邀请 · 无限画布
 - **站内公告**:登录后自动弹出 Markdown 公告
 
 #### 🛠️ 管理后台

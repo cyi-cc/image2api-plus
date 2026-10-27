@@ -20,9 +20,42 @@
 
 [Live Demo](https://vividai.run) · [Features](#-features) · [Deploy](#-deployment) · [API](#-vivid-protocol-api)
 
+<br/>
+
+<img src="docs/screenshots/home.png" alt="image2api — landing" width="860" />
+
 </div>
 
 ---
+
+## 🖼️ Screenshots
+
+<div align="center">
+<sub>✨ Vivid-style light UI · channel routing · data-driven ops dashboard</sub>
+</div>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/playground.png" alt="Studio" /></td>
+    <td width="33%"><img src="docs/screenshots/dashboard.png" alt="Dashboard" /></td>
+    <td width="33%"><img src="docs/screenshots/models.png" alt="Models" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>🎨 Studio</b><br/><sub>image + video · reference uploads · live pricing</sub></td>
+    <td align="center"><b>📊 Dashboard</b><br/><sub>users / volume / channel health / 24h trend</sub></td>
+    <td align="center"><b>🧩 Models</b><br/><sub>channel bindings + weights · standard + reseller pricing</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/channels.png" alt="Channels" /></td>
+    <td width="33%"><img src="docs/screenshots/users.png" alt="Users" /></td>
+    <td width="33%"><img src="docs/screenshots/logs.png" alt="Logs" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>🔌 Channels</b><br/><sub>save-to-sync upstream models · live balance · failover</sub></td>
+    <td align="center"><b>👥 Users</b><br/><sub>roles / concurrency groups / credits · batch ops</sub></td>
+    <td align="center"><b>📜 Logs</b><br/><sub>success / failed / running · prompts and latency kept</sub></td>
+  </tr>
+</table>
 
 ## ✨ Introduction
 
