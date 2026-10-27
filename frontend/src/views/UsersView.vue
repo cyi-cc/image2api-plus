@@ -38,6 +38,33 @@ const ROLE_OPTIONS = [
 ]
 const roleLabel = (r) => ({ user: '用户', agent: '代理', admin: '管理员' }[r] || '用户')
 
+// 头像淡彩：按用户名哈希出固定的一对浅底深字色
+const AVATAR_TONES = [
+  ['#dbeafe', '#1d4ed8'], ['#dcfce7', '#15803d'], ['#fef3c7', '#b45309'],
+  ['#fce7f3', '#be185d'], ['#ede9fe', '#6d28d9'], ['#cffafe', '#0e7490'],
+  ['#fee2e2', '#b91c1c'], ['#ffedd5', '#c2410c'], ['#ecfccb', '#4d7c0f'],
+]
+const avatarStyle = (u) => {
+  const s = u.name || u.email || '?'
+  let h = 0
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  const [background, color] = AVATAR_TONES[h % AVATAR_TONES.length]
+  return { background, color }
+}
+
+// 窄窗口下表格横向溢出：把鼠标纵向滚轮映射成横向滚动；
+// 滚到左/右尽头就放行，页面正常纵向滚动。
+const onTableWheel = (e) => {
+  const el = e.currentTarget
+  if (el.scrollWidth <= el.clientWidth) return
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+  const max = el.scrollWidth - el.clientWidth
+  const next = el.scrollLeft + e.deltaY
+  if ((next <= 0 && el.scrollLeft <= 0) || (next >= max && el.scrollLeft >= max)) return
+  el.scrollLeft = next
+  e.preventDefault()
+}
+
 // Concurrency groups — resolve a user's group id → name/limit for the table,
 // and offer them in the edit form.
 const cgroups = ref([])
@@ -267,21 +294,21 @@ async function doRecharge() {
         <button v-if="!stats.total" @click="showAdd = true" class="btn-soft">新建第一个</button>
       </div>
 
-      <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm table-fixed min-w-[1280px]">
+      <div v-else class="overflow-x-auto" @wheel="onTableWheel">
+      <table class="utable w-full text-sm table-fixed min-w-[1150px]">
         <colgroup>
           <col class="w-10" />     <!-- select -->
           <col />                  <!-- user (avatar+name+email+notes) -->
           <col class="w-20" />     <!-- role -->
           <col class="w-14" />     <!-- status switch -->
-          <col class="w-24" />     <!-- credits -->
-          <col class="w-24" />     <!-- recharge total -->
-          <col class="w-32" />     <!-- concurrency -->
+          <col class="w-20" />     <!-- credits -->
+          <col class="w-20" />     <!-- recharge total -->
+          <col class="w-28" />     <!-- concurrency -->
           <col class="w-16" />     <!-- generation count -->
           <col class="w-16" />     <!-- banned word hits -->
           <col class="w-28" />     <!-- registered -->
           <col class="w-40" />     <!-- last login + ip -->
-          <col class="w-28" />     <!-- actions -->
+          <col class="w-24" />     <!-- actions -->
         </colgroup>
         <thead>
           <tr class="text-[10px] uppercase tracking-[0.2em] text-white/40 border-b border-white/[0.06]">
@@ -312,7 +339,7 @@ async function doRecharge() {
             </td>
             <td class="px-3 py-3.5 align-middle">
               <div class="flex items-center gap-2.5 min-w-0">
-                <span class="uavatar">{{ (u.name || u.email || '?').slice(0, 1).toUpperCase() }}</span>
+                <span class="uavatar" :style="avatarStyle(u)">{{ (u.name || u.email || '?').slice(0, 1).toUpperCase() }}</span>
                 <div class="min-w-0">
                   <div class="text-[13.5px] font-semibold text-white/90 truncate" :title="u.name || '—'">{{ u.name || '—' }}</div>
                   <div class="text-xs text-white/50 truncate" :title="u.email">{{ u.email || '—' }}</div>
@@ -578,13 +605,22 @@ async function doRecharge() {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  color: var(--fg-2);
   font-size: 13px;
   font-weight: 800;
   flex-shrink: 0;
 }
+
+/* --- 操作列吸底右侧：横向滚动时按钮始终可见 */
+.utable thead th:last-child,
+.utable tbody td:last-child {
+  position: sticky;
+  right: 0;
+  box-shadow: -10px 0 14px -10px rgb(15 23 42 / 0.16);
+}
+.utable thead th:last-child { background: #fafafa; }
+.utable tbody td:last-child { background: var(--surface-solid); }
+.utable tbody tr:hover td:last-child { background: #f7f7f8; }
+.utable tbody tr.row-on td:last-child { background: #f1f1f3; }
 
 /* --- icon-only action buttons */
 .act {
