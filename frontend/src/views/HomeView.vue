@@ -334,13 +334,13 @@ async function copyQqGroup() {
   display: flex;
   flex-direction: column;
 }
-/* 平铺浅色底盖掉全局 aurora 配色，与 vivid --bg: #fafafb 一致 */
+/* 整页紫色渐变底铺满 */
 .home::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: #fafafb;
+  background: linear-gradient(160deg, #ede7fd 0%, #e2d9fb 45%, #dcd7fa 75%, #d8defc 100%);
   pointer-events: none;
 }
 
