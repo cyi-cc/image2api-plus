@@ -327,12 +327,12 @@ const pageNumbers = computed(() => {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.9rem; height: 1.9rem;
   border-radius: 0.5rem;
-  color: rgb(255 255 255 / 0.7);
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s;
 }
-.act:hover { background: rgb(255 255 255 / 0.1); color: white; }
+.act:hover { background: var(--hover); color: var(--fg); }
 .act.danger {
   color: rgb(253 164 175);
   background: rgb(244 63 94 / 0.12);
@@ -344,13 +344,13 @@ const pageNumbers = computed(() => {
   display: inline-flex; align-items: center; gap: 0.35rem;
   padding: 0.35rem 0.7rem; font-size: 0.72rem;
   border-radius: 0.55rem;
-  color: rgb(255 255 255 / 0.65);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.fp:hover { background: rgb(255 255 255 / 0.09); color: white; }
-.fp-on { background: rgb(255 255 255 / 0.92); color: rgb(15 23 42); box-shadow: none; }
+.fp:hover { background: var(--hover); color: var(--fg); }
+.fp-on { background: var(--surface-solid); color: rgb(15 23 42); box-shadow: none; }
 .fp-emerald {
   background: rgb(16 185 129 / 0.22);
   color: rgb(110 231 183);
@@ -369,14 +369,14 @@ const pageNumbers = computed(() => {
   font-weight: 500;
   text-align: center;
   border-radius: 0.45rem;
-  color: rgb(255 255 255 / 0.7);
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s;
 }
-.pg:hover:not(.pg-on) { background: rgb(255 255 255 / 0.1); color: white; }
+.pg:hover:not(.pg-on) { background: var(--hover); color: var(--fg); }
 .pg-on {
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   color: rgb(15 23 42);
   box-shadow: none;
 }

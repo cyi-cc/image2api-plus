@@ -360,14 +360,14 @@ const sourcePill = (s) => ({
   padding: 0.35rem 0.7rem;
   font-size: 0.72rem;
   border-radius: 0.55rem;
-  color: rgb(255 255 255 / 0.65);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.fp:hover { background: rgb(255 255 255 / 0.09); color: white; }
+.fp:hover { background: var(--hover); color: var(--fg); }
 .fp-on {
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   color: rgb(15 23 42);
   box-shadow: none;
 }
@@ -418,10 +418,10 @@ const sourcePill = (s) => ({
        focus indicator without being noisy). --- */
 .log-table { border-collapse: separate; border-spacing: 0; }
 .log-row td {
-  border-bottom: 1px solid rgb(255 255 255 / 0.04);
+  border-bottom: 1px solid var(--hairline);
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.log-row:hover td { background: rgb(255 255 255 / 0.025); }
+.log-row:hover td { background: var(--surface-2); }
 .log-row:hover td:first-child {
   box-shadow: inset 2px 0 0 rgb(253 186 116 / 0.55);
 }
@@ -435,14 +435,14 @@ const sourcePill = (s) => ({
   font-weight: 500;
   text-align: center;
   border-radius: 0.45rem;
-  color: rgb(255 255 255 / 0.7);
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.pg:hover:not(.pg-on) { background: rgb(255 255 255 / 0.1); color: white; }
+.pg:hover:not(.pg-on) { background: var(--hover); color: var(--fg); }
 .pg-on {
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   color: rgb(15 23 42);
   box-shadow: none;
 }

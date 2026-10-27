@@ -117,25 +117,23 @@ onMounted(loadModels)
         <router-link v-else to="/admin/channels" class="text-sm text-sky-300 underline underline-offset-2">还没有模型，先到「渠道管理」添加渠道，保存后会自动同步上游模型</router-link>
       </div>
 
-      <table v-else class="w-full text-sm table-fixed">
+      <table v-else class="w-full text-sm table-fixed min-w-[1080px]">
         <colgroup>
-          <col />                  <!-- model id + provider -->
+          <col class="w-52" />     <!-- model name + provider -->
           <col class="w-20" />     <!-- type -->
           <col />                  <!-- pricing -->
-          <col />                  <!-- capability -->
-          <col class="w-20" />     <!-- weight -->
-          <col class="w-24" />     <!-- generation count -->
+          <col />                  <!-- config -->
+          <col class="w-24" />     <!-- success count -->
           <col class="w-20" />     <!-- sellable badge -->
-          <col class="w-36" />     <!-- actions -->
+          <col class="w-32" />     <!-- actions -->
         </colgroup>
         <thead>
           <tr class="text-[10px] uppercase tracking-[0.2em] text-white/40 border-b border-white/[0.06]">
             <th class="text-left px-5 py-3 font-medium">模型</th>
             <th class="text-left px-3 py-3 font-medium">类型</th>
             <th class="text-left px-3 py-3 font-medium">定价</th>
-            <th class="text-left px-3 py-3 font-medium">能力</th>
-            <th class="text-right px-3 py-3 font-medium">权重</th>
-            <th class="text-right px-3 py-3 font-medium">生图次数</th>
+            <th class="text-left px-3 py-3 font-medium">配置</th>
+            <th class="text-right px-3 py-3 font-medium">成功次数</th>
             <th class="text-left px-3 py-3 font-medium">上架</th>
             <th class="text-right px-5 py-3 font-medium">操作</th>
           </tr>
@@ -143,103 +141,65 @@ onMounted(loadModels)
         <tbody>
           <tr v-for="m in filtered" :key="m.id"
               class="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
-            <!-- Model id + provider underneath -->
+            <!-- Model name (mono) + provider / weight subline -->
             <td class="px-5 py-3.5 align-middle min-w-0">
-              <div class="flex items-start gap-2 min-w-0">
-                <div class="font-mono text-xs text-white/90 truncate" :title="m.id">{{ m.id }}</div>
-                <span v-if="m.alias" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] bg-sky-500/10 text-sky-300 ring-1 ring-sky-400/20 shrink-0">{{ m.alias }}</span>
+              <div class="font-mono text-[12.5px] text-white/90 truncate" :title="m.id">{{ m.alias || m.name || m.id }}</div>
+              <div class="mt-1 text-[10.5px] text-white/45 truncate" :title="(m.channels || []).join('、')">
+                {{ (m.channels || []).length ? m.channels.join('、') : (m.provider === 'channel' ? '渠道导入' : (m.provider || '—')) }} · 权重 {{ m.weight || 0 }}
               </div>
-              <div class="mt-1 text-[10px] text-white/45 truncate">{{ m.provider === 'channel' ? '渠道导入' : (m.provider || '—') }}</div>
             </td>
 
-            <!-- Type chip with the same shape as Logs/Provider 健康 -->
+            <!-- Type tag -->
             <td class="px-3 py-3.5 align-middle">
-              <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
-                    :class="m.type === 'video'
-                      ? 'bg-rose-500/10 text-rose-300 ring-rose-400/30'
-                      : 'bg-sky-500/10 text-sky-300 ring-sky-400/30'">
+              <span class="kind-tag" :class="m.type === 'video' ? 'kind-video' : 'kind-image'">
                 {{ TYPE_LABEL[m.type] || m.type }}
               </span>
             </td>
 
-            <!-- Pricing block — image shows 1K/2K/4K + price, video shows
-                 duration + price; each as a small price-chip. -->
+            <!-- Pricing — compact chips: 档位 + 普通价 + 代理价 -->
             <td class="px-3 py-3.5 align-middle">
-              <!-- Each tier shows a pair: 普通价 (emerald) + 代理价 (amber).
-                   代理价未设置时回退普通价数值。 -->
-              <div v-if="m.type === 'image'" class="flex flex-wrap gap-1">
-                <span v-for="r in (m.resolutions || [])" :key="r" class="price-chip">
-                  <span class="text-white/85">{{ r }}</span>
-                  <span class="text-white/30 mx-1">普通</span>
-                  <span class="text-emerald-300 tabular-nums">{{ points(m.prices?.[r]) }}</span>
-                  <span class="text-amber-300/40 ml-1.5">代理</span>
-                  <span class="text-amber-300 tabular-nums">{{ points(m.prices_agent?.[r] ?? m.prices?.[r]) }}</span>
+              <div v-if="m.type === 'image'" class="flex flex-wrap gap-1.5">
+                <span v-for="r in (m.resolutions || [])" :key="r" class="p-chip">
+                  <b>{{ r }}</b><em>{{ points(m.prices?.[r]) }}</em><em class="ag">{{ points(m.prices_agent?.[r] ?? m.prices?.[r]) }}</em>
                 </span>
                 <span v-if="!(m.resolutions || []).length" class="text-white/30 text-xs">—</span>
               </div>
-              <div v-else class="flex flex-wrap gap-1">
-                <span v-for="r in (m.resolutions || [])" :key="'r'+r" class="price-chip">
-                  <span class="text-white/85">{{ r }}</span>
-                  <span class="text-white/30 mx-1">普通</span>
-                  <span class="text-emerald-300 tabular-nums">{{ points(m.prices?.[r]) }}</span>
-                  <span class="text-amber-300/40 ml-1.5">代理</span>
-                  <span class="text-amber-300 tabular-nums">{{ points(m.prices_agent?.[r] ?? m.prices?.[r]) }}</span>
+              <div v-else class="flex flex-wrap gap-1.5">
+                <span v-for="r in (m.resolutions || [])" :key="'r'+r" class="p-chip">
+                  <b>{{ r }}</b><em>{{ points(m.prices?.[r]) }}</em><em class="ag">{{ points(m.prices_agent?.[r] ?? m.prices?.[r]) }}</em>
                 </span>
-                <span v-if="m.duration_prices?.per_second != null" class="price-chip">
-                  <span class="text-white/85">/s</span>
-                  <span class="text-white/30 mx-1">普通</span>
-                  <span class="text-sky-300 tabular-nums">{{ points(m.duration_prices.per_second) }}</span>
-                  <span class="text-amber-300/40 ml-1.5">代理</span>
-                  <span class="text-amber-300 tabular-nums">{{ points(m.duration_prices_agent?.per_second ?? m.duration_prices.per_second) }}</span>
+                <span v-if="m.duration_prices?.per_second != null" class="p-chip">
+                  <b>/s</b><em>{{ points(m.duration_prices.per_second) }}</em><em class="ag">{{ points(m.duration_prices_agent?.per_second ?? m.duration_prices.per_second) }}</em>
                 </span>
-                <span v-else v-for="d in (m.durations || [])" :key="'d'+d" class="price-chip">
-                  <span class="text-white/85">{{ d }}</span>
-                  <span class="text-white/30 mx-1">普通</span>
-                  <span class="text-sky-300 tabular-nums">+{{ points(m.duration_prices?.[d]) }}</span>
-                  <span class="text-amber-300/40 ml-1.5">代理</span>
-                  <span class="text-amber-300 tabular-nums">+{{ points(m.duration_prices_agent?.[d] ?? m.duration_prices?.[d]) }}</span>
+                <span v-else v-for="d in (m.durations || [])" :key="'d'+d" class="p-chip">
+                  <b>{{ d }}</b><em>+{{ points(m.duration_prices?.[d]) }}</em><em class="ag">+{{ points(m.duration_prices_agent?.[d] ?? m.duration_prices?.[d]) }}</em>
                 </span>
                 <span v-if="!(m.resolutions || []).length && !(m.durations || []).length && m.duration_prices?.per_second == null" class="text-white/30 text-xs">—</span>
               </div>
             </td>
 
-            <!-- Capability — duration range, frame/ref modes, media support -->
+            <!-- 配置 — uniform mono tags: duration, resolutions, refs, ratios -->
             <td class="px-3 py-3.5 align-middle">
-              <div class="flex flex-wrap items-center gap-1 text-[11px]">
-                <!-- Duration range (4s–15s) -->
-                <span v-if="m.type === 'video' && (m.durations || []).length >= 2" class="cap-chip cap-dur">{{ m.durations[0] }}–{{ m.durations[m.durations.length - 1] }}</span>
-                <span v-else-if="m.type === 'video' && (m.durations || []).length === 1" class="cap-chip cap-dur">{{ m.durations[0] }}</span>
-                <!-- Resolutions for image -->
-                <span v-if="m.type === 'image'" v-for="r in (m.resolutions || [])" :key="'ir'+r" class="cap-chip cap-slate">{{ r }}</span>
-                <!-- Resolutions for video -->
-                <span v-if="m.type === 'video'" v-for="r in (m.resolutions || [])" :key="'vr'+r" class="cap-chip cap-slate">{{ r }}</span>
-                <!-- Frame mode (首尾帧 2) -->
-                <span v-if="m.reference_mode === 'frame' && m.max_reference_images > 0" class="cap-chip cap-frame">首尾帧 {{ Math.min(m.max_reference_images, 2) }}</span>
-                <!-- Reference image mode (参考图 9) -->
-                <span v-if="m.reference_mode === 'frame' && m.max_reference_images > 2" class="cap-chip cap-ref">参考图 {{ refImages(m) }}</span>
-                <span v-else-if="m.reference_mode && m.reference_mode !== 'none' && m.reference_mode !== 'frame' && m.max_reference_images > 0" class="cap-chip cap-ref">参考图 {{ refImages(m) }}</span>
-                <span v-else-if="m.type === 'image' && m.image_to_image" class="cap-chip cap-ref">参考图</span>
-                <!-- 视频/音频参考上限,来自 /video-presets -->
+              <div class="flex flex-wrap items-center gap-1">
+                <span v-if="m.type === 'video' && (m.durations || []).length >= 2" class="cfg-tag">{{ m.durations[0] }}–{{ m.durations[m.durations.length - 1] }}</span>
+                <span v-else-if="m.type === 'video' && (m.durations || []).length === 1" class="cfg-tag">{{ m.durations[0] }}</span>
+                <span v-if="m.type === 'image'" v-for="r in (m.resolutions || [])" :key="'ir'+r" class="cfg-tag">{{ r }}</span>
+                <span v-if="m.reference_mode === 'frame' && m.max_reference_images > 0" class="cfg-tag">首尾帧{{ Math.min(m.max_reference_images, 2) }}</span>
+                <span v-if="m.reference_mode === 'frame' && m.max_reference_images > 2" class="cfg-tag">参考图{{ refImages(m) }}</span>
+                <span v-else-if="m.reference_mode && m.reference_mode !== 'none' && m.reference_mode !== 'frame' && m.max_reference_images > 0" class="cfg-tag">参考图{{ refImages(m) }}</span>
+                <span v-else-if="m.type === 'image' && m.image_to_image" class="cfg-tag">参考图</span>
                 <template v-if="caps(m)">
-                  <span v-if="caps(m).videos" class="cap-chip cap-media">视频 {{ caps(m).videos }}</span>
-                  <span v-if="caps(m).audios" class="cap-chip cap-media">音频 {{ caps(m).audios }}</span>
+                  <span v-if="caps(m).videos" class="cfg-tag">视频{{ caps(m).videos }}</span>
+                  <span v-if="caps(m).audios" class="cfg-tag">音频{{ caps(m).audios }}</span>
                 </template>
-                <!-- Ratios -->
-                <span v-for="r in (m.ratios || [])" :key="'rt'+r" class="cap-chip cap-mono">{{ r.replace(':', '×') }}</span>
+                <span v-for="r in (m.ratios || [])" :key="'rt'+r" class="cfg-tag">{{ r }}</span>
                 <span v-if="capEmpty(m)" class="text-white/30 text-xs">—</span>
               </div>
             </td>
 
-            <!-- Display weight — higher floats to the top of the dropdown/list -->
+            <!-- Successful generations to date -->
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                :class="(m.weight || 0) !== 0 ? 'text-white/85' : 'text-white/30'"
-                title="展示权重(越大越靠前)">
-              {{ m.weight || 0 }}
-            </td>
-
-            <!-- Successful generations to date, from event_log via /managed-models -->
-            <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
-                :class="m.generation_count > 0 ? 'text-white/85' : 'text-white/25'">
+                :class="m.generation_count > 0 ? 'text-white/85 font-medium' : 'text-white/25'">
               {{ (m.generation_count || 0).toLocaleString('en-US') }}
             </td>
 
@@ -279,96 +239,39 @@ onMounted(loadModels)
 </template>
 
 <style scoped>
-/* --- filter pills (mirrors LogsView so the admin shell stays consistent) */
-.fp {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.35rem 0.7rem; font-size: 0.72rem;
-  border-radius: 0.55rem;
-  color: rgb(255 255 255 / 0.65);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+/* --- type tag (vivid 同款：图像蓝底 / 视频墨底) */
+.kind-tag {
+  display: inline-flex; padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
 }
-.fp:hover { background: rgb(255 255 255 / 0.09); color: white; }
-.fp-on { background: rgb(255 255 255 / 0.92); color: rgb(15 23 42); box-shadow: none; }
-.fp-emerald {
-  background: rgb(16 185 129 / 0.22);
-  color: rgb(110 231 183);
-  box-shadow: inset 0 0 0 1px rgb(110 231 183 / 0.45);
-}
-.fp-white {
-  background: rgb(255 255 255 / 0.18);
-  color: white;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
-}
+.kind-image { background: rgb(14 165 233 / 0.12); color: rgb(2 132 199); }
+.kind-video { background: rgb(24 24 27 / 0.1); color: rgb(24 24 27); }
 
-/* --- price chips: tight pill showing a key (resolution or duration) plus
-       its emerald-tinted price. */
-.price-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.18rem 0.55rem;
-  font-size: 0.7rem;
-  border-radius: 9999px;
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-  white-space: nowrap;
+/* --- pricing chip: 档位 + 普通价(绿) + 代理价(琥珀) --- */
+.p-chip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 3px 9px; border-radius: 8px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 12px; white-space: nowrap;
 }
+.p-chip b { color: var(--fg); font-weight: 600; }
+.p-chip em { font-style: normal; font-weight: 700; color: rgb(5 150 105); font-variant-numeric: tabular-nums; }
+.p-chip em.ag { color: rgb(180 83 9); font-weight: 600; }
+.p-chip em.ag::before { content: '代理 '; font-size: 10px; font-weight: 500; opacity: 0.75; }
 
-/* --- capability chips: smaller, monochrome variants */
-.cap-chip {
+/* --- config tags: uniform neutral mono chips (时长 / 分辨率 / 参考 / 比例) --- */
+.cfg-tag {
   display: inline-flex; align-items: center;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.68rem; font-weight: 500;
-  border-radius: 9999px;
+  padding: 2px 8px; border-radius: 6px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 11px; font-weight: 600; color: var(--fg-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: nowrap;
 }
-.cap-dur {
-  background: rgb(14 165 233 / 0.12);
-  color: rgb(147 197 253);
-  box-shadow: inset 0 0 0 1px rgb(129 140 248 / 0.3);
-}
-.cap-frame {
-  background: rgb(251 113 133 / 0.12);
-  color: rgb(244 114 182);
-  box-shadow: inset 0 0 0 1px rgb(244 114 182 / 0.35);
-}
-.cap-ref {
-  background: rgb(16 185 129 / 0.12);
-  color: rgb(110 231 183);
-  box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.3);
-}
-.cap-media {
-  background: rgb(245 158 11 / 0.12);
-  color: rgb(252 211 77);
-  box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.35);
-}
-.cap-slate {
-  background: rgb(255 255 255 / 0.05);
-  color: rgb(255 255 255 / 0.7);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-}
-.cap-mono {
-  background: transparent;
-  color: rgb(255 255 255 / 0.5);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-}
 
-/* --- danger variant for 删除 (kept for any other .btn-soft callers) */
-.btn-soft.danger {
-  color: rgb(253 164 175);
-  background: rgb(244 63 94 / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.3);
-}
-.btn-soft.danger:hover {
-  color: white;
-  background: rgb(244 63 94 / 0.25);
-}
-
-/* --- compact square icon button for the actions column. Predictable
-       width (1.9rem × 3 + gaps) keeps the row inside its 9rem slot, so
-       the last button never gets clipped. */
+/* --- compact square icon button for the actions column --- */
 .act {
   display: inline-flex;
   align-items: center;
@@ -376,19 +279,19 @@ onMounted(loadModels)
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 0.5rem;
-  color: rgb(255 255 255 / 0.7);
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.act:hover { background: rgb(255 255 255 / 0.1); color: white; }
+.act:hover { background: var(--hover); color: var(--fg); }
 .act.danger {
-  color: rgb(253 164 175);
-  background: rgb(244 63 94 / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.3);
+  color: rgb(225 29 72);
+  background: rgb(244 63 94 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.22);
 }
 .act.danger:hover {
-  color: white;
-  background: rgb(244 63 94 / 0.25);
+  color: #fff;
+  background: rgb(225 29 72);
 }
 </style>

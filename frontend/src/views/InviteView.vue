@@ -238,7 +238,7 @@ function toast(m) {
 .inv-k { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #a1a1aa; }
 
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: #fff; border: 1px solid rgb(24 24 27 / .07); border-radius: 16px; }
+.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--surface-solid); border: 1px solid rgb(24 24 27 / .07); border-radius: 16px; }
 .step-n { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #f4f4f5; color: #18181b; font-size: 14px; font-weight: 800; }
 .step-t { font-size: 14px; font-weight: 800; color: var(--fg); }
 .step-d { margin-top: 2px; font-size: 12px; color: var(--fg-3); }
@@ -259,9 +259,9 @@ function toast(m) {
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.pg:hover:not(.pg-on) { background: rgb(255 255 255 / 0.1); color: white; }
+.pg:hover:not(.pg-on) { background: var(--hover); color: var(--fg); }
 .pg-on {
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   color: rgb(15 23 42);
   box-shadow: none;
 }

@@ -85,6 +85,7 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 		return nil, err
 	}
 	routable, _ := s.channels.RoutableModelIDs(ctx)
+	channelNames, _ := s.channels.ChannelNamesByModel(ctx)
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		_, bound := routable[item.ID]
@@ -94,6 +95,7 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 			"type":     item.Type,
 			"name":     item.Name,
 			"provider": item.Provider,
+			"channels": channelNames[item.ID],
 			// 配价即上架（无启停开关）：全档位有价 + 绑定了启用渠道才算可售。
 			"sellable":              bound && ModelFullyPriced(&item),
 			"ratios":                repo.JSONStrings(item.Ratios),

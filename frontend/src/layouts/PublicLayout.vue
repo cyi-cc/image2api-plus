@@ -340,7 +340,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   font-size: 13px;
   font-weight: 700;
   color: var(--fg);
-  background: #fff;
+  background: var(--surface-solid);
   transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .name-btn:hover, .name-btn.open {
@@ -373,7 +373,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   width: 16rem;
   padding: 0.5rem;
   border-radius: 1rem;
-  background: #fff;
+  background: var(--surface-solid);
   border: 1px solid rgb(24 24 27 / 0.08);
   box-shadow: 0 2px 6px rgb(24 24 27 / 0.05), 0 24px 48px -12px rgb(24 24 27 / 0.22);
   z-index: 50;

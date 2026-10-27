@@ -218,253 +218,185 @@ async function recharge() {
 </script>
 
 <template>
-  <div class="theme-text space-y-12">
-    <!-- header -->
-    <header class="flex items-end justify-between flex-wrap gap-4">
+  <div class="space-y-5">
+    <div class="page-head">
       <div>
-        <div class="text-[10px] uppercase tracking-[0.3em] text-orange-300/70 font-medium">账户</div>
-        <h1 class="mt-2 text-4xl md:text-5xl font-bold tracking-tight">设置</h1>
-        <p class="text-white/45 mt-2">API Key、密码、积分、登录状态 — 都在这里。</p>
+        <h2 class="page-title">设置</h2>
+        <p class="page-sub">API Key、密码、积分、签到 — 账户全在这里。</p>
       </div>
-      <button @click="logout"
-              class="inline-flex items-center gap-2 rounded-full bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 hover:text-rose-200 ring-1 ring-rose-500/30 px-4 py-2 text-sm font-medium transition-all">
-        <Icon name="close" class="w-3.5 h-3.5" /> 退出登录
-      </button>
-    </header>
+    </div>
 
-    <!-- ===== Account info ===== -->
+    <!-- ===== 账户信息 ===== -->
     <section class="card p-6">
-      <div class="flex items-center gap-2 mb-4">
-        <Icon name="accounts" class="w-4 h-4 text-orange-300" />
-        <h2 class="text-sm font-semibold">账户信息</h2>
+      <div class="sec-head">
+        <span class="sec-ico"><Icon name="accounts" :size="16" /></span>
+        <h3>账户信息</h3>
       </div>
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-        <div>
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">用户名</div>
-          <div class="text-white/90 font-medium truncate" :title="auth.user?.name || ''">{{ auth.user?.name || '—' }}</div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5">
+        <div class="st-item">
+          <div class="st-label">用户名</div>
+          <div class="st-value truncate" :title="auth.user?.name || ''">{{ auth.user?.name || '—' }}</div>
         </div>
-        <div class="col-span-2 lg:col-span-1">
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">绑定邮箱</div>
-          <div class="text-white/90 font-mono text-xs break-all" :title="auth.user?.email || ''">{{ auth.user?.email || '—' }}</div>
+        <div class="st-item">
+          <div class="st-label">绑定邮箱</div>
+          <div class="st-value break-all" :title="auth.user?.email || ''">{{ auth.user?.email || '—' }}</div>
         </div>
-        <div>
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">角色</div>
-          <div class="text-white/90">{{ roleLabel }}</div>
+        <div class="st-item">
+          <div class="st-label">角色</div>
+          <div class="st-value">{{ roleLabel }}</div>
         </div>
-        <div>
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">积分余额</div>
-          <div class="text-amber-300 font-semibold tabular-nums">{{ pointsLabel(balance) }}</div>
+        <div class="st-item">
+          <div class="st-label">积分余额</div>
+          <div class="st-value st-num text-amber-600">{{ pointsLabel(balance) }}</div>
         </div>
-        <div>
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">累计充值</div>
-          <div class="text-emerald-300 font-semibold tabular-nums">¥{{ rechargeTotal }}</div>
+        <div class="st-item">
+          <div class="st-label">累计充值</div>
+          <div class="st-value st-num text-emerald-600">¥{{ rechargeTotal }}</div>
         </div>
-        <div>
-          <div class="text-[11px] text-white/40 uppercase tracking-wider mb-1">并发上限</div>
-          <div class="text-white/90 truncate" :title="concurrencyLabel">{{ concurrencyLabel }}</div>
+        <div class="st-item">
+          <div class="st-label">并发上限</div>
+          <div class="st-value truncate" :title="concurrencyLabel">{{ concurrencyLabel }}</div>
         </div>
       </div>
     </section>
 
-    <!-- ===== Two-column grid ===== -->
+    <!-- ===== API Key ===== -->
+    <section class="card p-6">
+      <div class="grid md:grid-cols-[220px_1fr] gap-6 items-start">
+        <div>
+          <div class="sec-head">
+            <span class="sec-ico"><Icon name="plug" :size="16" /></span>
+            <h3>API Key</h3>
+          </div>
+          <p class="text-[13px] text-[color:var(--fg-3)] leading-relaxed mt-1">
+            调用 <code class="key-code">/v1/*</code> 接口的访问密钥。完整密钥不保存，仅生成时显示一次。
+          </p>
+        </div>
+        <div>
+          <div v-if="hasKey" class="key-box">
+            <code class="flex-1 font-mono text-[13px] text-[color:var(--fg)] break-all">{{ apiKeyRevealed && apiKey ? apiKey : maskedKey }}</code>
+            <button v-if="apiKey" @click="apiKeyRevealed = !apiKeyRevealed" class="btn-soft !h-8">{{ apiKeyRevealed ? '隐藏' : '显示' }}</button>
+            <button @click="copyKey" :title="apiKey ? '复制完整 Key' : '完整 Key 仅生成时显示一次，已无法找回'"
+                    class="btn-soft !h-8" :class="!apiKey && 'opacity-40'">复制</button>
+          </div>
+          <div v-else class="rounded-xl border border-dashed border-[color:var(--hairline)] px-4 py-5 text-center text-xs text-[color:var(--fg-faint)]">
+            还没有 Key — 点下面的「生成」按钮自动生成
+          </div>
+          <p v-if="apiKey" class="text-[11px] text-amber-600 mt-2">⚠ 完整 Key 仅显示这一次，请立刻复制保存。</p>
+          <div class="mt-3 flex gap-2">
+            <button @click="generateKey" class="btn-primary">{{ hasKey ? '重新生成' : '生成 Key' }}</button>
+            <button v-if="hasKey" @click="clearKey" class="btn-danger-soft">清除</button>
+          </div>
+          <p class="text-[11px] text-[color:var(--fg-faint)] mt-3">
+            Key 由系统随机生成，不能手动填写。重新生成会让旧 Key 立刻失效。完整调用示例见
+            <router-link to="/docs" class="underline underline-offset-2">接口文档</router-link>。
+          </p>
+        </div>
+      </div>
+    </section>
+
     <div class="grid lg:grid-cols-2 gap-5">
-
-      <!-- API KEY (full width) -->
-      <section class="lg:col-span-2 card overflow-hidden">
-        <div class="p-7 md:p-8 relative">
-          <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30 blur-3xl"
-               style="background: radial-gradient(circle,#27272a,transparent 60%)"></div>
-          <div class="relative grid md:grid-cols-[260px_1fr] gap-8 items-start">
-            <div>
-              <div class="inline-grid w-10 h-10 rounded-xl bg-orange-500/15 ring-1 ring-orange-400/30 grid place-items-center text-orange-300">
-                <Icon name="plug" class="w-4 h-4" />
-              </div>
-              <h2 class="text-xl font-bold mt-4">API Key</h2>
-              <p class="text-sm text-white/50 mt-2 leading-relaxed">
-                调用 <code class="bg-white/10 text-white/90 px-1 py-0.5 rounded text-xs">/v1/*</code> 接口需要的访问密钥。完整密钥不保存，仅生成时显示一次。
-              </p>
-            </div>
-            <div>
-              <label class="block text-xs text-white/50 mb-2">当前密钥</label>
-
-              <!-- has a key -->
-              <div v-if="hasKey" class="rounded-xl bg-white/[0.05] ring-1 ring-white/10 px-4 py-3 flex items-center gap-3">
-                <code class="flex-1 font-mono text-sm text-white/90 break-all">{{ apiKeyRevealed && apiKey ? apiKey : maskedKey }}</code>
-                <button v-if="apiKey" @click="apiKeyRevealed = !apiKeyRevealed"
-                        class="text-xs rounded-lg px-2.5 py-1.5 ring-1 ring-white/10 hover:bg-white/[0.06] hover:ring-white/20 transition-all whitespace-nowrap">
-                  {{ apiKeyRevealed ? '隐藏' : '显示' }}
-                </button>
-                <button @click="copyKey"
-                        :title="apiKey ? '复制完整 Key' : '完整 Key 仅生成时显示一次，已无法找回'"
-                        class="text-xs rounded-lg px-2.5 py-1.5 ring-1 ring-white/10 transition-all hover:bg-white/[0.06] hover:ring-white/20"
-                        :class="!apiKey && 'opacity-40'">
-                  复制
-                </button>
-              </div>
-
-              <!-- no key -->
-              <div v-else class="rounded-xl border border-dashed border-white/15 px-4 py-5 text-center text-xs text-white/40">
-                还没有 Key — 点下面的「生成」按钮自动生成
-              </div>
-
-              <p v-if="apiKey" class="text-[11px] text-amber-300/80 mt-2">⚠ 完整 Key 仅显示这一次,请立刻复制保存。</p>
-
-              <!-- actions -->
-              <div class="mt-3 flex gap-2">
-                <button @click="generateKey"
-                        class="rounded-xl bg-white text-black hover:bg-white/90 px-5 py-2.5 text-sm font-semibold transition-colors">
-                  {{ hasKey ? '重新生成' : '生成 Key' }}
-                </button>
-                <button v-if="hasKey" @click="clearKey"
-                        class="rounded-xl ring-1 ring-rose-500/30 text-rose-300 hover:bg-rose-500/15 px-4 py-2.5 text-sm transition-colors">
-                  清除
-                </button>
-              </div>
-
-              <p class="text-[11px] text-white/40 mt-3">
-                Key 由系统随机生成,不能手动填写。重新生成会让旧 Key 立刻失效。完整调用示例见
-                <router-link to="/docs" class="text-orange-300 underline">接口文档</router-link>。
-              </p>
-            </div>
+      <!-- ===== 每日签到 ===== -->
+      <section v-if="checkinEnabled" class="card p-6">
+        <div class="sec-head">
+          <span class="sec-ico"><Icon name="refresh" :size="16" /></span>
+          <h3>每日签到</h3>
+        </div>
+        <p class="text-[13px] text-[color:var(--fg-3)] mt-1">每天签到 +{{ checkinReward }} 积分。</p>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold tabular-nums tracking-tight">{{ streak }}</span>
+          <span class="text-xs text-[color:var(--fg-3)]">天连续</span>
+        </div>
+        <div class="mt-4 flex items-center gap-1.5">
+          <div v-for="(d, i) in last7" :key="d.ds" class="ck-day"
+               :class="d.lit || (d.isToday && checkedToday) ? 'ck-lit' : d.isToday ? 'ck-today' : ''">
+            <Icon v-if="d.lit || (d.isToday && checkedToday)" name="spark" :size="12" />
+            <span v-else class="text-[10px]">{{ d.isToday ? '今' : i + 1 }}</span>
           </div>
         </div>
-      </section>
-
-      <!-- CHECK-IN -->
-      <section v-if="checkinEnabled" class="relative card p-7 md:p-8 overflow-hidden">
-        <div class="inline-grid w-10 h-10 rounded-xl bg-sky-500/15 ring-1 ring-sky-400/30 grid place-items-center text-sky-300">
-          <Icon name="refresh" class="w-4 h-4" />
-        </div>
-        <h2 class="text-xl font-bold mt-4">每日签到</h2>
-        <p class="text-sm text-white/50 mt-2">每天签到 +{{ checkinReward }} 积分。</p>
-
-        <!-- streak -->
-        <div class="mt-5 flex items-baseline gap-2">
-          <span class="text-3xl font-bold tabular-nums">{{ streak }}</span>
-          <span class="text-xs text-white/40 uppercase tracking-widest">天连续</span>
-        </div>
-
-        <!-- 7-day dots -->
-        <div class="mt-5 flex items-center gap-1.5">
-          <div v-for="(d, i) in last7" :key="d.ds"
-               class="flex-1 h-12 rounded-xl ring-1 transition-all flex flex-col items-center justify-center"
-               :class="d.lit
-                 ? 'bg-sky-500 ring-sky-400 text-white'
-                 : d.isToday
-                   ? (checkedToday ? 'bg-sky-500 ring-sky-400 text-white' : 'bg-white/[0.05] ring-white/15 text-white/60')
-                   : 'bg-white/[0.02] ring-white/[0.06] text-white/30'">
-            <Icon v-if="d.lit || (d.isToday && checkedToday)" name="spark" class="w-3 h-3" />
-            <span v-else class="text-[10px] uppercase">{{ d.isToday ? '今' : i + 1 }}</span>
-          </div>
-        </div>
-
-        <button @click="checkin" :disabled="checkedToday"
-                class="mt-5 w-full rounded-xl bg-white text-black hover:bg-white/90 disabled:bg-white/10 disabled:text-white/40 disabled:cursor-not-allowed py-3 text-sm font-semibold transition-colors">
-          {{ checkedToday ? `今日已签到 · 明天再来` : `立即签到 +${checkinReward} 积分` }}
+        <button @click="checkin" :disabled="checkedToday" class="btn-primary w-full mt-5 !py-2.5">
+          {{ checkedToday ? '今日已签到 · 明天再来' : `立即签到 +${checkinReward} 积分` }}
         </button>
       </section>
 
-      <!-- RECHARGE (易支付) — hidden unless the admin enabled 充值 -->
-      <section v-if="payCfg.enabled" class="relative card p-7 md:p-8 overflow-hidden">
-        <div class="inline-grid w-10 h-10 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 grid place-items-center text-emerald-300">
-          <Icon name="spark" class="w-4 h-4" />
+      <!-- ===== 积分充值 ===== -->
+      <section v-if="payCfg.enabled" class="card p-6">
+        <div class="sec-head">
+          <span class="sec-ico"><Icon name="spark" :size="16" /></span>
+          <h3>积分充值</h3>
         </div>
-        <h2 class="text-xl font-bold mt-4">积分充值</h2>
-        <p class="text-sm text-white/50 mt-2">累计充值 <strong class="text-emerald-300">¥{{ rechargeTotal }}</strong> · {{ payCfg.points_ratio }} 积分 / 元</p>
-
-        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-5">
+        <p class="text-[13px] text-[color:var(--fg-3)] mt-1">累计充值 <strong class="text-emerald-600">¥{{ rechargeTotal }}</strong> · {{ payCfg.points_ratio }} 积分 / 元</p>
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
           <button v-for="a in AMOUNTS" :key="a" @click="picked = a" class="amt" :class="picked === a && 'amt-on'">{{ a }}元</button>
           <button @click="picked = 'custom'" class="amt" :class="picked === 'custom' && 'amt-on'">自定义</button>
         </div>
-        <input v-if="picked === 'custom'" v-model="customAmount" type="number" min="1" step="1" placeholder="输入金额(元)"
-               class="amt-input mt-3 w-full px-4 py-2.5 text-sm" />
-
-        <div class="flex gap-2 mt-4">
+        <input v-if="picked === 'custom'" v-model="customAmount" type="number" min="1" step="1" placeholder="输入金额（元）"
+               class="field mt-3" />
+        <div class="flex gap-2 mt-3">
           <button v-for="m in payCfg.methods" :key="m" @click="payMethod = m" class="amt flex-1" :class="payMethod === m && 'amt-on'">{{ methodName(m) }}</button>
         </div>
-
         <div class="mt-5 flex items-center justify-between gap-3">
-          <span class="text-sm text-white/60">到账 <strong class="text-orange-300 text-base tabular-nums">{{ pointsPreview }}</strong> 积分</span>
-          <button @click="recharge" :disabled="recharging"
-                  class="rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-60 disabled:cursor-not-allowed px-6 py-2.5 text-sm font-semibold transition-colors inline-flex items-center gap-2">
-            <span v-if="recharging" class="w-3.5 h-3.5 rounded-full border-2 border-black/30 border-t-black animate-spin"></span>
+          <span class="text-sm text-[color:var(--fg-2)]">到账 <strong class="text-amber-600 text-base tabular-nums">{{ pointsPreview }}</strong> 积分</span>
+          <button @click="recharge" :disabled="recharging" class="btn-primary">
+            <span v-if="recharging" class="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
             {{ recharging ? '下单中…' : '立即充值' }}
           </button>
         </div>
       </section>
 
-      <!-- CDK REDEEM — hidden when the admin turns the 兑换码 switch off -->
-      <section v-if="site.cdkRedeemEnabled" class="relative card p-7 md:p-8 overflow-hidden">
-        <div class="inline-grid w-10 h-10 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 grid place-items-center text-emerald-300">
-          <Icon name="spark" class="w-4 h-4" />
+      <!-- ===== 兑换码 ===== -->
+      <section v-if="site.cdkRedeemEnabled" class="card p-6">
+        <div class="sec-head">
+          <span class="sec-ico"><Icon name="spark" :size="16" /></span>
+          <h3>兑换码充值</h3>
         </div>
-        <h2 class="text-xl font-bold mt-4">兑换码充值</h2>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-3xl font-bold tabular-nums">{{ points(balance).toLocaleString('en-US') }}</span>
-          <span class="text-xs text-white/40 uppercase tracking-widest">积分余额</span>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold tabular-nums tracking-tight">{{ points(balance).toLocaleString('en-US') }}</span>
+          <span class="text-xs text-[color:var(--fg-3)]">积分余额</span>
         </div>
-
-        <div class="mt-5 flex gap-2">
-          <input v-model="cdkCode" @keyup.enter="redeemCdk" placeholder="输入兑换码 (CDK)"
-                 class="flex-1 rounded-xl bg-white/[0.05] ring-1 ring-white/10 focus:ring-white/30 px-4 py-3 text-sm font-mono uppercase tracking-wider outline-none transition-colors placeholder:text-white/30 placeholder:normal-case placeholder:tracking-normal" />
-          <button @click="redeemCdk" :disabled="cdkBusy"
-                  class="rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-40 px-5 py-3 text-sm font-semibold transition-colors">
-            {{ cdkBusy ? '兑换中…' : '兑换' }}
-          </button>
+        <div class="mt-4 flex gap-2">
+          <input v-model="cdkCode" @keyup.enter="redeemCdk" placeholder="输入兑换码（CDK）"
+                 class="field flex-1 font-mono uppercase tracking-wider" />
+          <button @click="redeemCdk" :disabled="cdkBusy" class="btn-primary shrink-0">{{ cdkBusy ? '兑换中…' : '兑换' }}</button>
         </div>
-        <p v-if="cdkError" class="text-xs text-rose-400 mt-2">{{ cdkError }}</p>
-        <p class="text-[11px] text-white/35 mt-3">兑换码每个仅可使用一次。还没有兑换码?到商店购买后回此处充值。</p>
-        <a v-if="site.contact?.shop" :href="site.contact.shop" target="_blank" rel="noopener"
-           class="mt-3 group inline-flex items-center gap-2 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25 px-4 py-2.5 text-sm font-semibold transition-colors">
-          <Icon name="spark" class="w-4 h-4" />
-          前往商店购买兑换码
-          <span class="group-hover:translate-x-0.5 transition-transform">→</span>
+        <p v-if="cdkError" class="text-xs text-rose-600 mt-2">{{ cdkError }}</p>
+        <p class="text-[11px] text-[color:var(--fg-faint)] mt-3">兑换码每个仅可使用一次。还没有兑换码？到商店购买后回此处充值。</p>
+        <a v-if="site.contact?.shop" :href="site.contact.shop" target="_blank" rel="noopener" class="btn-soft mt-3">
+          前往商店购买兑换码 <span aria-hidden="true">→</span>
         </a>
       </section>
 
-      <!-- PASSWORD -->
-      <section class="card p-7 md:p-8">
-        <div class="inline-grid w-10 h-10 rounded-xl bg-amber-500/15 ring-1 ring-amber-400/30 grid place-items-center text-amber-300">
-          <Icon name="refresh" class="w-4 h-4" />
+      <!-- ===== 修改密码 ===== -->
+      <section class="card p-6">
+        <div class="sec-head">
+          <span class="sec-ico"><Icon name="config" :size="16" /></span>
+          <h3>修改密码</h3>
         </div>
-        <h2 class="text-xl font-bold mt-4">修改密码</h2>
-        <p class="text-sm text-white/50 mt-2">8-24 位，必须包含大写字母、小写字母、数字和符号。</p>
-
-        <div class="mt-6 space-y-3">
-          <input v-model="pwdForm.current" type="password" placeholder="当前密码" autocomplete="current-password"
-                 class="w-full rounded-xl bg-white/[0.05] ring-1 ring-white/10 focus:ring-white/30 px-4 py-3 text-sm outline-none transition-colors placeholder:text-white/30" />
-          <input v-model="pwdForm.next" type="password" placeholder="新密码(8-24位,含大小写/数字/符号)" autocomplete="new-password"
-                 class="w-full rounded-xl bg-white/[0.05] ring-1 ring-white/10 focus:ring-white/30 px-4 py-3 text-sm outline-none transition-colors placeholder:text-white/30" />
-          <input v-model="pwdForm.confirm" type="password" placeholder="再次输入新密码" autocomplete="new-password"
-                 class="w-full rounded-xl bg-white/[0.05] ring-1 ring-white/10 focus:ring-white/30 px-4 py-3 text-sm outline-none transition-colors placeholder:text-white/30" />
-          <p v-if="pwdError" class="text-xs text-rose-400">{{ pwdError }}</p>
-          <button @click="changePwd" :disabled="pwdSubmitting"
-                  class="w-full rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-40 py-3 text-sm font-semibold transition-colors">
-            {{ pwdSubmitting ? '提交中…' : '更新密码' }}
-          </button>
+        <p class="text-[13px] text-[color:var(--fg-3)] mt-1">8-24 位，必须包含大写字母、小写字母、数字和符号。</p>
+        <div class="mt-4 space-y-3">
+          <input v-model="pwdForm.current" type="password" placeholder="当前密码" autocomplete="current-password" class="field" />
+          <input v-model="pwdForm.next" type="password" placeholder="新密码（8-24 位，含大小写 / 数字 / 符号）" autocomplete="new-password" class="field" />
+          <input v-model="pwdForm.confirm" type="password" placeholder="再次输入新密码" autocomplete="new-password" class="field" />
+          <p v-if="pwdError" class="text-xs text-rose-600">{{ pwdError }}</p>
+          <button @click="changePwd" :disabled="pwdSubmitting" class="btn-primary w-full !py-2.5">{{ pwdSubmitting ? '提交中…' : '更新密码' }}</button>
         </div>
-      </section>
-
-      <!-- SIGN OUT (full width) -->
-      <section class="lg:col-span-2 card p-6 md:p-7 flex items-center gap-5 flex-wrap">
-        <div class="inline-grid w-10 h-10 rounded-xl bg-rose-500/15 ring-1 ring-rose-400/30 grid place-items-center text-rose-300">
-          <Icon name="close" class="w-4 h-4" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="text-base font-semibold">退出登录</div>
-          <p class="text-sm text-white/50 mt-1">会清除本地 API Key、余额缓存。下次进来要重新设置。</p>
-        </div>
-        <button @click="logout"
-                class="rounded-xl bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 ring-1 ring-rose-500/30 px-5 py-2.5 text-sm font-semibold transition-colors">
-          退出
-        </button>
       </section>
     </div>
+
+    <!-- ===== 退出登录 ===== -->
+    <section class="card p-5 flex items-center gap-4 flex-wrap">
+      <span class="sec-ico"><Icon name="close" :size="16" /></span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-bold">退出登录</div>
+        <p class="text-xs text-[color:var(--fg-3)] mt-0.5">会清除本地 API Key 与缓存，下次进入需要重新登录。</p>
+      </div>
+      <button @click="logout" class="btn-danger-soft">退出</button>
+    </section>
 
     <!-- toast -->
     <transition name="fade">
       <div v-if="toastMsg"
-           class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white text-black text-sm font-medium px-5 py-2.5 rounded-full shadow-2xl">
+           class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-2xl">
         {{ toastMsg }}
       </div>
     </transition>
@@ -475,8 +407,45 @@ async function recharge() {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
 
-/* Recharge amount / method buttons — theme-aware (clean in light AND dark).
-   Selected uses the inverted solid-button color, not a harsh orange. */
+.sec-head { display: flex; align-items: center; gap: 8px; }
+.sec-head h3 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: var(--fg); }
+.sec-ico {
+  width: 34px; height: 34px; flex: none; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--fg-2);
+}
+.st-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--fg-faint); margin-bottom: 4px; }
+.st-value { font-size: 14px; font-weight: 600; color: var(--fg); }
+.st-num { font-variant-numeric: tabular-nums; }
+.key-code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.key-box {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px 8px 14px; border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.btn-danger-soft {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 700;
+  color: rgb(190 18 60); background: rgb(244 63 94 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.22);
+  transition: background .15s ease, color .15s ease;
+}
+.btn-danger-soft:hover { color: #fff; background: rgb(225 29 72); }
+.ck-day {
+  flex: 1; height: 46px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-weight: 600;
+  background: var(--surface-2); color: var(--fg-faint);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.ck-today { color: var(--fg-2); box-shadow: inset 0 0 0 1.5px rgb(24 24 27 / 0.4); }
+.ck-lit { background: #18181b; color: #fff; box-shadow: none; }
+
+/* Recharge amount / method buttons */
 .amt {
   border-radius: 0.6rem;
   padding: 0.6rem 0;
@@ -488,17 +457,5 @@ async function recharge() {
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 .amt:hover { color: var(--fg); background: var(--hover); }
-.amt-on {
-  background: var(--btn-solid-bg);
-  color: var(--btn-solid-fg);
-  box-shadow: none;
-}
-.amt-input {
-  border-radius: 0.7rem;
-  color: var(--fg);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  outline: none;
-}
-.amt-input:focus { box-shadow: inset 0 0 0 1px var(--fg-3); }
+.amt-on { background: var(--btn-solid-bg); color: var(--btn-solid-fg); box-shadow: none; }
 </style>

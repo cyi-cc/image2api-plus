@@ -314,20 +314,20 @@ onMounted(load)
 
 <style scoped>
 .tbl { width: 100%; border-collapse: collapse; min-width: 1000px; }
-.tbl thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: rgb(255 255 255 / 0.45); border-bottom: 1px solid rgb(255 255 255 / 0.06); white-space: nowrap; }
-.tbl tbody td { padding: 10px 14px; border-bottom: 1px solid rgb(255 255 255 / 0.04); font-size: 12.5px; color: rgb(255 255 255 / 0.7); vertical-align: middle; }
+.tbl thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--fg-3); border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.tbl tbody td { padding: 10px 14px; border-bottom: 1px solid var(--hairline); font-size: 12.5px; color: var(--fg-2); vertical-align: middle; }
 .tbl tbody tr:last-child td { border-bottom: none; }
-.tbl tbody tr:hover { background: rgb(255 255 255 / 0.02); }
+.tbl tbody tr:hover { background: var(--surface-2); }
 
-.lbl { display: block; font-size: 0.72rem; font-weight: 500; color: rgb(255 255 255 / 0.55); margin-bottom: 0.4rem; }
+.lbl { display: block; font-size: 0.72rem; font-weight: 500; color: var(--fg-3); margin-bottom: 0.4rem; }
 
-.op { display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 7px; margin-left: 4px; border-radius: 7px; background: rgb(255 255 255 / 0.05); color: rgb(255 255 255 / 0.6); }
-.op:hover { background: rgb(255 255 255 / 0.1); color: white; }
+.op { display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 7px; margin-left: 4px; border-radius: 7px; background: var(--surface-2); color: var(--fg-2); }
+.op:hover { background: var(--hover); color: var(--fg); }
 .op.danger:hover { background: rgb(244 63 94 / 0.15); color: rgb(251 113 133); }
 
 /* iOS-style switch for 模型开关 in the sync modal */
-.sw { position: relative; width: 2rem; height: 1.15rem; border-radius: 9999px; background: rgb(255 255 255 / 0.12); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); transition: background 0.18s ease; flex-shrink: 0; }
-.sw-thumb { position: absolute; top: 2px; left: 2px; width: calc(1.15rem - 4px); height: calc(1.15rem - 4px); border-radius: 9999px; background: white; box-shadow: 0 1px 2px rgb(15 23 42 / 0.3); transition: transform 0.18s ease; }
+.sw { position: relative; width: 2rem; height: 1.15rem; border-radius: 9999px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--hairline); transition: background 0.18s ease; flex-shrink: 0; }
+.sw-thumb { position: absolute; top: 2px; left: 2px; width: calc(1.15rem - 4px); height: calc(1.15rem - 4px); border-radius: 9999px; background: var(--surface-solid); box-shadow: 0 1px 2px rgb(15 23 42 / 0.3); transition: transform 0.18s ease; }
 .sw-on { background: rgb(16 185 129 / 0.7); box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.5); }
 .sw-on .sw-thumb { transform: translateX(calc(2rem - 1.15rem)); }
 </style>

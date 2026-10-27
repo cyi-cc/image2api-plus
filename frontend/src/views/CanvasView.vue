@@ -1142,7 +1142,7 @@ const saveLabel = computed(() => ({
   box-shadow: 0 4px 14px rgb(229 72 77 / 0.25);
 }
 .cv-btn--accent {
-  background: #fff;
+  background: var(--surface-solid);
   border-color: rgb(24 24 27 / 0.28);
   color: #18181b;
 }
@@ -1193,7 +1193,7 @@ const saveLabel = computed(() => ({
   padding: 6px;
   border-radius: 16px;
   border: 1px solid rgb(24 24 27 / 0.08);
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 12px 32px -12px rgb(24 24 27 / 0.2);
@@ -1221,7 +1221,7 @@ const saveLabel = computed(() => ({
   padding: 6px;
   border-radius: 18px;
   border: 1px solid rgb(24 24 27 / 0.08);
-  background: rgb(255 255 255 / 0.92);
+  background: var(--surface-solid);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 12px 32px -12px rgb(24 24 27 / 0.2);

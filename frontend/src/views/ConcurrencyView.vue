@@ -135,11 +135,11 @@ onMounted(load)
 .act {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.9rem; height: 1.9rem; border-radius: 0.5rem;
-  color: rgb(255 255 255 / 0.7); background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--fg-2); background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition: background 0.15s, color 0.15s;
 }
-.act:hover { background: rgb(255 255 255 / 0.1); color: white; }
+.act:hover { background: var(--hover); color: var(--fg); }
 .act.danger { color: rgb(253 164 175); background: rgb(244 63 94 / 0.12); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.3); }
 .act.danger:hover { color: white; background: rgb(244 63 94 / 0.25); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }

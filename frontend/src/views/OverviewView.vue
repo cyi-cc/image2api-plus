@@ -378,10 +378,10 @@ onUnmounted(() => clearInterval(timer))
 .ov-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
 .ov-title--sm { font-size: 16px; }
 .ov-sub { margin-top: 2px; font-size: 12px; color: var(--fg-3); }
-.ov-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(24 24 27 / 0.12); background: #fff; font-size: 13px; font-weight: 600; color: var(--fg); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.ov-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(24 24 27 / 0.12); background: var(--surface-solid); font-size: 13px; font-weight: 600; color: var(--fg); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .ov-btn:hover { border-color: rgb(24 24 27 / 0.3); box-shadow: 0 4px 12px rgb(24 24 27 / 0.08); }
 
-.panel { background: #fff; border: 1px solid rgb(24 24 27 / 0.07); border-radius: 18px; box-shadow: 0 1px 2px rgb(24 24 27 / 0.03), 0 10px 28px -16px rgb(24 24 27 / 0.12); }
+.panel { background: var(--surface-solid); border: 1px solid rgb(24 24 27 / 0.07); border-radius: 18px; box-shadow: 0 1px 2px rgb(24 24 27 / 0.03), 0 10px 28px -16px rgb(24 24 27 / 0.12); }
 .panel-h { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
 .panel-h h3 { font-size: 14px; font-weight: 800; color: var(--fg); letter-spacing: -0.01em; }
 .more { font-size: 12px; font-weight: 600; color: var(--fg-3); text-decoration: none; }
@@ -405,7 +405,7 @@ onUnmounted(() => clearInterval(timer))
 .delta--up { color: #15803d; } .delta--down { color: #dc2626; } .delta--flat { color: var(--fg-3); }
 
 .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.chip { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fff; border: 1px solid rgb(24 24 27 / 0.07); border-radius: 16px; }
+.chip { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface-solid); border: 1px solid rgb(24 24 27 / 0.07); border-radius: 16px; }
 .chip-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: #f4f4f5; color: #18181b; flex-shrink: 0; }
 .chip-num { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .chip-num small { font-size: 13px; font-weight: 600; color: var(--fg-3); }
@@ -447,7 +447,7 @@ onUnmounted(() => clearInterval(timer))
 
 .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: #f0f0f2; }
 .seg button { padding: 5px 14px; border: 0; border-radius: 999px; background: transparent; font-size: 12px; font-weight: 700; color: var(--fg-3); cursor: pointer; transition: all .15s; }
-.seg button.on { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgb(24 24 27 / 0.12); }
+.seg button.on { background: var(--surface-solid); color: var(--fg); box-shadow: 0 1px 3px rgb(24 24 27 / 0.12); }
 
 .bar-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 13px; color: var(--fg); }
 .bar-top > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

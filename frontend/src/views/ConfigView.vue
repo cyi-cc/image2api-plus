@@ -661,7 +661,7 @@ html.dark .hint b { color: rgb(253 164 175); }   /* rose — visible warning, no
   width: calc(1.3rem - 4px);
   height: calc(1.3rem - 4px);
   border-radius: 9999px;
-  background: white;
+  background: var(--surface-solid);
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.2);
   transition: transform 0.18s ease;
 }

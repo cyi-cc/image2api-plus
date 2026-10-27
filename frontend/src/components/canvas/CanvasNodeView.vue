@@ -288,7 +288,7 @@ defineExpose({ startEdit, commitNote })
 
 /* 笔记 = 白色卡片 */
 .cv-node--note {
-  background: #fff;
+  background: var(--surface-solid);
   border-color: rgb(24 24 27 / 0.1);
   cursor: text;
 }
@@ -416,7 +416,7 @@ html.dark .cv-node--note {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface-solid);
   border: 2px solid #18181b;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
   transition: transform 0.15s ease, box-shadow 0.15s ease;

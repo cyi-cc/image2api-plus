@@ -183,6 +183,26 @@ func (r *ChannelRepository) RoutableModelIDs(ctx context.Context) (map[string]st
 	return out, err
 }
 
+// ChannelNamesByModel returns model_id -> bound channel display names in one
+// JOIN query — used by the admin models table to annotate each row with the
+// channel(s) it was synced from.
+func (r *ChannelRepository) ChannelNamesByModel(ctx context.Context) (map[string][]string, error) {
+	var rows []struct {
+		ModelID string `gorm:"column:model_id"`
+		Name    string `gorm:"column:name"`
+	}
+	err := r.db.WithContext(ctx).
+		Table("channel_models").
+		Select("channel_models.model_id, channels.name").
+		Joins("JOIN channels ON channels.id = channel_models.channel_id").
+		Scan(&rows).Error
+	out := make(map[string][]string, len(rows))
+	for _, row := range rows {
+		out[row.ModelID] = append(out[row.ModelID], row.Name)
+	}
+	return out, err
+}
+
 // ChannelIDsByModel lists channel ids bound to a model (any enabled state).
 func (r *ChannelRepository) ChannelIDsByModel(ctx context.Context, modelID string) ([]string, error) {
 	var ids []string
