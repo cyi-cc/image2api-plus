@@ -275,10 +275,11 @@ onMounted(loadModels)
 .act {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.9rem; height: 1.9rem; border-radius: 0.6rem;
-  color: var(--fg-3); background: transparent;
-  transition: background 0.15s, color 0.15s;
+  color: var(--fg-3); background: var(--surface-solid);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.act:hover { background: var(--hover); color: var(--fg); }
-.act.danger:hover { background: rgb(244 63 94 / 0.1); color: #dc2626; }
+.act:hover { background: var(--surface-2); color: var(--fg); box-shadow: inset 0 0 0 1px rgb(24 24 27 / 0.14); }
+.act.danger:hover { background: rgb(244 63 94 / 0.08); color: #dc2626; box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.28); }
 
 </style>
