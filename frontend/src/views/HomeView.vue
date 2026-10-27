@@ -340,7 +340,7 @@ async function copyQqGroup() {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(160deg, #ede7fd 0%, #e2d9fb 45%, #dcd7fa 75%, #d8defc 100%);
+  background: linear-gradient(160deg, #f5f1fe 0%, #efe9fd 45%, #eae6fd 75%, #e9edfd 100%);
   pointer-events: none;
 }
 
