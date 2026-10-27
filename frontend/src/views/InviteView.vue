@@ -77,59 +77,63 @@ function toast(m) {
 </script>
 
 <template>
-  <div class="theme-text space-y-10">
+  <div class="theme-text space-y-5">
     <!-- header -->
-    <header>
-      <span class="sticker">✦ 奖励</span>
-      <h1 class="mt-3 text-4xl md:text-5xl font-bold tracking-tight">邀请好友</h1>
-      <p class="text-white/45 mt-2">好友用你的链接注册,并完成首次生图后,你得 {{ INVITE_REWARD }} 积分。</p>
-    </header>
-
-    <section class="relative rounded-2xl p-7 md:p-8 overflow-hidden ink-card">
-      <div class="memphis-dots absolute inset-0 opacity-30 pointer-events-none"></div>
-      <div class="relative inline-grid w-11 h-11 rounded-xl text-white place-items-center"
-           style="background: linear-gradient(135deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">
-        <Icon name="accounts" class="w-5 h-5" />
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">邀请好友</h2>
+        <p class="page-sub">好友用你的链接注册，并完成首次生图后，你得 {{ INVITE_REWARD }} 积分。</p>
       </div>
+      <div class="page-actions">
+        <button @click="loadRecords" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
+      </div>
+    </div>
 
-      <!-- summary -->
-      <div class="relative mt-6 grid grid-cols-2 gap-3">
-        <div class="rounded-xl px-4 py-3 border border-[color:var(--glass-border)] bg-[var(--surface)] shadow-[var(--glass-shadow)]">
-          <div class="text-2xl font-black tabular-nums text-[color:var(--fg)]">{{ inviteCount }}</div>
-          <div class="text-[10px] text-[color:var(--fg-3)] mt-1 uppercase tracking-widest font-bold">已邀请</div>
+    <!-- invite card -->
+    <section class="inv-card">
+      <div class="inv-main">
+        <div class="inv-label">你的专属邀请链接</div>
+        <div class="inv-link">
+          <span class="inv-url">{{ inviteUrl }}</span>
+          <button @click="copyInvite" class="inv-copy"><Icon name="copy" :size="15" /> 复制链接</button>
         </div>
-        <div class="rounded-xl px-4 py-3 border border-[color:var(--glass-border)] bg-[var(--surface)] shadow-[var(--glass-shadow)]">
-          <div class="text-2xl font-black tabular-nums text-[color:var(--fg)]">{{ inviteEarned.toLocaleString('en-US') }}</div>
-          <div class="text-[10px] text-[color:var(--fg-3)] mt-1 uppercase tracking-widest font-bold">累计积分</div>
+        <button @click="copyCode" class="inv-code" title="点击复制邀请码">
+          <span class="inv-code-k">邀请码</span>
+          <span class="inv-code-v">{{ inviteCode || '—' }}</span>
+          <Icon name="copy" :size="14" />
+        </button>
+      </div>
+      <div class="inv-stats">
+        <div class="inv-stat">
+          <div class="inv-num">{{ inviteCount }}</div>
+          <div class="inv-k">已邀请</div>
+        </div>
+        <div class="inv-stat">
+          <div class="inv-num">{{ inviteEarned.toLocaleString('en-US') }}</div>
+          <div class="inv-k">累计积分</div>
         </div>
       </div>
+    </section>
 
-      <!-- code -->
-      <div class="relative mt-6">
-        <label class="block text-xs font-bold text-white/50 mb-2">邀请码</label>
-        <div class="flex gap-2">
-          <button @click="copyCode"
-                  class="flex-1 rounded-xl border border-[color:var(--ink-soft)] bg-[var(--surface)] px-4 py-3 text-sm font-mono text-left shadow-[var(--glass-shadow)] hover:-translate-y-0.5 hover:border-[rgb(124_92_252/0.45)] transition-all">
-            {{ inviteCode || '—' }}
-          </button>
-          <button @click="copyInvite"
-                  class="rounded-xl border border-white/20 text-white px-5 py-3 text-sm font-extrabold hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
-                  style="background: linear-gradient(120deg, #18181b, #52525b); box-shadow: 0 8px 20px var(--accent-glow)">
-            复制链接
-          </button>
-        </div>
-        <div class="mt-2 text-[11px] text-white/35 break-all font-mono">{{ inviteUrl }}</div>
+    <!-- steps -->
+    <section class="steps">
+      <div class="step">
+        <span class="step-n">1</span>
+        <div><div class="step-t">分享链接</div><div class="step-d">把专属链接或邀请码发给好友</div></div>
+      </div>
+      <div class="step">
+        <span class="step-n">2</span>
+        <div><div class="step-t">好友注册</div><div class="step-d">好友通过你的链接完成注册</div></div>
+      </div>
+      <div class="step">
+        <span class="step-n">3</span>
+        <div><div class="step-t">首次生图，你得 {{ INVITE_REWARD }} 积分</div><div class="step-d">好友完成第一张生图后自动到账</div></div>
       </div>
     </section>
 
     <!-- records -->
     <section>
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold">邀请记录</h2>
-        <button @click="loadRecords" class="text-xs text-white/50 hover:text-white inline-flex items-center gap-1.5 transition-colors">
-          <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
-        </button>
-      </div>
+      <h3 class="rec-title">邀请记录</h3>
 
       <div class="card overflow-hidden">
         <div v-if="loading && !records.length" class="text-center text-sm text-white/40 py-16">加载中…</div>
@@ -212,6 +216,35 @@ function toast(m) {
 </template>
 
 <style scoped>
+.inv-card {
+  display: flex; align-items: stretch; justify-content: space-between; gap: 28px; flex-wrap: wrap;
+  padding: 28px 30px; border-radius: 22px; position: relative; overflow: hidden;
+  background: radial-gradient(520px 260px at 100% 0%, rgba(251, 146, 60, 0.18), transparent 70%), linear-gradient(135deg, #27272a, #09090b);
+  box-shadow: 0 20px 44px -20px rgba(9, 9, 11, 0.55);
+}
+.inv-main { flex: 1 1 420px; min-width: 0; }
+.inv-label { font-size: 12.5px; font-weight: 700; color: #a1a1aa; letter-spacing: .04em; }
+.inv-link { margin-top: 12px; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 16px; border-radius: 14px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); }
+.inv-url { flex: 1; min-width: 0; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 13px; color: #e4e4e7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-copy { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: #fff; color: #18181b; font-size: 13px; font-weight: 800; cursor: pointer; transition: transform .12s ease, background .15s ease; }
+.inv-copy:hover { background: #f4f4f5; transform: translateY(-1px); }
+.inv-code { margin-top: 12px; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px; border: 1px dashed rgba(255,255,255,.28); background: transparent; cursor: pointer; color: #a1a1aa; transition: border-color .15s ease, color .15s ease; }
+.inv-code:hover { border-color: rgba(255,255,255,.55); color: #fff; }
+.inv-code-k { font-size: 12px; font-weight: 700; }
+.inv-code-v { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 14px; font-weight: 700; color: #fff; letter-spacing: .06em; }
+.inv-stats { display: flex; align-items: center; gap: 34px; padding-left: 8px; }
+.inv-stat + .inv-stat { padding-left: 34px; border-left: 1px solid rgba(255,255,255,.14); }
+.inv-num { font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; color: #fff; font-variant-numeric: tabular-nums; }
+.inv-k { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #a1a1aa; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: #fff; border: 1px solid rgb(24 24 27 / .07); border-radius: 16px; }
+.step-n { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #f4f4f5; color: #18181b; font-size: 14px; font-weight: 800; }
+.step-t { font-size: 14px; font-weight: 800; color: var(--fg); }
+.step-d { margin-top: 2px; font-size: 12px; color: var(--fg-3); }
+.rec-title { margin: 10px 2px 12px; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: var(--fg); }
+@media (max-width: 760px) { .steps { grid-template-columns: 1fr; } .inv-stats { padding-left: 0; } }
+
 /* Numbered pagination buttons — dark base (matches the admin pages); the global
    .theme-text rules in style.css recolor these for light mode automatically. */
 .pg {
