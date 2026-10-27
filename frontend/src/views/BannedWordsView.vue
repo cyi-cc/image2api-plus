@@ -129,7 +129,7 @@ onMounted(load)
 
     <div class="card toolbar">
       <input v-model="newWord" @keyup.enter="add" class="field w-72" placeholder="输入违禁词后回车添加" />
-      <button @click="add" class="btn-primary shrink-0">+ 添加</button>
+      <button @click="add" class="btn-primary shrink-0 !ml-0">+ 添加</button>
       <button @click="importOpen = true" class="btn-soft shrink-0">批量导入</button>
       <button v-if="selected.size" @click="delSelected" class="btn-soft danger shrink-0 ml-auto" title="删除选中的违禁词">
         <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ selected.size }})

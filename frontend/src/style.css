@@ -386,7 +386,7 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
   background-position: 11px center;
   background-size: 16px;
 }
-.toolbar :is(.btn-soft, .btn-primary) { height: 36px; padding: 0 14px; font-size: 13px; }
+.toolbar :is(.btn-soft, .btn-primary) { height: 36px; min-width: 88px; padding: 0 16px; font-size: 13px; font-weight: 700; box-shadow: none; }
 .toolbar > .flex-1 { flex: 0 1 300px; min-width: 200px; }
 .toolbar > .w-44 { flex: 0 1 240px; width: auto; }
 .toolbar > .btn-primary { margin-left: auto; }
