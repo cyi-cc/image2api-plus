@@ -28,10 +28,10 @@ const nav = computed(() => {
 // Avatar menu — only the surfaces the top nav doesn't already expose
 // (画图/图片 live in the bar, so they're intentionally left out here).
 const userMenu = [
-  { to: '/mylogs', label: '生成日志' },
-  { to: '/invite', label: '邀请返利' },
-  { to: '/orders', label: '订单' },
-  { to: '/settings', label: '设置' },
+  { to: '/mylogs', label: '生成日志', icon: 'log' },
+  { to: '/invite', label: '邀请返利', icon: 'team' },
+  { to: '/orders', label: '订单', icon: 'receipt' },
+  { to: '/settings', label: '设置', icon: 'config' },
 ]
 
 const menuOpen = ref(false)     // avatar dropdown
@@ -47,6 +47,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 // credits — the logged-in user's real server-side balance (auth.user.credits)
 const credits = computed(() => Number(auth.user?.credits || 0))
 const creditsLabel = computed(() => pointsLabel(credits.value))
+const avatarChar = computed(() => Array.from(displayName.value)[0]?.toUpperCase() || '?')
 const displayName = computed(() => {
   const n = (auth.user?.name || '').trim()
   if (n) return n
@@ -98,39 +99,46 @@ async function onLogout() {
 
         <div class="flex-1"></div>
 
-        <!-- balance (signed in) -->
-        <router-link v-if="isAuthed()" to="/settings"
-                     class="hidden sm:block text-xs text-[color:var(--fg-2)] hover:text-[color:var(--fg)] tabular-nums transition-colors">
-          余额 <span class="text-[color:var(--fg)] font-semibold">{{ creditsLabel }}</span>
-        </router-link>
-
         <!-- 公告 -->
         <button v-if="isAuthed() && announcement.content.trim()" type="button"
                 @click="openAnnouncement" class="round-btn" title="公告">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-7-4 14-6-3-3 4-1-6z"/></svg>
         </button>
 
-        <!-- admin shortcut -->
-        <router-link v-if="isAdmin()" to="/admin/overview" class="round-btn" title="进入管理后台">
-          <Icon name="shield" class="w-4 h-4" />
-        </router-link>
-
         <!-- guest actions -->
         <template v-if="!isAuthed()">
           <button type="button" class="login-pill" @click="openLogin('/user')">登录 / 注册</button>
         </template>
 
-        <!-- signed-in: avatar menu -->
+        <!-- signed-in: avatar menu（余额 / 后台入口都收进来） -->
         <div v-else class="relative">
-          <button type="button" class="name-btn" @click.stop="menuOpen = !menuOpen" title="我的">
+          <button type="button" class="name-btn" :class="{ open: menuOpen }" @click.stop="menuOpen = !menuOpen" title="我的">
+            <span class="avatar">{{ avatarChar }}</span>
             <span class="name-txt">{{ displayName }}</span>
-            <svg class="w-3.5 h-3.5 shrink-0 transition-transform" :class="menuOpen && 'rotate-180'"
+            <svg class="w-3.5 h-3.5 shrink-0 text-[color:var(--fg-3)] transition-transform" :class="menuOpen && 'rotate-180'"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div v-if="menuOpen" class="menu" @click.stop>
-            <router-link v-for="m in userMenu" :key="m.to" :to="m.to" class="menu-item">{{ m.label }}</router-link>
+            <div class="menu-head">
+              <span class="avatar avatar--lg">{{ avatarChar }}</span>
+              <div class="min-w-0">
+                <div class="menu-name">{{ displayName }}</div>
+                <div v-if="auth.user?.email" class="menu-mail">{{ auth.user.email }}</div>
+              </div>
+            </div>
+            <router-link to="/settings" class="menu-balance">
+              <span class="mb-label">余额</span>
+              <span class="mb-val">{{ creditsLabel }}</span>
+              <span class="mb-go">充值 →</span>
+            </router-link>
+            <router-link v-for="m in userMenu" :key="m.to" :to="m.to" class="menu-item">
+              <Icon :name="m.icon" :size="15" /> {{ m.label }}
+            </router-link>
+            <router-link v-if="isAdmin()" to="/admin/overview" class="menu-item">
+              <Icon name="shield" :size="15" /> 管理后台
+            </router-link>
             <div class="menu-sep"></div>
-            <button type="button" class="menu-item w-full text-left" @click="onLogout">退出登录</button>
+            <button type="button" class="menu-item menu-item--out w-full text-left" @click="onLogout">退出登录</button>
           </div>
         </div>
 
@@ -149,6 +157,7 @@ async function onLogout() {
         <template v-if="isAuthed()">
           <div class="menu-sep"></div>
           <router-link v-for="m in userMenu" :key="m.to" :to="m.to" active-class="m-on" class="m-link">{{ m.label }}</router-link>
+          <router-link v-if="isAdmin()" to="/admin/overview" class="m-link">管理后台</router-link>
         </template>
         <template v-else>
           <div class="menu-sep"></div>
@@ -335,59 +344,108 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 .name-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  max-width: 10rem;
-  height: 2.125rem;
-  padding: 0 0.7rem 0 0.85rem;
-  border-radius: 0.6rem;
-  border: 1px solid var(--ink-soft);
+  gap: 0.5rem;
+  max-width: 12rem;
+  height: 2.5rem;
+  padding: 0 0.7rem 0 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgb(24 24 27 / 0.1);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
   color: var(--fg);
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  background: #fff;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.name-btn:hover {
-  background: var(--hover);
-  border-color: rgb(24 24 27 / 0.4);
-  box-shadow: 0 4px 14px rgb(24 24 27 / 0.16);
-  transform: translateY(-1px);
+.name-btn:hover, .name-btn.open {
+  border-color: rgb(24 24 27 / 0.28);
+  box-shadow: 0 4px 14px rgb(24 24 27 / 0.1);
 }
 .name-txt {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.avatar {
+  flex-shrink: 0;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #18181b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.avatar--lg { width: 2.6rem; height: 2.6rem; font-size: 16px; }
 
 .menu {
   position: absolute;
   right: 0;
-  top: 2.75rem;
-  width: 11.5rem;
-  padding: 0.4rem;
-  border-radius: 0.85rem;
-  background: var(--menu-bg);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-lg);
+  top: 3.1rem;
+  width: 16rem;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 1px solid rgb(24 24 27 / 0.08);
+  box-shadow: 0 2px 6px rgb(24 24 27 / 0.05), 0 24px 48px -12px rgb(24 24 27 / 0.22);
   z-index: 50;
 }
+.menu-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.5rem 0.65rem;
+}
+.menu-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-mail {
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.75rem;
+  background: #f4f4f5;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.menu-balance:hover { background: #ececee; }
+.mb-label { font-size: 12px; font-weight: 600; color: var(--fg-3); }
+.mb-val { font-size: 20px; font-weight: 800; color: var(--fg); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.mb-go { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--fg-2); }
 .menu-item {
-  display: block;
-  padding: 0.5rem 0.65rem;
-  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
   font-size: 13px;
   font-weight: 600;
   color: var(--fg-2);
   background: transparent;
   border: none;
   cursor: pointer;
+  text-decoration: none;
 }
-.menu-item:hover { background: var(--hover); color: var(--fg); }
+.menu-item:hover { background: rgb(24 24 27 / 0.06); color: var(--fg); }
+.menu-item--out { color: #dc2626; }
+.menu-item--out:hover { background: rgb(220 38 38 / 0.08); color: #dc2626; }
 .menu-sep { height: 1px; background: var(--hairline); margin: 0.35rem 0.25rem; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
