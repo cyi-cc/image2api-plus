@@ -46,16 +46,16 @@ func (h *ShowcaseHandler) List(c *gin.Context) {
 
 // AdminList is the paginated flat view for the admin 首页内容 page — the public
 // List keeps its grouped shape for the home page, this one adds kind filter +
-// limit/offset/total. Order mirrors the old client flattening: hero → bento → work.
+// limit/offset/total. Order mirrors the old client flattening: hero → work.
 func (h *ShowcaseHandler) AdminList(c *gin.Context) {
 	grouped, err := h.showcase.Grouped(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load showcase"})
 		return
 	}
-	kindFilter := c.Query("kind") // "" | hero | bento | work
+	kindFilter := c.Query("kind") // "" | hero | work
 	flat := make([]gin.H, 0, 16)
-	for _, kind := range []string{"hero", "bento", "work"} {
+	for _, kind := range []string{"hero", "work"} {
 		if kindFilter != "" && kind != kindFilter {
 			continue
 		}

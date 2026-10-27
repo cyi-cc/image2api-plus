@@ -233,8 +233,8 @@ onMounted(async () => {
     ])
     onlineModels.value = (m.data?.data || []).filter(model => model.sellable)
     const data = sc.data?.data || {}
-    // hero 拼贴按 hero → bento → 作品墙兜底取图，保证首屏有图可看
-    const pool = [...(data.hero || []), ...(data.bento || []), ...(data.work || [])]
+    // hero 拼贴按 hero → 作品墙兜底取图，保证首屏有图可看
+    const pool = [...(data.hero || []), ...(data.work || [])]
     carouselItems.value = pool.filter(i => i.image).slice(0, 4)
     if (!carouselItems.value.length) carouselItems.value = FALLBACK_HERO
     inspireItems.value = (data.work || []).length ? data.work : FALLBACK_WORKS

@@ -72,6 +72,10 @@ func NewApp(ctx context.Context) (*App, error) {
 	if err := db.WithContext(ctx).Exec(`ALTER TABLE model_configs DROP COLUMN IF EXISTS enabled`).Error; err != nil {
 		return nil, fmt.Errorf("drop model_configs.enabled: %w", err)
 	}
+	// 首页展示位不再支持 bento，清掉遗留记录。
+	if err := db.WithContext(ctx).Exec(`DELETE FROM showcase_items WHERE kind = 'bento'`).Error; err != nil {
+		return nil, fmt.Errorf("purge bento showcase: %w", err)
+	}
 	if err := seedDefaults(ctx, db); err != nil {
 		return nil, fmt.Errorf("seed defaults: %w", err)
 	}

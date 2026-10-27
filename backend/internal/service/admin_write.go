@@ -292,7 +292,7 @@ func (s *AdminWriteService) DeleteUserAPIKey(ctx context.Context, userID, keyID 
 func (s *AdminWriteService) CreateShowcase(ctx context.Context, body map[string]any) (*model.ShowcaseItem, error) {
 	kind := normalizedShowcaseKind(stringValue(body["kind"]))
 	if kind == "" {
-		return nil, errors.New("kind must be hero, bento or work")
+		return nil, errors.New("kind must be hero or work")
 	}
 	image := strings.TrimSpace(stringValue(body["image"]))
 	if image == "" {
@@ -333,7 +333,7 @@ func (s *AdminWriteService) UpdateShowcase(ctx context.Context, entryID string, 
 	if _, ok := body["kind"]; ok {
 		kind := normalizedShowcaseKind(stringValue(body["kind"]))
 		if kind == "" {
-			return nil, errors.New("kind must be hero, bento or work")
+			return nil, errors.New("kind must be hero or work")
 		}
 		patch["kind"] = kind
 	}
@@ -581,7 +581,7 @@ func normalizedStatus(status string) string {
 
 func normalizedShowcaseKind(kind string) string {
 	switch strings.TrimSpace(kind) {
-	case "hero", "bento", "work":
+	case "hero", "work":
 		return strings.TrimSpace(kind)
 	default:
 		return ""

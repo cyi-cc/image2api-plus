@@ -1,17 +1,16 @@
 <script setup>
 // Admin → 首页内容
 // CRUD for the cards rendered on the public home page:
-//   - hero  : top-3-by-weight stacked deck in the hero
-//   - bento : "从一个起点开始" grid
+//   - hero  : top-4-by-weight collage in the hero
 //   - work  : "我们的作品" marquee — admin-curated featured outputs
-// All three kinds use a real image as the background; admins pick one from
+// Both kinds use a real image as the background; admins pick one from
 // the already-generated files or paste an external URL.
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { api, jsonBody, generatedUrl } from '../api'
 import Icon from '../components/Icon.vue'
 
 const items = ref([])
-const filter = ref('all')         // 'all' | 'hero' | 'bento' | 'work'
+const filter = ref('all')         // 'all' | 'hero' | 'work'
 const loading = ref(false)
 const editing = ref(null)         // truthy when the form modal is open
 const picking = ref(false)        // truthy when the image-picker modal is open
@@ -70,7 +69,7 @@ const pageNumbers = computed(() => {
   return out
 })
 
-const KIND_DEFAULT_WEIGHT = { hero: 200, bento: 300, work: 100 }
+const KIND_DEFAULT_WEIGHT = { hero: 200, work: 100 }
 
 function openNew(kind) {
   editing.value = { kind }
@@ -174,7 +173,6 @@ function bgFor(image) {
   }
 }
 
-const SPAN_PRESETS = ['', 'md:col-span-2', 'md:row-span-2', 'md:col-span-2 md:row-span-2']
 
 onMounted(refresh)
 </script>
@@ -186,12 +184,10 @@ onMounted(refresh)
       <div class="flex items-center gap-1.5">
         <button @click="setFilter('all')" class="filter-pill" :class="filter === 'all' && 'on'">全部</button>
         <button @click="setFilter('hero')" class="filter-pill" :class="filter === 'hero' && 'on'">Hero 卡片</button>
-        <button @click="setFilter('bento')" class="filter-pill" :class="filter === 'bento' && 'on'">Bento 灵感</button>
         <button @click="setFilter('work')" class="filter-pill" :class="filter === 'work' && 'on'">我们的作品</button>
       </div>
       <div class="flex items-center gap-2">
         <button @click="openNew('hero')" class="btn-soft">+ Hero</button>
-        <button @click="openNew('bento')" class="btn-soft">+ Bento</button>
         <button @click="openNew('work')" class="btn-soft">+ Work</button>
       </div>
     </div>
@@ -209,7 +205,6 @@ onMounted(refresh)
         <div class="absolute top-3 left-3 flex items-center gap-1.5">
           <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ring-1"
                 :class="rec.kind === 'hero' ? 'bg-rose-500/20 text-rose-200 ring-rose-400/30'
-                       : rec.kind === 'bento' ? 'bg-orange-500/20 text-orange-200 ring-orange-400/30'
                        : 'bg-sky-500/20 text-sky-200 ring-sky-400/30'">
             {{ rec.kind }}
           </span>
@@ -255,7 +250,7 @@ onMounted(refresh)
           <div class="px-5 py-3 border-b border-[color:var(--hairline)] flex items-center justify-between">
             <h2 class="text-sm font-semibold">
               {{ form.id ? '编辑' : '新增' }} ·
-              {{ form.kind === 'hero' ? 'Hero 卡片' : form.kind === 'bento' ? 'Bento 灵感' : '作品' }}
+              {{ form.kind === 'hero' ? 'Hero 卡片' : '作品' }}
             </h2>
             <button @click="closeForm" class="text-[color:var(--fg-faint)] hover:text-[color:var(--fg)]">
               <Icon name="close" class="w-4 h-4" />
@@ -293,7 +288,6 @@ onMounted(refresh)
                 <label class="block text-xs text-[color:var(--fg-3)] mb-1.5">类型</label>
                 <div class="flex gap-1.5">
                   <button type="button" @click="form.kind = 'hero'" class="kind-btn" :class="form.kind === 'hero' && 'on'">Hero</button>
-                  <button type="button" @click="form.kind = 'bento'" class="kind-btn" :class="form.kind === 'bento' && 'on'">Bento</button>
                   <button type="button" @click="form.kind = 'work'" class="kind-btn" :class="form.kind === 'work' && 'on'">Work</button>
                 </div>
               </div>
@@ -315,7 +309,7 @@ onMounted(refresh)
                 </div>
               </div>
               <div>
-                <label class="block text-xs text-[color:var(--fg-3)] mb-1.5">提示词 <span class="text-[color:var(--fg-faint)]">(点 Bento 后会预填到画图)</span></label>
+                <label class="block text-xs text-[color:var(--fg-3)] mb-1.5">提示词 <span class="text-[color:var(--fg-faint)]">(点图后会预填到画图)</span></label>
                 <textarea v-model="form.prompt" rows="3" class="field resize-none"
                           placeholder="一位身穿米色风衣的女子站在雨夜的霓虹街道,胶片质感,浅景深,电影感"></textarea>
               </div>
@@ -326,19 +320,6 @@ onMounted(refresh)
                 <input v-model="form.title" class="field" placeholder="留空则只展示图片" />
               </div>
             </template>
-
-            <div v-if="form.kind === 'bento'">
-              <label class="block text-xs text-[color:var(--fg-3)] mb-1.5">网格跨度 <span class="text-[color:var(--fg-faint)]">(Tailwind class)</span></label>
-              <div class="flex gap-1.5 flex-wrap mb-2">
-                <button v-for="s in SPAN_PRESETS" :key="s" type="button" @click="form.span = s"
-                        class="px-2.5 py-1 text-[11px] rounded-lg ring-1 ring-[color:var(--hairline)] hover:bg-[color:var(--hover)]"
-                        :class="form.span === s ? 'bg-[color:var(--btn-solid-bg)] text-[color:var(--btn-solid-fg)]' : 'bg-[color:var(--surface-2)] text-[color:var(--fg-2)]'">
-                  {{ s || '默认 1×1' }}
-                </button>
-              </div>
-              <input v-model="form.span" class="field font-mono text-[11px]" placeholder="md:col-span-2" />
-            </div>
-
             <p v-if="error" class="text-xs text-rose-500">{{ error }}</p>
           </div>
 

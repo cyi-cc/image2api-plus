@@ -62,9 +62,8 @@ func (r *ShowcaseRepository) Grouped(ctx context.Context) (map[string][]model.Sh
 	}
 
 	grouped := map[string][]model.ShowcaseItem{
-		"hero":  {},
-		"bento": {},
-		"work":  {},
+		"hero": {},
+		"work": {},
 	}
 	for _, item := range items {
 		grouped[item.Kind] = append(grouped[item.Kind], item)
