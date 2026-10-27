@@ -44,6 +44,16 @@ func (r *ModelRepository) Get(ctx context.Context, modelID string) (*model.Model
 	return &item, nil
 }
 
+// GetAny includes soft-deleted rows — the import/revive path and orphan
+// cleanup need to see rows normal queries hide.
+func (r *ModelRepository) GetAny(ctx context.Context, modelID string) (*model.ModelConfig, error) {
+	var item model.ModelConfig
+	if err := r.db.WithContext(ctx).Unscoped().First(&item, "(alias <> '' AND alias = ?) OR (alias = '' AND id = ?)", modelID, modelID).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 func (r *ModelRepository) NameMap(ctx context.Context) (map[string]string, error) {
 	items, err := r.List(ctx)
 	if err != nil {
@@ -72,18 +82,40 @@ func (r *ModelRepository) Create(ctx context.Context, item *model.ModelConfig) e
 }
 
 func (r *ModelRepository) Update(ctx context.Context, modelID string, patch map[string]any) (*model.ModelConfig, error) {
+	return r.update(ctx, modelID, patch, false)
+}
+
+// UpdateAny can reach soft-deleted rows (revive path: patch deleted_at=NULL).
+func (r *ModelRepository) UpdateAny(ctx context.Context, modelID string, patch map[string]any) (*model.ModelConfig, error) {
+	return r.update(ctx, modelID, patch, true)
+}
+
+func (r *ModelRepository) update(ctx context.Context, modelID string, patch map[string]any, anyState bool) (*model.ModelConfig, error) {
 	patch["updated_at"] = time.Now()
-	if err := r.db.WithContext(ctx).Model(&model.ModelConfig{}).Where("id = ?", modelID).Updates(patch).Error; err != nil {
+	q := r.db.WithContext(ctx)
+	if anyState {
+		q = q.Unscoped()
+	}
+	if err := q.Model(&model.ModelConfig{}).Where("id = ?", modelID).Updates(patch).Error; err != nil {
 		return nil, err
 	}
 	var item model.ModelConfig
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", modelID).Error; err != nil {
+	if err := q.First(&item, "id = ?", modelID).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
 }
 
+// Delete soft-deletes the model (gorm.DeletedAt): the row keeps its counters
+// and pricing so re-importing it later revives the same record.
 func (r *ModelRepository) Delete(ctx context.Context, modelID string) (int64, error) {
 	res := r.db.WithContext(ctx).Delete(&model.ModelConfig{}, "id = ?", modelID)
+	return res.RowsAffected, res.Error
+}
+
+// DeleteHard physically removes the row — only for legacy/provider-era rows
+// that must not linger as soft-deleted junk.
+func (r *ModelRepository) DeleteHard(ctx context.Context, modelID string) (int64, error) {
+	res := r.db.WithContext(ctx).Unscoped().Delete(&model.ModelConfig{}, "id = ?", modelID)
 	return res.RowsAffected, res.Error
 }

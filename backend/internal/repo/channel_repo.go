@@ -212,13 +212,14 @@ func (r *ChannelRepository) ChannelIDsByModel(ctx context.Context, modelID strin
 }
 
 // OrphanModelIDs returns local model ids that no channel binds anymore.
+// Soft-deleted rows are skipped — they're already gone from every live path.
 func (r *ChannelRepository) OrphanModelIDs(ctx context.Context) ([]string, error) {
 	var ids []string
 	err := r.db.WithContext(ctx).
 		Table("model_configs").
 		Select("model_configs.id").
 		Joins("LEFT JOIN channel_models ON channel_models.model_id = model_configs.id").
-		Where("channel_models.model_id IS NULL").
+		Where("channel_models.model_id IS NULL AND model_configs.deleted_at IS NULL").
 		Scan(&ids).Error
 	return ids, err
 }

@@ -478,6 +478,8 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
   }
   .btn-primary:hover:not(:disabled) { background: #27272a; box-shadow: 0 10px 22px -8px rgb(9 9 11 / 0.5); }
   .btn-primary:active:not(:disabled) { transform: scale(0.97); box-shadow: none; }
+  /* 禁用态：浅灰填充（vivid 同款），不再是变淡的黑块 */
+  .btn-primary:disabled { background: var(--surface-2); color: var(--fg-3); border-color: transparent; box-shadow: none; opacity: 1; }
   .btn-soft {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold
            disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5;

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -160,8 +161,12 @@ type ModelConfig struct {
 	// successful generation. Independent of the event_log (which is subject to
 	// retention / manual clearing), so the admin "次数" is a true running total.
 	GenerationCount int64 `gorm:"not null;default:0"`
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// DeletedAt soft-deletes the row (vivid parity): hidden from every normal
+	// path, but the row + its counters survive so a re-import revives it
+	// without losing generation_count or pricing.
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (m ModelConfig) EffectiveName() string {

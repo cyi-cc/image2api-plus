@@ -381,11 +381,12 @@ func (s *ChannelService) PurgeOrphanModels(ctx context.Context) (int, error) {
 	}
 	n := 0
 	for _, id := range ids {
-		m, gerr := s.models.Get(ctx, id)
+		m, gerr := s.models.GetAny(ctx, id)
 		if gerr != nil || m == nil || m.Provider == "channel" {
 			continue
 		}
-		if _, derr := s.models.Delete(ctx, id); derr == nil {
+		// provider 时代残留行没有复活路径，直接物理删除，不留软删垃圾。
+		if _, derr := s.models.DeleteHard(ctx, id); derr == nil {
 			n++
 		}
 	}
@@ -454,7 +455,8 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 			return fmt.Errorf("别名 %s 被多个上游模型复用", localID)
 		}
 		seenAliases[localID] = upID
-		existing, gerr := s.models.Get(ctx, localID)
+		// GetAny: 软删行也纳入——重导同一模型时复活原行，计数/定价不丢。
+		existing, gerr := s.models.GetAny(ctx, localID)
 		if gerr != nil && !errors.Is(gerr, gorm.ErrRecordNotFound) {
 			existing = nil
 		}
@@ -481,7 +483,10 @@ func (s *ChannelService) ImportModels(ctx context.Context, channelID string, spe
 				return fmt.Errorf("model %s: %w", localID, err)
 			}
 		} else {
-			if _, err := s.models.Update(ctx, localID, patch); err != nil {
+			if local.DeletedAt.Valid {
+				patch["deleted_at"] = nil // revive
+			}
+			if _, err := s.models.UpdateAny(ctx, localID, patch); err != nil {
 				return fmt.Errorf("model %s: %w", localID, err)
 			}
 		}
