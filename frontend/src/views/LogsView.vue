@@ -15,7 +15,6 @@ const kindFilter = ref('')     // '' | 'image' | 'video'
 const statusFilter = ref('')   // '' | 'success' | 'failed' | 'pending'
 const sourceFilter = ref('')   // '' | 'v1' | 'user' | 'admin'
 const search = ref('')
-const userSearch = ref('')   // 服务端用户搜索：名称 / 邮箱 / ID，跨页生效
 const page = ref(1)
 const pageSize = ref(15)
 const total = ref(0)
@@ -44,8 +43,7 @@ async function load() {
   if (kindFilter.value) qs.set('kind', kindFilter.value)
   if (statusFilter.value) qs.set('status', statusFilter.value)
   if (sourceFilter.value) qs.set('source', sourceFilter.value)
-  if (userSearch.value.trim()) qs.set('user', userSearch.value.trim())
-  if (search.value.trim()) qs.set('q', search.value.trim())
+  if (search.value.trim()) qs.set('kw', search.value.trim())
   const r = await api('/logs?' + qs.toString())
   items.value = r.data?.data || []
   total.value = Number(r.data?.total ?? items.value.length)
@@ -186,13 +184,9 @@ const sourcePill = (s) => ({
       <SelectMenu :model-value="kindFilter" compact :options="KIND_OPTS" @update:model-value="setKind" />
       <SelectMenu :model-value="statusFilter" compact :options="STATUS_OPTS" @update:model-value="setStatus" />
       <SelectMenu :model-value="sourceFilter" compact :options="SOURCE_OPTS" @update:model-value="setSource" />
-      <div class="w-44">
-        <input v-model="userSearch" @keyup.enter="doUserSearch" @change="doUserSearch"
-               class="field !py-1.5 text-xs" placeholder="搜索用户 名称/邮箱/ID…" />
-      </div>
       <div class="flex-1 min-w-[200px]">
         <input v-model="search" @keyup.enter="doUserSearch" @change="doUserSearch"
-               class="field !py-1.5 text-xs" placeholder="搜索 模型 / 提示词 / 错误…" />
+               class="field !py-1.5 text-xs" placeholder="搜索 用户 / 模型 / 提示词 / 错误…" />
       </div>
     </div>
 
@@ -201,7 +195,7 @@ const sourcePill = (s) => ({
       <div v-if="loading && !items.length" class="text-center text-sm text-white/40 py-20">加载中…</div>
       <div v-else-if="!filtered.length" class="flex flex-col items-center gap-3 text-white/40 py-20">
         <span class="w-14 h-14 rounded-2xl bg-white/[0.04] grid place-items-center"><Icon name="files" class="w-6 h-6" /></span>
-        <span class="text-sm">{{ (search.trim() || userSearch.trim()) ? '没有匹配的记录' : '还没有日志' }}</span>
+        <span class="text-sm">{{ search.trim() ? '没有匹配的记录' : '还没有日志' }}</span>
       </div>
 
       <!-- Each row is a thumbnail + a stack of model/prompt + a meta line.

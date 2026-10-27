@@ -15,20 +15,21 @@ type EventRepository struct {
 }
 
 type EventListFilter struct {
-	Limit         int
-	Offset        int
-	Kind          string
-	Status        string   // single status (status = ?)
-	Statuses      []string // multiple statuses (status IN (?)) — used by the 画图台 grid
-	Since         *time.Time
-	UserID        string
-	UserIDs       []string // when set, keep ONLY rows whose user_id is in this list (admin 用户搜索)
-	Query         string   // free-text search over prompt / model / error (server-side, 跨页)
-	ExcludeSource string   // when set, omit rows with this source (e.g. hide API-key "v1" usage from the customer logs page)
-	Source        string   // when set, keep ONLY rows with this source (admin 来源 filter): "v1" (API key) / "user" (前台) / "admin" (测试模型)
-	HasFile       bool     // when true, keep ONLY rows with a non-empty file (the 创作记录 gallery — paginates over real media)
-	ExcludeFiles  []string // when set, omit rows whose file is in this list (e.g. hide homepage showcase media from user galleries)
-	MediaOnly     bool     // when true, keep only rows that are pending or have a stored file — the 画图台 grid, so deleted works don't eat a slot
+	Limit          int
+	Offset         int
+	Kind           string
+	Status         string   // single status (status = ?)
+	Statuses       []string // multiple statuses (status IN (?)) — used by the 画图台 grid
+	Since          *time.Time
+	UserID         string
+	UserIDs        []string // when set, keep ONLY rows whose user_id is in this list (admin 用户搜索)
+	Query          string   // free-text search over prompt / model / error (server-side, 跨页)
+	KeywordUserIDs []string // with Query set: also match rows whose user_id is in this list (单搜索框: 用户 OR 内容)
+	ExcludeSource  string   // when set, omit rows with this source (e.g. hide API-key "v1" usage from the customer logs page)
+	Source         string   // when set, keep ONLY rows with this source (admin 来源 filter): "v1" (API key) / "user" (前台) / "admin" (测试模型)
+	HasFile        bool     // when true, keep ONLY rows with a non-empty file (the 创作记录 gallery — paginates over real media)
+	ExcludeFiles   []string // when set, omit rows whose file is in this list (e.g. hide homepage showcase media from user galleries)
+	MediaOnly      bool     // when true, keep only rows that are pending or have a stored file — the 画图台 grid, so deleted works don't eat a slot
 }
 
 type EventStats struct {
@@ -66,7 +67,11 @@ func (r *EventRepository) List(ctx context.Context, filter EventListFilter) ([]m
 	}
 	if term := strings.TrimSpace(filter.Query); term != "" {
 		like := "%" + term + "%"
-		q = q.Where("(prompt ILIKE ? OR model ILIKE ? OR error ILIKE ?)", like, like, like)
+		if len(filter.KeywordUserIDs) > 0 {
+			q = q.Where("(prompt ILIKE ? OR model ILIKE ? OR error ILIKE ? OR user_id IN ?)", like, like, like, filter.KeywordUserIDs)
+		} else {
+			q = q.Where("(prompt ILIKE ? OR model ILIKE ? OR error ILIKE ?)", like, like, like)
+		}
 	}
 	if filter.ExcludeSource != "" {
 		q = q.Where("(source IS NULL OR source <> ?)", filter.ExcludeSource)

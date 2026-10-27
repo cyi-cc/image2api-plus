@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"backend/internal/model"
+	"backend/internal/repo"
 	"backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -99,7 +100,21 @@ func (h *AdminReadHandler) Logs(c *gin.Context) {
 		userIDs = ids
 	}
 
-	items, total, stats, err := h.admin.Logs(c.Request.Context(), limit, offset, kind, status, nil, since, "", userIDs, strings.TrimSpace(c.Query("q")), "", c.Query("source"), false, false, false)
+	// ?kw= — 单搜索框：命中 提示词/模型/错误，或命中 用户(名称/邮箱/ID) 的记录都保留。
+	var items []model.EventLog
+	var total int64
+	var stats *repo.EventStats
+	var err error
+	if kw := strings.TrimSpace(c.Query("kw")); kw != "" {
+		kwIDs, uerr := h.admin.MatchUserIDs(c.Request.Context(), kw)
+		if uerr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load logs"})
+			return
+		}
+		items, total, stats, err = h.admin.LogsKeyword(c.Request.Context(), limit, offset, kind, status, since, kw, kwIDs, c.Query("source"))
+	} else {
+		items, total, stats, err = h.admin.Logs(c.Request.Context(), limit, offset, kind, status, nil, since, "", userIDs, strings.TrimSpace(c.Query("q")), "", c.Query("source"), false, false, false)
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "failed to load logs"})
 		return

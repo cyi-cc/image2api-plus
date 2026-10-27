@@ -236,7 +236,6 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 .top-link:active { transform: scale(0.95); }
 .top-link:hover { color: var(--fg); background: var(--hover); }
 .home-bg .top-link.on { color: #18181b; background: rgba(24, 24, 27, 0.07); }
-.home-bg .brand-spark { display: none; }
 .top-link.on {
   color: var(--m-orange);
   font-weight: 700;

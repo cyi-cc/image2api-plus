@@ -89,11 +89,11 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 	for _, item := range items {
 		_, bound := routable[item.ID]
 		out = append(out, map[string]any{
-			"id":                    item.ID,
-			"alias":                 item.Alias,
-			"type":                  item.Type,
-			"name":                  item.Name,
-			"provider":              item.Provider,
+			"id":       item.ID,
+			"alias":    item.Alias,
+			"type":     item.Type,
+			"name":     item.Name,
+			"provider": item.Provider,
 			// 配价即上架（无启停开关）：全档位有价 + 绑定了启用渠道才算可售。
 			"sellable":              bound && ModelFullyPriced(&item),
 			"ratios":                repo.JSONStrings(item.Ratios),
@@ -122,25 +122,35 @@ func (s *AdminReadService) ModelsView(ctx context.Context) ([]map[string]any, er
 }
 
 func (s *AdminReadService) Logs(ctx context.Context, limit, offset int, kind, status string, statuses []string, since *time.Time, userID string, userIDs []string, query, excludeSource, source string, hasFile, excludeShowcase, mediaOnly bool) ([]model.EventLog, int64, *repo.EventStats, error) {
+	return s.logs(ctx, limit, offset, kind, status, statuses, since, userID, userIDs, nil, query, excludeSource, source, hasFile, excludeShowcase, mediaOnly)
+}
+
+// LogsKeyword 单搜索框：keyword 命中 提示词/模型/错误，或 user_id 在 kwUserIDs 内（名称/邮箱/ID 命中）即保留。
+func (s *AdminReadService) LogsKeyword(ctx context.Context, limit, offset int, kind, status string, since *time.Time, keyword string, kwUserIDs []string, source string) ([]model.EventLog, int64, *repo.EventStats, error) {
+	return s.logs(ctx, limit, offset, kind, status, nil, since, "", nil, kwUserIDs, keyword, "", source, false, false, false)
+}
+
+func (s *AdminReadService) logs(ctx context.Context, limit, offset int, kind, status string, statuses []string, since *time.Time, userID string, userIDs, kwUserIDs []string, query, excludeSource, source string, hasFile, excludeShowcase, mediaOnly bool) ([]model.EventLog, int64, *repo.EventStats, error) {
 	var excludeFiles []string
 	if excludeShowcase {
 		excludeFiles = s.showcaseFileList(ctx)
 	}
 	items, total, err := s.events.List(ctx, repo.EventListFilter{
-		Limit:         limit,
-		Offset:        offset,
-		Kind:          kind,
-		Status:        status,
-		Statuses:      statuses,
-		Since:         since,
-		UserID:        userID,
-		UserIDs:       userIDs,
-		Query:         query,
-		ExcludeSource: excludeSource,
-		Source:        source,
-		HasFile:       hasFile,
-		ExcludeFiles:  excludeFiles,
-		MediaOnly:     mediaOnly,
+		Limit:          limit,
+		Offset:         offset,
+		Kind:           kind,
+		Status:         status,
+		Statuses:       statuses,
+		Since:          since,
+		UserID:         userID,
+		UserIDs:        userIDs,
+		Query:          query,
+		KeywordUserIDs: kwUserIDs,
+		ExcludeSource:  excludeSource,
+		Source:         source,
+		HasFile:        hasFile,
+		ExcludeFiles:   excludeFiles,
+		MediaOnly:      mediaOnly,
 	})
 	if err != nil {
 		return nil, 0, nil, err
