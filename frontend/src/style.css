@@ -337,7 +337,7 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
    over-media tables are untouched; specificity outranks the per-view
    Tailwind hover utilities and the light-mode white rescue. */
 .theme-text .card table thead {
-  background: #fafafa;
+  background: transparent;
   border-bottom: 1px solid rgb(24 24 27 / 0.07);
 }
 /* 表头统一：各页曾分别写 10px/11px、tracking 0.2em/0.04em——收拢到同一规格。 */

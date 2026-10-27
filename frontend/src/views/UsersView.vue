@@ -617,7 +617,7 @@ async function doRecharge() {
   right: 0;
   box-shadow: -10px 0 14px -10px rgb(15 23 42 / 0.16);
 }
-.utable thead th:last-child { background: #fafafa; }
+.utable thead th:last-child { background: var(--surface-solid); }
 .utable tbody td:last-child { background: var(--surface-solid); }
 .utable tbody tr:hover td:last-child { background: #f7f7f8; }
 .utable tbody tr.row-on td:last-child { background: #f1f1f3; }
