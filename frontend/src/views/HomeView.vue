@@ -207,6 +207,16 @@ const PH_SLOTS = [
 ]
 const heroSlots = computed(() => (carouselLoading.value && !carouselItems.value.length) ? PH_SLOTS : carouselItems.value.slice(0, 4))
 const inspireItems = ref([])
+// 后台未配置展示位时的内置兜底图（/public/showcase 下的本地渐变图）
+const FALLBACK_HERO = [
+  { id: 'fb-h1', title: '霓虹都市', prompt: '雨夜霓虹街道，赛博朋克光影', image: '/showcase/hero-1.svg' },
+  { id: 'fb-h2', title: '深海蓝调', prompt: '深海蓝调梦境，光斑浮动', image: '/showcase/hero-2.svg' },
+  { id: 'fb-h3', title: '熔金落日', prompt: '熔金色落日余晖', image: '/showcase/hero-3.svg' },
+  { id: 'fb-h4', title: '翡翠星野', prompt: '翡翠色星野与极光', image: '/showcase/hero-4.svg' },
+]
+const FALLBACK_WORKS = [1, 2, 3, 4, 5, 6, 7].map(i => ({
+  id: 'fb-w' + i, title: '灵感作品 ' + i, prompt: '', image: `/showcase/work-${i}.svg`,
+}))
 // Hero 拼贴固定 4 格；后端已限制轮播最多 4 张，此处 slice 兜底
 const heroArts = computed(() => carouselItems.value.slice(0, 4))
 
@@ -221,11 +231,17 @@ onMounted(async () => {
     ])
     onlineModels.value = (m.data?.data || []).filter(model => model.sellable)
     const data = sc.data?.data || {}
-    // hero 拼贴优先取 hero 位，不足 4 张用 bento 补齐
-    carouselItems.value = [...(data.hero || []), ...(data.bento || [])].filter(i => i.image).slice(0, 4)
-    inspireItems.value = data.work || []
+    // hero 拼贴按 hero → bento → 作品墙兜底取图，保证首屏有图可看
+    const pool = [...(data.hero || []), ...(data.bento || []), ...(data.work || [])]
+    carouselItems.value = pool.filter(i => i.image).slice(0, 4)
+    if (!carouselItems.value.length) carouselItems.value = FALLBACK_HERO
+    inspireItems.value = (data.work || []).length ? data.work : FALLBACK_WORKS
     carouselLoading.value = false
-  } catch { carouselLoading.value = false /* 展示位加载失败不阻塞首页 */ }
+  } catch {
+    carouselItems.value = FALLBACK_HERO
+    inspireItems.value = FALLBACK_WORKS
+    carouselLoading.value = false /* 展示位加载失败不阻塞首页 */
+  }
   await nextTick()
   if (typeof IntersectionObserver === 'undefined') return
   revealObs = new IntersectionObserver((entries) => {
@@ -278,7 +294,9 @@ const features = computed(() => {
 // (like "user/abc.png") are served from /images by the backend.
 function imgSrc(image) {
   if (!image) return ''
-  return /^https?:\/\//i.test(image) ? image : generatedUrl(image)
+  if (/^https?:\/\//i.test(image)) return image
+  if (image.startsWith('/')) return image // 内置静态资源（public/ 下）
+  return generatedUrl(image)
 }
 
 async function copyQqGroup() {
