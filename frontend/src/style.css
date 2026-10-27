@@ -50,6 +50,8 @@ video {
   --accent-glow: rgb(24 24 27 / 0.25);
 }
 
+html { scrollbar-gutter: stable; }
+
 html.dark {
   --app-bg: #08070f;
   --fg: rgb(255 255 255 / 0.93);

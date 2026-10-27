@@ -98,7 +98,7 @@ watch(() => route.path, () => {
     <!-- ===== Main ===== -->
     <div class="flex-1 min-w-0 flex flex-col relative">
 
-      <main :class="['theme-text flex-1 overflow-y-auto overscroll-y-none relative z-10']">
+      <main :class="['theme-text flex-1 overflow-y-auto overscroll-y-none relative z-10 [scrollbar-gutter:stable]']">
         <div class="px-8 py-8 max-w-[1500px] mx-auto">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -152,7 +152,7 @@ watch(() => route.path, () => {
 .admin-sublink:hover { background: rgb(24 24 27 / 0.05); color: var(--fg); }
 .admin-sublink.active { color: #18181b; background: rgb(24 24 27 / 0.07); font-weight: 800; }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.fade-enter-from { opacity: 0; transform: translateY(4px); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.12s ease; }
+.fade-enter-from { opacity: 0; }
 .fade-leave-to { opacity: 0; }
 </style>

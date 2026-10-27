@@ -435,7 +435,7 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 .menu-item--out:hover { background: rgb(220 38 38 / 0.08); color: #dc2626; }
 .menu-sep { height: 1px; background: var(--hairline); margin: 0.35rem 0.25rem; }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.fade-enter-from { opacity: 0; transform: translateY(8px); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from { opacity: 0; }
 .fade-leave-to { opacity: 0; }
 </style>
