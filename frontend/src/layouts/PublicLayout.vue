@@ -6,7 +6,6 @@ import { site } from '../site'
 import Icon from '../components/Icon.vue'
 import Logo from '../components/Logo.vue'
 import { pointsLabel } from '../credits'
-import { draft } from '../playground'
 import { announcement, openAnnouncement } from '../announcement'
 
 const route = useRoute()
@@ -55,15 +54,8 @@ const displayName = computed(() => {
   return e ? e.split('@')[0] : '我的'
 })
 
-// On the 画图 workbench the label tracks the active mode — it flips with the
-// 生图/生视频 tab, and on state restore reflects a pending job's kind.
-const currentLabel = computed(() => {
-  if (route.path === '/user') return draft.mode === 'video' ? '生视频' : '生图'
-  return route.meta?.label || ''
-})
-
 // The home page paints its own full-bleed hero; other pages keep the padded
-// shell plus a route-label header.
+// shell.
 const isHome = computed(() => route.path === '/')
 
 // CanvasView's root is a <Teleport to="body"> — keep it outside the
@@ -173,13 +165,8 @@ async function onLogout() {
     <!-- ===== Main column ===== -->
     <div class="relative">
 
-      <!-- Route label header — the home page brings its own hero instead. -->
-      <header v-if="!isHome" class="relative z-10 mx-auto max-w-[1400px] px-4 md:px-8 pt-[104px] pb-4">
-        <span class="text-[22px] font-bold tracking-tight text-[color:var(--fg)]">{{ currentLabel }}</span>
-      </header>
-
       <main :class="['relative z-10 mx-auto max-w-[1400px] pb-24',
-                     isHome ? 'pt-0 px-0' : 'px-4 md:px-8 pt-2',]">
+                     isHome ? 'pt-0 px-0' : 'px-4 md:px-8 pt-[96px]']">
         <router-view v-slot="{ Component, route: viewRoute }">
           <component :is="Component" v-if="viewRoute.path === '/canvas'" />
           <transition v-else name="fade" mode="out-in">
