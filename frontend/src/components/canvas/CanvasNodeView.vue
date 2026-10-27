@@ -223,14 +223,14 @@ defineExpose({ startEdit, commitNote })
 <style scoped>
 .cv-node {
   position: absolute;
-  border-radius: 14px;
-  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  border: 1px solid rgb(24 24 27 / 0.08);
   contain: layout style;
   user-select: none;
   touch-action: none;
   cursor: grab;
   background: var(--surface-solid);
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 8px 24px -8px rgb(24 24 27 / 0.12);
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .cv-node__clip {
@@ -240,8 +240,8 @@ defineExpose({ startEdit, commitNote })
   overflow: hidden;
 }
 .cv-node.is-selected {
-  border-color: rgb(24 24 27 / 0.7);
-  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(24 24 27 / 0.25), 0 10px 30px var(--accent-glow);
+  border-color: #18181b;
+  box-shadow: 0 0 0 2px #18181b, 0 14px 34px -10px rgb(24 24 27 / 0.3);
 }
 .cv-node:active {
   cursor: grabbing;
@@ -286,10 +286,10 @@ defineExpose({ startEdit, commitNote })
   overflow: hidden;
 }
 
-/* 笔记 = 淡黄色贴纸 */
+/* 笔记 = 白色卡片 */
 .cv-node--note {
-  background: #fdf6c9;
-  border-color: rgb(180 140 20 / 0.35);
+  background: #fff;
+  border-color: rgb(24 24 27 / 0.1);
   cursor: text;
 }
 html.dark .cv-node--note {
@@ -305,7 +305,7 @@ html.dark .cv-node--note {
   padding: 12px 14px;
   font-size: 32px;
   line-height: 1.35;
-  color: #111;
+  color: #27272a;
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
@@ -390,7 +390,7 @@ html.dark .cv-node--note {
   max-height: 5em;
   overflow: auto;
   overflow-wrap: anywhere;
-  text-align: center;
+  text-align: left;
   user-select: text;
 }
 
@@ -404,15 +404,21 @@ html.dark .cv-node--note {
   cursor: pointer;
   z-index: 3;
   touch-action: manipulation;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
+.cv-node:hover .cv-port,
+.cv-node.is-selected .cv-port,
+.cv-port.is-active,
+.cv-port:focus-visible { opacity: 1; }
 .cv-port::after {
   content: '';
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid var(--m-orange);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35), 0 0 0 2px rgb(255 255 255 / 0.8);
+  border: 2px solid #18181b;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .cv-port:hover::after, .cv-port:focus-visible::after, .cv-port.is-active::after {

@@ -1136,14 +1136,14 @@ const saveLabel = computed(() => ({
   box-shadow: 0 4px 14px rgb(229 72 77 / 0.25);
 }
 .cv-btn--accent {
-  background: linear-gradient(120deg, rgb(24 24 27 / 0.16), rgb(168 85 247 / 0.14));
-  border-color: rgb(24 24 27 / 0.42);
-  color: var(--m-orange);
+  background: #fff;
+  border-color: rgb(24 24 27 / 0.28);
+  color: #18181b;
 }
 .cv-btn--accent:hover:not(:disabled) {
-  background: linear-gradient(120deg, rgb(24 24 27 / 0.26), rgb(168 85 247 / 0.22));
-  border-color: rgb(24 24 27 / 0.62);
-  box-shadow: 0 4px 16px var(--accent-glow);
+  background: rgb(24 24 27 / 0.05);
+  border-color: #18181b;
+  box-shadow: 0 4px 14px rgb(24 24 27 / 0.12);
 }
 .cv-select,
 .cv-input {
@@ -1178,8 +1178,8 @@ const saveLabel = computed(() => ({
   justify-content: space-between;
   gap: 12px;
   padding: 9px 14px;
-  border-bottom: 1px solid var(--ink-soft);
-  background: var(--surface);
+  border-bottom: 1px solid rgb(24 24 27 / 0.07);
+  background: rgb(255 255 255 / 0.92);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   flex-wrap: wrap;
@@ -1329,20 +1329,16 @@ const saveLabel = computed(() => ({
 /* 生成输入框:参考图缩略图在上,文本框居中,控制条在下 */
 .cv-composer {
   width: 100%;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgb(24 24 27 / 0.1);
   border-radius: 22px;
-  background:
-    linear-gradient(160deg, rgb(24 24 27 / 0.06), transparent 40%),
-    var(--surface);
-  -webkit-backdrop-filter: blur(22px) saturate(1.15);
-  backdrop-filter: blur(22px) saturate(1.15);
-  box-shadow: var(--glass-shadow-lg), 0 0 42px var(--accent-glow);
+  background: #fff;
+  box-shadow: 0 2px 4px rgb(24 24 27 / 0.04), 0 18px 48px -12px rgb(24 24 27 / 0.2);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   overflow: visible; /* 下拉面板要从输入框上方弹出,不能被裁切 */
 }
 .cv-composer:focus-within {
   border-color: rgb(24 24 27 / 0.55);
-  box-shadow: var(--glass-shadow-lg), 0 0 0 3px rgb(24 24 27 / 0.16), 0 0 42px var(--accent-glow);
+  box-shadow: 0 0 0 3px rgb(24 24 27 / 0.08), 0 18px 48px -12px rgb(24 24 27 / 0.24);
 }
 .cv-composer__refs {
   display: flex;

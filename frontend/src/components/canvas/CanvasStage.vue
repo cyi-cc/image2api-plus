@@ -781,8 +781,8 @@ defineExpose({
   background-color: var(--app-bg);
   background-image: radial-gradient(
     circle,
-    color-mix(in srgb, var(--fg) 16%, transparent) 1.4px,
-    transparent 1.4px
+    color-mix(in srgb, var(--fg) 12%, transparent) 1.3px,
+    transparent 1.3px
   );
 }
 .cv-stage.is-panning {
@@ -808,21 +808,18 @@ defineExpose({
 /* 常规连线:蓝色虚线;选中时改紫色实线加粗 */
 .cv-edge {
   fill: none;
-  stroke: rgb(95 108 248 / 0.85);
-  stroke-width: 2.4;
-  stroke-dasharray: 10 6;
-  filter: drop-shadow(0 0 5px rgb(24 24 27 / 0.3));
+  stroke: rgb(113 113 122 / 0.75);
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
 }
 .cv-edge--hot {
   stroke: var(--m-orange);
-  stroke-width: 2.8;
-  filter: drop-shadow(0 0 7px var(--accent-glow));
+  stroke-width: 2.6;
 }
 .cv-edge--sel {
   stroke: var(--m-orange);
   stroke-width: 3.5;
   stroke-dasharray: none;
-  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 .cv-edge-hit {
   fill: none;
