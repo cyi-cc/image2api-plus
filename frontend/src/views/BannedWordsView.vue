@@ -123,7 +123,7 @@ onMounted(load)
         <p class="page-sub">提示词包含违禁词的生成请求(画图台 + API)会被<strong>直接拦截</strong>,并累计触发次数(见用户管理)。匹配不区分大小写。</p>
       </div>
       <div class="page-actions">
-        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
 

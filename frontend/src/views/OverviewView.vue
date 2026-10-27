@@ -155,7 +155,7 @@ onUnmounted(() => clearInterval(timer))
         <span class="pill" :class="'pill--' + overallHealth.tone">
           <span class="dot" :class="'dot--' + overallHealth.tone"></span>{{ overallHealth.label }}
         </span>
-        <button @click="refreshAll" class="ov-btn"><Icon name="refresh" :size="14" /> 刷新</button>
+        <button @click="refreshAll" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
 

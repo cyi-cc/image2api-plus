@@ -376,7 +376,24 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 .page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
 .page-sub { margin-top: 3px; font-size: 12.5px; color: var(--fg-3); line-height: 1.5; }
 .page-sub strong { color: var(--fg-2); font-weight: 700; }
+/* 刷新：独立的圆形图标按钮，固定在页头最右 */
 .page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.refresh-btn {
+  flex-shrink: 0;
+  width: 42px; height: 42px;
+  display: inline-grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(24 24 27 / 0.12);
+  background: #fff;
+  color: var(--fg-2);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 6px 16px -8px rgb(24 24 27 / 0.15);
+  transition: color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.refresh-btn svg { transition: transform .5s cubic-bezier(.22,.61,.36,1); }
+.refresh-btn:hover { color: var(--fg); border-color: rgb(24 24 27 / 0.3); box-shadow: 0 8px 20px -8px rgb(24 24 27 / 0.25); }
+.refresh-btn:hover svg { transform: rotate(180deg); }
+.refresh-btn:active svg { transform: rotate(360deg); transition-duration: .25s; }
+.page-bar { display: flex; justify-content: flex-end; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
 .toolbar .field { height: 36px; padding-top: 0 !important; padding-bottom: 0 !important; font-size: 13px !important; }
 .toolbar input.field:not([type]), .toolbar input.field[type="text"], .toolbar input.field[type="search"] {

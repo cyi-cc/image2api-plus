@@ -57,7 +57,7 @@ function goPage(n) {
         <p class="page-sub">{{ total }} 条触发记录 · 每次拦截记一条(违禁词 / 用户 / 时间 / 提示词)</p>
       </div>
       <div class="page-actions">
-        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
 

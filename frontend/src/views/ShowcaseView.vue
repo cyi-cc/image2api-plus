@@ -185,7 +185,7 @@ onMounted(refresh)
         <p class="page-sub">首页首屏拼贴(Hero)与作品墙(Work)的展示图</p>
       </div>
       <div class="page-actions">
-        <button @click="refresh" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+        <button @click="refresh" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
     <!-- filter / new -->

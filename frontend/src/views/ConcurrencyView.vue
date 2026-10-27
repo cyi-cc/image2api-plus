@@ -57,10 +57,11 @@ onMounted(load)
         <p class="page-sub">每个分组限制成员用户的<strong>同时生成数</strong>(画图台 + API key 合计)。<strong>0 = 不限制</strong>。新用户自动进入「默认注册分组」。</p>
       </div>
       <div class="page-actions">
-        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
-        <button @click="openNew" class="btn-primary shrink-0">+ 新增分组</button>
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
+
+    <div class="page-bar"><button @click="openNew" class="btn-primary shrink-0"><Icon name="plus" class="w-4 h-4" /> 新增分组</button></div>
 
     <div class="card overflow-hidden">
       <table class="w-full text-sm">

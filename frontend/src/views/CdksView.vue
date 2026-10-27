@@ -145,7 +145,7 @@ const pageNumbers = computed(() => {
   <section class="space-y-4">
     <div class="page-head">
       <h2 class="page-title">兑换码管理</h2>
-      <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
     </div>
     <!-- KPI strip — same shape as LogsView / InvitesAdminView -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">

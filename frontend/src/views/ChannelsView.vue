@@ -149,10 +149,11 @@ onMounted(load)
         <p class="page-sub">同构 /v1 协议上游实例 · 保存时自动同步上游模型 · 余额实时探测</p>
       </div>
       <div class="page-actions">
-        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
-        <button @click="openAdd" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> 添加渠道</button>
+        <button @click="load" class="refresh-btn" title="刷新" aria-label="刷新"><Icon name="refresh" :size="18" /></button>
       </div>
     </div>
+
+    <div class="page-bar"><button @click="openAdd" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> 添加渠道</button></div>
 
     <p v-if="err" class="text-xs text-rose-300">{{ err }}</p>
     <p v-if="warn" class="text-xs text-amber-300">{{ warn }}</p>
@@ -204,7 +205,7 @@ onMounted(load)
               </td>
             </tr>
             <tr v-if="loading"><td colspan="11" class="py-10 text-center text-white/40 text-sm">正在加载渠道…</td></tr>
-            <tr v-else-if="!channels.length"><td colspan="11" class="py-10 text-center text-white/40 text-sm">没有渠道，点右上角「添加渠道」接入上游实例</td></tr>
+            <tr v-else-if="!channels.length"><td colspan="11" class="py-10 text-center text-white/40 text-sm">没有渠道，点上方「添加渠道」接入上游实例</td></tr>
           </tbody>
         </table>
       </div>
