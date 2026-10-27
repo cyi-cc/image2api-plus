@@ -324,9 +324,9 @@ onMounted(load)
 
 .lbl { display: block; font-size: 0.72rem; font-weight: 500; color: var(--fg-3); margin-bottom: 0.4rem; }
 
-.op { display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 7px; margin-left: 4px; border-radius: 7px; background: var(--surface-2); color: var(--fg-2); }
+.op { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 7px; margin-left: 4px; border-radius: 8px; background: transparent; color: var(--fg-3); transition: background 0.15s, color 0.15s; }
 .op:hover { background: var(--hover); color: var(--fg); }
-.op.danger:hover { background: rgb(244 63 94 / 0.15); color: rgb(251 113 133); }
+.op.danger:hover { background: rgb(244 63 94 / 0.1); color: #dc2626; }
 
 /* iOS-style switch for 模型开关 in the sync modal */
 .sw { position: relative; width: 2rem; height: 1.15rem; border-radius: 9999px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--hairline); transition: background 0.18s ease; flex-shrink: 0; }
