@@ -247,11 +247,10 @@ onMounted(load)
           </div>
           <div class="flex items-center gap-3">
             <label class="lbl !mb-0">状态</label>
-            <button type="button" @click="form.enabled = !form.enabled" class="inline-flex items-center gap-1.5 text-xs"
-                    :class="form.enabled ? 'text-emerald-300' : 'text-white/40'">
-              <span class="w-1.5 h-1.5 rounded-full" :class="form.enabled ? 'bg-emerald-400' : 'bg-white/25'"></span>
-              {{ form.enabled ? '已启用' : '已停用' }}
+            <button type="button" @click="form.enabled = !form.enabled" class="sw shrink-0" :class="{ 'sw-on': form.enabled }" role="switch" :aria-checked="form.enabled">
+              <span class="sw-thumb"></span>
             </button>
+            <span class="text-xs" :class="form.enabled ? 'text-emerald-600' : 'text-[var(--fg-3)]'">{{ form.enabled ? '已启用' : '已停用' }}</span>
           </div>
           <p v-if="formErr" class="text-xs text-rose-300">{{ formErr }}</p>
         </div>
