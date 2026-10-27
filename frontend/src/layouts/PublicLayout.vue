@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { auth, isAuthed, isAdmin, openLogin, openRegister, logout } from '../auth'
 import { isDark, toggleTheme } from '../theme'
@@ -39,6 +39,12 @@ const menuOpen = ref(false)     // avatar dropdown
 const mobileOpen = ref(false)   // hamburger panel
 watch(() => route.fullPath, () => { menuOpen.value = false; mobileOpen.value = false })
 
+// 悬浮胶囊顶栏：静止时浮在页面上方（999px 圆角），滚动后展开为通栏。
+const scrolled = ref(false)
+function onScroll() { scrolled.value = window.scrollY > 4 }
+onMounted(() => { onScroll(); window.addEventListener('scroll', onScroll, { passive: true }) })
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
 // credits — the logged-in user's real server-side balance (auth.user.credits)
 const credits = computed(() => Number(auth.user?.credits || 0))
 const creditsLabel = computed(() => pointsLabel(credits.value))
@@ -71,9 +77,9 @@ async function onLogout() {
 
 <template>
   <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30">
-    <!-- ===== Top bar ===== -->
-    <header class="fixed top-0 inset-x-0 z-40 backdrop-blur-xl top-bar">
-      <div class="mx-auto max-w-[1400px] px-4 md:px-8 h-[58px] flex items-center gap-3">
+    <!-- ===== Top bar：悬浮胶囊，滚动展开为通栏 ===== -->
+    <header class="top-nav fixed top-0 inset-x-0 z-40" :class="{ scrolled }">
+      <div class="nav-inner mx-auto flex items-center gap-3">
         <!-- brand -->
         <router-link to="/" class="flex items-center gap-2.5 shrink-0 transition-transform hover:scale-[1.03]">
           <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 object-contain" />
@@ -98,8 +104,8 @@ async function onLogout() {
           余额 <span class="text-[color:var(--fg)] font-semibold">{{ creditsLabel }}</span>
         </router-link>
 
-        <!-- theme -->
-        <button type="button" @click="toggleTheme" class="round-btn"
+        <!-- theme（登录后可见，游客态与 vivid 一致只留登录入口） -->
+        <button v-if="isAuthed()" type="button" @click="toggleTheme" class="round-btn"
                 :title="isDark ? '切换到亮色' : '切换到暗色'">
           <svg v-if="isDark" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -118,10 +124,7 @@ async function onLogout() {
 
         <!-- guest actions -->
         <template v-if="!isAuthed()">
-          <button type="button" class="hidden sm:inline-flex top-link" @click="openLogin('/user')">登录</button>
-          <button type="button" class="solid-btn" @click="openRegister('', '/user')">
-            免费开始 <span aria-hidden="true">→</span>
-          </button>
+          <button type="button" class="login-pill" @click="openLogin('/user')">登录 / 注册</button>
         </template>
 
         <!-- signed-in: avatar menu -->
@@ -145,7 +148,7 @@ async function onLogout() {
       </div>
 
       <!-- mobile panel -->
-      <div v-if="mobileOpen" class="md:hidden border-t border-[color:var(--ink-soft)] px-3 py-3 bg-[var(--menu-bg)]">
+      <div v-if="mobileOpen" class="mobile-panel md:hidden px-3 py-3">
         <router-link v-for="n in nav" :key="n.to" :to="n.to"
                      :exact-active-class="n.to === '/' ? 'm-on' : ''"
                      :active-class="n.to === '/' ? '' : 'm-on'"
@@ -167,8 +170,8 @@ async function onLogout() {
 
     <!-- ===== Main column ===== -->
     <div class="relative">
-      <!-- aurora backdrop: drifting gradient orbs + faint grain -->
-      <div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
+      <!-- aurora backdrop: drifting gradient orbs + faint grain (首页用平铺浅色底，不渲染) -->
+      <div v-if="!isHome" aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
         <div class="memphis-dots absolute inset-0 opacity-50"></div>
         <div class="absolute -top-40 left-1/4 w-[42rem] h-[42rem] rounded-full opacity-[0.5]"
              style="background: radial-gradient(circle, rgb(139 92 246 / 0.35), transparent 60%); filter: blur(100px)"></div>
@@ -180,12 +183,12 @@ async function onLogout() {
       </div>
 
       <!-- Route label header — the home page brings its own hero instead. -->
-      <header v-if="!isHome" class="relative z-10 mx-auto max-w-[1400px] px-4 md:px-8 pt-[86px] pb-4">
+      <header v-if="!isHome" class="relative z-10 mx-auto max-w-[1400px] px-4 md:px-8 pt-[104px] pb-4">
         <span class="text-[22px] font-bold tracking-tight text-[color:var(--fg)]">{{ currentLabel }}</span>
       </header>
 
       <main :class="['relative z-10 mx-auto max-w-[1400px] pb-24',
-                     isHome ? 'pt-[58px] px-0' : 'px-4 md:px-8 pt-2',
+                     isHome ? 'pt-0 px-0' : 'px-4 md:px-8 pt-2',
                      { 'public-dark': isDark }]">
         <router-view v-slot="{ Component, route: viewRoute }">
           <component :is="Component" v-if="viewRoute.path === '/canvas'" />
@@ -199,30 +202,66 @@ async function onLogout() {
 </template>
 
 <style scoped>
-.top-bar {
-  background: color-mix(in srgb, var(--app-bg) 62%, transparent);
+/* 悬浮胶囊导航：不压满宽黑线，毛玻璃胶囊浮在页面上方；滚动后展开为通栏 */
+.top-nav {
+  padding-top: 10px;
+  background: transparent;
+  pointer-events: none;
+  transition: padding-top 0.22s ease;
+}
+.nav-inner {
+  pointer-events: auto;
+  height: 64px;
+  width: min(1200px, calc(100% - 40px));
+  padding: 0 14px 0 20px;
+  border-radius: 999px;
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(20px) saturate(1.7);
+  border: 1px solid var(--ink-soft);
+  box-shadow: 0 8px 30px -14px rgb(15 23 42 / 0.18);
+  transition: width 0.25s ease, border-radius 0.25s ease, border-color 0.25s ease,
+    box-shadow 0.25s ease, background 0.25s ease;
+}
+.top-nav.scrolled { padding-top: 0; }
+.top-nav.scrolled .nav-inner {
+  width: 100%;
+  border-radius: 0;
+  border-color: transparent;
   border-bottom: 1px solid var(--ink-soft);
-  transition: border-color 0.2s ease;
+  box-shadow: 0 10px 30px -12px rgb(15 23 42 / 0.12);
+}
+html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
+
+.mobile-panel {
+  pointer-events: auto;
+  width: min(1200px, calc(100% - 32px));
+  margin: 6px auto 0;
+  border-radius: 1rem;
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--ink-soft);
+  box-shadow: var(--glass-shadow-lg);
 }
 
 .top-link {
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.6rem;
-  font-size: 13.5px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--fg-2);
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
-.top-link:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.3); }
+.top-link:active { transform: scale(0.95); }
+.top-link:hover { color: var(--fg); background: var(--hover); }
 .top-link.on {
-  color: #fff;
+  color: var(--m-orange);
   font-weight: 700;
-  background: linear-gradient(120deg, #7c5cfc, #5f6cf8);
-  border-color: transparent;
-  box-shadow: 0 4px 14px var(--accent-glow);
+  background: rgb(124 92 252 / 0.12);
 }
 
 .brand-spark {
@@ -272,6 +311,16 @@ async function onLogout() {
   transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
 .round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.4); box-shadow: 0 4px 14px rgb(124 92 252 / 0.16); transform: translateY(-1px); }
+/* 游客登录入口：vivid 同款渐变胶囊 */
+.login-pill {
+  display: inline-flex; align-items: center;
+  padding: 8px 18px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #4f46e5 100%);
+  color: #fff; font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 10px 26px -8px rgba(109, 77, 242, 0.55);
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+.login-pill:hover { transform: translateY(-1px); filter: brightness(1.08); }
 .round-btn:active { transform: scale(0.95) translateY(1px); box-shadow: none; }
 
 /* mobile-only: .round-btn's display:grid outranks Tailwind's md:hidden, so
