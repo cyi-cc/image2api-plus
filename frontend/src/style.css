@@ -342,12 +342,13 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 }
 /* 表头统一：各页曾分别写 10px/11px、tracking 0.2em/0.04em——收拢到同一规格。 */
 .theme-text .card table thead :is(th, td) {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
   color: var(--fg-3);
-  padding-top: 11px;
-  padding-bottom: 11px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  line-height: 1.4;
   white-space: nowrap;
 }
 .theme-text .card table tbody tr { transition: background-color 0.12s ease; }
@@ -356,8 +357,8 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 /* 多选表格的选中行高亮（行加 .row-on） */
 .theme-text .card table tbody tr.row-on { background-color: rgb(24 24 27 / 0.035); }
 .theme-text .card table tbody tr.row-on:hover { background-color: #f0f0f2; }
-/* 表体单元格基线：没显式设颜色的 td 统一次要色，数字/名称列各自覆盖 */
-.theme-text .card table tbody td { color: var(--fg-2); }
+/* 表体单元格基线：统一 13px 字号 + 次要色，数字/名称列各自覆盖 */
+.theme-text .card table tbody td { color: var(--fg-2); font-size: 13px; }
 .theme-text .card table tbody tr.row-on td:first-child { box-shadow: inset 2px 0 0 #18181b; }
 
 /* ── 空占位：图标块 + 文案，全站表格/卡片共用 ── */

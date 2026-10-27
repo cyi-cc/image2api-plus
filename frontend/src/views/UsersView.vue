@@ -268,23 +268,20 @@ async function doRecharge() {
       </div>
 
       <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm table-fixed min-w-[1500px]">
+      <table class="w-full text-sm table-fixed min-w-[1060px]">
         <colgroup>
-          <col class="w-9" />      <!-- select -->
-          <col class="w-36" />     <!-- username -->
-          <col />                  <!-- email (flex) -->
-          <col class="w-24" />     <!-- notes -->
-          <col class="w-28" />     <!-- concurrency -->
+          <col class="w-10" />     <!-- select -->
+          <col />                  <!-- user (avatar+name+email+notes) -->
           <col class="w-20" />     <!-- role -->
-          <col class="w-16" />     <!-- status switch -->
-          <col class="w-24" />     <!-- credits -->
+          <col class="w-14" />     <!-- status switch -->
+          <col class="w-20" />     <!-- credits -->
           <col class="w-24" />     <!-- recharge total -->
-          <col class="w-20" />     <!-- generation count -->
-          <col class="w-20" />     <!-- banned word hits -->
-          <col class="w-28" />     <!-- registered -->
-          <col class="w-28" />     <!-- last login -->
-          <col class="w-32" />     <!-- login IP -->
-          <col class="w-32" />     <!-- actions -->
+          <col class="w-24" />     <!-- concurrency -->
+          <col class="w-16" />     <!-- generation count -->
+          <col class="w-16" />     <!-- banned word hits -->
+          <col class="w-24" />     <!-- registered -->
+          <col class="w-36" />     <!-- last login + ip -->
+          <col class="w-28" />     <!-- actions -->
         </colgroup>
         <thead>
           <tr class="text-[10px] uppercase tracking-[0.2em] text-white/40 border-b border-white/[0.06]">
@@ -292,19 +289,16 @@ async function doRecharge() {
               <input type="checkbox" :checked="allSelected" @change="toggleSelectAll"
                      class="chk" title="全选" />
             </th>
-            <th class="text-left px-3 py-3 font-medium">用户名</th>
-            <th class="text-left px-3 py-3 font-medium">邮箱</th>
-            <th class="text-left px-3 py-3 font-medium">备注</th>
-            <th class="text-left px-3 py-3 font-medium">并发</th>
+            <th class="text-left px-3 py-3 font-medium">用户</th>
             <th class="text-left px-3 py-3 font-medium">角色</th>
             <th class="text-left px-3 py-3 font-medium">状态</th>
             <th class="text-right px-3 py-3 font-medium">积分</th>
             <th class="text-right px-3 py-3 font-medium">累计充值</th>
+            <th class="text-left px-3 py-3 font-medium">并发组</th>
             <th class="text-right px-3 py-3 font-medium">生图次数</th>
             <th class="text-right px-3 py-3 font-medium">违禁触发</th>
             <th class="text-left px-3 py-3 font-medium">注册时间</th>
             <th class="text-left px-3 py-3 font-medium">最近登录</th>
-            <th class="text-left px-3 py-3 font-medium">登录 IP</th>
             <th class="text-right px-3 py-3 font-medium">操作</th>
           </tr>
         </thead>
@@ -316,17 +310,15 @@ async function doRecharge() {
               <input type="checkbox" :checked="selected.has(u.id)" @change="toggleSelect(u.id)" @click.stop
                      class="chk" />
             </td>
-            <td class="px-3 py-3.5 align-middle text-sm font-medium text-white/90 truncate" :title="u.name || '—'">
-              {{ u.name || '—' }}
-            </td>
-            <td class="px-3 py-3.5 align-middle text-xs text-white/75 truncate" :title="u.email">
-              {{ u.email || '—' }}
-            </td>
-            <td class="px-3 py-3.5 align-middle text-xs truncate" :class="u.notes ? 'text-white/70' : 'text-white/25'" :title="u.notes || ''">
-              {{ u.notes || '—' }}
-            </td>
-            <td class="px-3 py-3.5 align-middle text-xs truncate text-white/70" :title="cgroupLabel(u.concurrency_group_id)">
-              {{ cgroupLabel(u.concurrency_group_id) }}
+            <td class="px-3 py-3.5 align-middle">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="uavatar">{{ (u.name || u.email || '?').slice(0, 1).toUpperCase() }}</span>
+                <div class="min-w-0">
+                  <div class="text-[13.5px] font-semibold text-white/90 truncate" :title="u.name || '—'">{{ u.name || '—' }}</div>
+                  <div class="text-xs text-white/50 truncate" :title="u.email">{{ u.email || '—' }}</div>
+                  <div v-if="u.notes" class="text-[11px] text-white/35 truncate" :title="u.notes">{{ u.notes }}</div>
+                </div>
+              </div>
             </td>
             <td class="px-3 py-3.5 align-middle">
               <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 whitespace-nowrap"
@@ -355,6 +347,9 @@ async function doRecharge() {
                 :class="u.recharge_total > 0 ? 'text-emerald-600' : 'text-white/25'">
               ¥{{ (u.recharge_total || 0).toLocaleString('en-US') }}
             </td>
+            <td class="px-3 py-3.5 align-middle text-xs truncate text-white/60" :title="cgroupLabel(u.concurrency_group_id)">
+              {{ cgroupLabel(u.concurrency_group_id) }}
+            </td>
             <td class="px-3 py-3.5 align-middle text-right tabular-nums whitespace-nowrap"
                 :class="u.generation_count > 0 ? 'text-white/85' : 'text-white/25'">
               {{ (u.generation_count || 0).toLocaleString('en-US') }}
@@ -363,22 +358,16 @@ async function doRecharge() {
                 :class="u.banned_word_hits > 0 ? 'text-rose-600' : 'text-white/25'">
               {{ (u.banned_word_hits || 0).toLocaleString('en-US') }}
             </td>
-            <td class="px-3 py-3.5 align-middle text-xs whitespace-nowrap">
-              <div v-if="u.created_at" class="leading-tight" :title="fmtTs(u.created_at)">
-                <div class="text-white/65 tabular-nums">{{ fmtDate(u.created_at) }}</div>
-                <div class="text-white/35 tabular-nums">{{ fmtClock(u.created_at) }}</div>
-              </div>
+            <td class="px-3 py-3.5 align-middle whitespace-nowrap">
+              <span v-if="u.created_at" class="text-[13px] text-white/65 tabular-nums" :title="fmtTs(u.created_at)">{{ fmtDate(u.created_at) }}</span>
               <span v-else class="text-white/25">—</span>
             </td>
-            <td class="px-3 py-3.5 align-middle text-xs whitespace-nowrap">
-              <div v-if="u.last_login_at" class="leading-tight" :title="fmtTs(u.last_login_at)">
-                <div class="text-white/65 tabular-nums">{{ fmtDate(u.last_login_at) }}</div>
-                <div class="text-white/35 tabular-nums">{{ fmtClock(u.last_login_at) }}</div>
+            <td class="px-3 py-3.5 align-middle whitespace-nowrap">
+              <div v-if="u.last_login_at" class="leading-snug" :title="fmtTs(u.last_login_at)">
+                <div class="text-[13px] text-white/65 tabular-nums">{{ fmtDate(u.last_login_at) }} {{ fmtClock(u.last_login_at) }}</div>
+                <div class="text-[11px] text-white/40 font-mono truncate" :title="u.last_login_ip || ''">{{ u.last_login_ip || '—' }}</div>
               </div>
-              <span v-else class="text-white/25">从未登录</span>
-            </td>
-            <td class="px-3 py-3.5 align-middle text-xs font-mono text-white/55 truncate" :title="u.last_login_ip || ''">
-              {{ u.last_login_ip || '—' }}
+              <span v-else class="text-[13px] text-white/25">从未登录</span>
             </td>
             <td class="px-3 py-3.5 align-middle text-right whitespace-nowrap">
               <div class="inline-flex items-center gap-1">
@@ -581,6 +570,21 @@ async function doRecharge() {
 .fp-rose { background: rgb(239 68 68 / 0.09); color: #dc2626; box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.2); }
 .fp-orange { background: rgb(249 115 22 / 0.12); color: #c2410c; box-shadow: inset 0 0 0 1px rgb(249 115 22 / 0.25); }
 .fp-amber { background: rgb(245 158 11 / 0.12); color: #b45309; box-shadow: inset 0 0 0 1px rgb(245 158 11 / 0.25); }
+
+/* --- user avatar tile in table */
+.uavatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--fg-2);
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
 
 /* --- icon-only action buttons */
 .act {
