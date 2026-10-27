@@ -293,6 +293,15 @@ onMounted(() => { loadSite(); loadReg(); loadSmtp(); loadCredits(); loadAnnounce
 
 <template>
   <section class="space-y-5">
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">系统配置</h2>
+        <p class="page-sub">网站、支付、注册、邮件、代理等全站设置</p>
+      </div>
+      <div class="page-actions">
+
+      </div>
+    </div>
     <!-- site -->
     <div class="card p-5">
       <div class="flex items-center justify-between mb-4">

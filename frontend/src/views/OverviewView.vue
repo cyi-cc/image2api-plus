@@ -375,7 +375,7 @@ onUnmounted(() => clearInterval(timer))
 .ov-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .ov-bar--sub { margin-top: 8px; align-items: center; }
 .ov-bar__right { display: flex; align-items: center; gap: 10px; }
-.ov-title { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
+.ov-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
 .ov-title--sm { font-size: 16px; }
 .ov-sub { margin-top: 2px; font-size: 12px; color: var(--fg-3); }
 .ov-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(24 24 27 / 0.12); background: #fff; font-size: 13px; font-weight: 600; color: var(--fg); cursor: pointer; transition: border-color .15s, box-shadow .15s; }

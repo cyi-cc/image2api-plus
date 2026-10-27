@@ -143,14 +143,15 @@ onMounted(load)
 
 <template>
   <section class="space-y-4">
-    <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div class="page-head">
       <div>
-        <div class="text-sm font-medium">渠道</div>
-        <p class="text-xs text-white/45 mt-0.5">同构 /v1 协议上游实例 · 保存时自动同步上游模型 · 余额实时探测</p>
+        <h2 class="page-title">渠道管理</h2>
+        <p class="page-sub">同构 /v1 协议上游实例 · 保存时自动同步上游模型 · 余额实时探测</p>
       </div>
-      <button @click="openAdd" class="btn-primary">
-        <Icon name="plus" class="w-4 h-4" /> 添加渠道
-      </button>
+      <div class="page-actions">
+        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+        <button @click="openAdd" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> 添加渠道</button>
+      </div>
     </div>
 
     <p v-if="err" class="text-xs text-rose-300">{{ err }}</p>

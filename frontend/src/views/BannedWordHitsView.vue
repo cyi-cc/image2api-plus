@@ -51,15 +51,20 @@ function goPage(n) {
 
 <template>
   <section class="theme-text space-y-4">
-    <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div class="page-head">
       <div>
-        <h2 class="text-sm font-semibold">违禁词触发列表</h2>
-        <p class="text-xs text-white/45 mt-0.5">{{ total }} 条触发记录 · 每次拦截记一条(违禁词 / 用户 / 时间 / 提示词)</p>
+        <h2 class="page-title">违禁词触发列表</h2>
+        <p class="page-sub">{{ total }} 条触发记录 · 每次拦截记一条(违禁词 / 用户 / 时间 / 提示词)</p>
       </div>
-      <div class="flex items-center gap-2">
-        <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
-               class="field !py-1.5 text-xs !w-56" placeholder="搜索 违禁词 / 用户名 / 提示词…" />
+      <div class="page-actions">
         <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      </div>
+    </div>
+
+    <div class="card toolbar">
+      <div class="flex-1 min-w-[200px]">
+        <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
+               class="field" placeholder="搜索 违禁词 / 用户名 / 提示词…" />
       </div>
     </div>
 

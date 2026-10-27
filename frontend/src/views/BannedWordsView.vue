@@ -117,19 +117,23 @@ onMounted(load)
 
 <template>
   <section class="theme-text space-y-4">
-    <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div class="page-head">
       <div>
-        <h2 class="text-sm font-semibold">违禁词管理</h2>
-        <p class="text-xs text-white/45 mt-0.5">提示词包含违禁词的生成请求(画图台 + API)会被<strong class="text-white/70">直接拦截</strong>,并累计触发次数(见用户管理)。匹配不区分大小写。</p>
+        <h2 class="page-title">违禁词管理</h2>
+        <p class="page-sub">提示词包含违禁词的生成请求(画图台 + API)会被<strong>直接拦截</strong>,并累计触发次数(见用户管理)。匹配不区分大小写。</p>
       </div>
-      <div class="flex items-center gap-2">
-        <button v-if="selected.size" @click="delSelected" class="btn-soft danger shrink-0" title="删除选中的违禁词">
-          <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ selected.size }})
-        </button>
-        <input v-model="newWord" @keyup.enter="add" class="field !py-1.5 text-xs w-52" placeholder="输入违禁词后回车" />
-        <button @click="add" class="btn-primary shrink-0">+ 添加</button>
-        <button @click="importOpen = true" class="btn-soft shrink-0">批量导入</button>
+      <div class="page-actions">
+        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
       </div>
+    </div>
+
+    <div class="card toolbar">
+      <input v-model="newWord" @keyup.enter="add" class="field w-72" placeholder="输入违禁词后回车添加" />
+      <button @click="add" class="btn-primary shrink-0">+ 添加</button>
+      <button @click="importOpen = true" class="btn-soft shrink-0">批量导入</button>
+      <button v-if="selected.size" @click="delSelected" class="btn-soft danger shrink-0 ml-auto" title="删除选中的违禁词">
+        <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ selected.size }})
+      </button>
     </div>
 
     <div class="card overflow-hidden">

@@ -207,6 +207,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">作品管理</h2>
+      </div>
+      <div class="page-actions">
+        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      </div>
+    </div>
     <!-- KPI strip — same shape as the LogsView so the admin shell stays
          consistent. /images returns all four numbers in one payload. -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -247,9 +255,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
             <Icon name="trash" class="w-3.5 h-3.5" /> 删除选中 ({{ picked.size }})
           </button>
         </template>
-        <button @click="load" class="btn-soft">
-          <Icon name="refresh" class="w-3.5 h-3.5" /> 刷新
-        </button>
       </div>
     </div>
 

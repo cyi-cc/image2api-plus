@@ -4,6 +4,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 import Icon from '../components/Icon.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 
 const items = ref([])
 const total = ref(0)
@@ -27,6 +28,8 @@ function fmt(unix) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+const STATUS_OPTS = [{ value: '', label: '全部状态' }, { value: 'pending', label: '待支付' }, { value: 'paid', label: '已支付' }, { value: 'cancelled', label: '已取消' }]
+const SOURCE_OPTS = [{ value: '', label: '全部来源' }, { value: 'epay', label: '在线充值' }, { value: 'admin', label: '后台充值' }, { value: 'cdk', label: '兑换码' }]
 async function load() {
   loading.value = true
   const qs = new URLSearchParams({ limit: String(pageSize), offset: String((page.value - 1) * pageSize) })
@@ -73,23 +76,22 @@ function goPage(n) {
 
 <template>
   <section class="theme-text space-y-4">
-    <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div class="page-head">
       <div>
-        <h2 class="text-sm font-semibold">订单管理</h2>
-        <p class="text-xs text-white/45 mt-0.5">{{ total }} 笔充值订单</p>
+        <h2 class="page-title">订单管理</h2>
+        <p class="page-sub">{{ total }} 笔充值订单</p>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <div class="flex items-center gap-1.5">
-          <button v-for="s in [['','全部'],['pending','待支付'],['paid','已支付'],['cancelled','已取消']]" :key="s[0]"
-                  @click="setStatus(s[0])" class="fp" :class="status === s[0] && 'fp-on'">{{ s[1] }}</button>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <button v-for="s in [['','全部来源'],['epay','在线充值'],['admin','后台充值'],['cdk','兑换码']]" :key="s[0]"
-                  @click="setSource(s[0])" class="fp" :class="source === s[0] && 'fp-on'">{{ s[1] }}</button>
-        </div>
-        <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
-               class="field !py-1.5 text-xs !w-52" placeholder="搜索 订单号 / 用户名 / 金额…" />
+      <div class="page-actions">
         <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      </div>
+    </div>
+
+    <div class="card toolbar">
+      <SelectMenu :model-value="status" compact :options="STATUS_OPTS" @update:model-value="setStatus" />
+      <SelectMenu :model-value="source" compact :options="SOURCE_OPTS" @update:model-value="setSource" />
+      <div class="flex-1 min-w-[200px]">
+        <input v-model="search" @keyup.enter="doSearch" @change="doSearch"
+               class="field" placeholder="搜索 订单号 / 用户名 / 金额…" />
       </div>
     </div>
 

@@ -347,13 +347,14 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
 .public-dark .hover\:bg-slate-50:hover { background: rgb(255 255 255 / 0.04); }
 .public-dark .hover\:bg-slate-100:hover { background: rgb(255 255 255 / 0.06); }
 
-/* ===== 站名 logo 字：圆润可爱的字体（自托管子集）=====
-   英文用 Fredoka；汉字用站酷快乐体，unicode-range 限定后只有站名含汉字时才会下载。 */
+/* ===== 站名 logo 字：站酷快乐体（自托管子集）=====
+   同一字体名拆成两份：英文数字小文件 + 汉字大文件，unicode-range 限定后
+   只有站名里真的含汉字时才会下载汉字那份。 */
 @font-face {
-  font-family: 'Fredoka';
-  src: url('/fonts/fredoka.woff2') format('woff2');
-  font-weight: 300 700;
+  font-family: 'ZCOOL KuaiLe';
+  src: url('/fonts/zcool-kuaile-latin.woff2') format('woff2');
   font-display: swap;
+  unicode-range: U+0020-007E;
 }
 @font-face {
   font-family: 'ZCOOL KuaiLe';
@@ -362,15 +363,20 @@ button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: poi
   unicode-range: U+4E00-9FFF, U+3000-303F, U+FF00-FFEF, U+2014, U+2018-201D, U+2026;
 }
 .brand-word {
-  font-family: 'Fredoka', 'ZCOOL KuaiLe', ui-rounded, 'Hiragino Maru Gothic ProN', 'Arial Rounded MT Bold', sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-family: 'ZCOOL KuaiLe', ui-rounded, 'Hiragino Maru Gothic ProN', 'Arial Rounded MT Bold', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.03em;
   color: var(--fg);
+  -webkit-text-stroke: 0.55px currentColor;
+  paint-order: stroke fill;
 }
 
 /* ===== 后台页头 + 统一工具栏 ===== */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
+.page-sub { margin-top: 3px; font-size: 12.5px; color: var(--fg-3); line-height: 1.5; }
+.page-sub strong { color: var(--fg-2); font-weight: 700; }
+.page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
 .toolbar .field { height: 36px; padding-top: 0 !important; padding-bottom: 0 !important; font-size: 13px !important; }
 .toolbar input.field:not([type]), .toolbar input.field[type="text"], .toolbar input.field[type="search"] {

@@ -20,6 +20,15 @@ onMounted(load)
 
 <template>
   <section class="space-y-4">
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">邀请日志</h2>
+        <p class="page-sub">全站邀请记录:谁邀请了谁、注册与完成时间、奖励状态</p>
+      </div>
+      <div class="page-actions">
+        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      </div>
+    </div>
     <!-- KPI strip — same shape as the LogsView so the admin shell stays
          consistent. /invites already returns the stats payload. -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -42,11 +51,7 @@ onMounted(load)
     </div>
 
     <div class="card overflow-hidden">
-      <div class="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
-        <div class="text-xs text-white/55">全站邀请记录:谁邀请了谁、注册与完成时间、奖励状态。</div>
-        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
-      </div>
-
+      
       <div v-if="loading && !items.length" class="text-center text-sm text-white/40 py-16">加载中…</div>
       <div v-else-if="!items.length" class="text-center text-sm text-white/40 py-16">还没有邀请记录</div>
 

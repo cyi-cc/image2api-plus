@@ -179,7 +179,16 @@ onMounted(refresh)
 
 <template>
   <section class="space-y-4">
-    <!-- header / filter / new -->
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">首页内容</h2>
+        <p class="page-sub">首页首屏拼贴(Hero)与作品墙(Work)的展示图</p>
+      </div>
+      <div class="page-actions">
+        <button @click="refresh" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+      </div>
+    </div>
+    <!-- filter / new -->
     <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
       <div class="flex items-center gap-1.5">
         <button @click="setFilter('all')" class="filter-pill" :class="filter === 'all' && 'on'">全部</button>

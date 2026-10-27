@@ -51,12 +51,15 @@ onMounted(load)
 
 <template>
   <section class="theme-text space-y-4">
-    <div class="card p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div class="page-head">
       <div>
-        <h2 class="text-sm font-semibold">并发分组</h2>
-        <p class="text-xs text-white/45 mt-0.5">每个分组限制成员用户的<strong class="text-white/70">同时生成数</strong>(画图台 + API key 合计)。<strong class="text-white/70">0 = 不限制</strong>。新用户自动进入「默认注册分组」。</p>
+        <h2 class="page-title">并发分组</h2>
+        <p class="page-sub">每个分组限制成员用户的<strong>同时生成数</strong>(画图台 + API key 合计)。<strong>0 = 不限制</strong>。新用户自动进入「默认注册分组」。</p>
       </div>
-      <button @click="openNew" class="btn-primary shrink-0">+ 新增分组</button>
+      <div class="page-actions">
+        <button @click="load" class="btn-soft"><Icon name="refresh" class="w-3.5 h-3.5" /> 刷新</button>
+        <button @click="openNew" class="btn-primary shrink-0">+ 新增分组</button>
+      </div>
     </div>
 
     <div class="card overflow-hidden">
