@@ -361,7 +361,7 @@ async function copyQqGroup() {
 }
 .hero-wrap {
   position: relative;
-  width: min(1200px, 100%);
+  width: min(1400px, 100%);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.02fr 0.98fr;
@@ -666,7 +666,7 @@ html.dark .art { border-color: var(--ink-soft); }
 
 /* 能力矩阵 */
 .features {
-  width: min(1200px, 100%);
+  width: min(1400px, 100%);
   margin: 0 auto;
   padding: 72px 20px 24px;
 }
@@ -755,7 +755,7 @@ html.dark .art { border-color: var(--ink-soft); }
 
 /* 精选作品 */
 .gallery {
-  width: min(1200px, 100%);
+  width: min(1400px, 100%);
   margin: 0 auto;
   padding: 48px 20px 8px;
 }
@@ -879,7 +879,7 @@ html.dark .art { border-color: var(--ink-soft); }
 
 /* CTA */
 .cta {
-  width: min(1200px, calc(100% - 40px));
+  width: min(1400px, calc(100% - 40px));
   margin: 40px auto 0;
   padding: 72px 32px;
   border-radius: 28px;
@@ -962,7 +962,7 @@ html.dark .art { border-color: var(--ink-soft); }
   background: linear-gradient(to right, transparent, rgba(15, 23, 42, 0.14) 30%, rgba(15, 23, 42, 0.14) 70%, transparent);
 }
 .foot-inner {
-  max-width: 1264px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 32px;
 }
