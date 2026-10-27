@@ -295,7 +295,7 @@ async function doRecharge() {
       </div>
 
       <div v-else class="overflow-x-auto" @wheel="onTableWheel">
-      <table class="utable w-full text-sm table-fixed min-w-[1150px]">
+      <table class="utable w-full text-sm table-fixed min-w-[1200px]">
         <colgroup>
           <col class="w-10" />     <!-- select -->
           <col />                  <!-- user (avatar+name+email+notes) -->
@@ -308,7 +308,7 @@ async function doRecharge() {
           <col class="w-16" />     <!-- banned word hits -->
           <col class="w-28" />     <!-- registered -->
           <col class="w-40" />     <!-- last login + ip -->
-          <col class="w-24" />     <!-- actions -->
+          <col class="w-36" />     <!-- actions -->
         </colgroup>
         <thead>
           <tr class="text-[10px] uppercase tracking-[0.2em] text-white/40 border-b border-white/[0.06]">
@@ -617,8 +617,10 @@ async function doRecharge() {
   right: 0;
   box-shadow: -10px 0 14px -10px rgb(15 23 42 / 0.16);
 }
-.utable thead th:last-child { background: var(--surface-solid); }
+.utable thead th:last-child { background: var(--surface-solid); border-bottom: 1px solid rgb(24 24 27 / 0.07); }
 .utable tbody td:last-child { background: var(--surface-solid); }
+/* 吸底格是定位元素，会盖住行分隔线——给它补同款底边框 */
+.utable tbody tr:not(:last-child) td:last-child { box-shadow: -10px 0 14px -10px rgb(15 23 42 / 0.16), inset 0 -1px 0 var(--hairline); }
 .utable tbody tr:hover td:last-child { background: #f7f7f8; }
 .utable tbody tr.row-on td:last-child { background: #f1f1f3; }
 
