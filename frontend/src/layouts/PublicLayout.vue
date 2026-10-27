@@ -259,6 +259,8 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 }
 .top-link:active { transform: scale(0.95); }
 .top-link:hover { color: var(--fg); background: var(--hover); }
+.home-bg .top-link.on { color: #18181b; background: rgba(24, 24, 27, 0.07); }
+.home-bg .brand-spark { display: none; }
 .top-link.on {
   color: var(--m-orange);
   font-weight: 700;
@@ -314,15 +316,15 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
 .round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.4); box-shadow: 0 4px 14px rgb(124 92 252 / 0.16); transform: translateY(-1px); }
 /* 首页整页淡紫渐变底（铺满整个页面高度） */
 .home-bg {
-  background: linear-gradient(180deg, #f6f2ff 0%, #f1ecfe 28%, #f3f0fe 60%, #eef1fe 100%) !important;
+  background: #fafaf8 !important;
 }
 /* 游客登录入口：vivid 同款渐变胶囊 */
 .login-pill {
   display: inline-flex; align-items: center;
   padding: 8px 18px; border: none; border-radius: 999px;
-  background: linear-gradient(135deg, #8b5cf6 0%, #4f46e5 100%);
+  background: #18181b;
   color: #fff; font-family: inherit; font-size: 13px; font-weight: 700;
-  cursor: pointer; box-shadow: 0 10px 26px -8px rgba(109, 77, 242, 0.55);
+  cursor: pointer; box-shadow: 0 8px 20px -8px rgba(9, 9, 11, 0.5);
   transition: transform 0.15s ease, filter 0.2s ease;
 }
 .login-pill:hover { transform: translateY(-1px); filter: brightness(1.08); }
