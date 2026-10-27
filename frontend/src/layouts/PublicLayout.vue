@@ -76,7 +76,8 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30">
+  <div class="theme-x min-h-screen bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30"
+       :class="{ 'home-bg': isHome && !isDark }">
     <!-- ===== Top bar：悬浮胶囊，滚动展开为通栏 ===== -->
     <header class="top-nav fixed top-0 inset-x-0 z-40" :class="{ scrolled }">
       <div class="nav-inner mx-auto flex items-center gap-3">
@@ -311,6 +312,10 @@ html.dark .nav-inner { box-shadow: 0 8px 30px -14px rgb(0 0 0 / 0.5); }
   transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
 .round-btn:hover { color: var(--fg); background: var(--hover); border-color: rgb(124 92 252 / 0.4); box-shadow: 0 4px 14px rgb(124 92 252 / 0.16); transform: translateY(-1px); }
+/* 首页整页淡紫渐变底（铺满整个页面高度） */
+.home-bg {
+  background: linear-gradient(180deg, #f6f2ff 0%, #f1ecfe 28%, #f3f0fe 60%, #eef1fe 100%) !important;
+}
 /* 游客登录入口：vivid 同款渐变胶囊 */
 .login-pill {
   display: inline-flex; align-items: center;

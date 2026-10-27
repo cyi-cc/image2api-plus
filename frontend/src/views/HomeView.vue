@@ -76,8 +76,10 @@
     <!-- 能力矩阵 -->
     <section class="features reveal">
       <div class="section-head">
-        <span class="eyebrow">01 · 能力</span>
-        <h2>一站式创作引擎</h2>
+        <div>
+          <span class="eyebrow">01 · 能力</span>
+          <h2>一站式创作引擎</h2>
+        </div>
       </div>
       <div class="feature-grid">
         <div v-for="f in features" :key="f.title" class="feature">
@@ -334,15 +336,7 @@ async function copyQqGroup() {
   display: flex;
   flex-direction: column;
 }
-/* 整页紫色渐变底铺满 */
-.home::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(160deg, #f5f1fe 0%, #efe9fd 45%, #eae6fd 75%, #e9edfd 100%);
-  pointer-events: none;
-}
+
 
 /* Hero：左文右图 */
 .hero {
@@ -355,9 +349,27 @@ async function copyQqGroup() {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
   background:
-    radial-gradient(700px 420px at 10% 0%, rgba(124, 92, 245, 0.09), transparent 70%),
-    radial-gradient(640px 420px at 90% 14%, rgba(59, 130, 246, 0.07), transparent 70%);
+    radial-gradient(760px 480px at 8% 4%, rgba(139, 92, 246, 0.16), transparent 70%),
+    radial-gradient(700px 480px at 92% 12%, rgba(59, 130, 246, 0.13), transparent 70%),
+    radial-gradient(520px 360px at 55% 100%, rgba(236, 72, 153, 0.09), transparent 70%);
+}
+.hero-bg::before,
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  animation: drift 14s ease-in-out infinite alternate;
+}
+.hero-bg::before { width: 340px; height: 340px; left: 38%; top: 8%; background: rgba(167, 139, 250, 0.35); }
+.hero-bg::after { width: 300px; height: 300px; right: 6%; bottom: 4%; background: rgba(125, 211, 252, 0.3); animation-delay: -6s; }
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(30px, -24px) scale(1.12); }
 }
 .hero-wrap {
   position: relative;
@@ -435,6 +447,15 @@ html.dark .art { border-color: var(--ink-soft); }
   pointer-events: none;
 }
 @keyframes imgSweep { to { transform: translateX(100%); } }
+/* 拼贴卡缓慢悬浮（用独立的 translate 属性，不与 transform 冲突） */
+.art:not(.ph) { animation: bob 6s ease-in-out infinite; }
+.art.a2:not(.ph) { animation-delay: -1.5s; }
+.art.a3:not(.ph) { animation-delay: -3s; }
+.art.a4:not(.ph) { animation-delay: -4.5s; }
+@keyframes bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
 .art:hover {
   transform: translateY(-4px) rotate(0deg) scale(1.02);
   box-shadow: 0 30px 64px -20px rgba(30, 20, 90, 0.45);
@@ -720,6 +741,8 @@ html.dark .art { border-color: var(--ink-soft); }
   overflow: hidden;
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.07), rgba(99, 102, 241, 0.03) 60%, var(--surface));
 }
+.feature:nth-child(4):last-child { grid-column: span 2; }
+.feature:nth-child(3):last-child { grid-column: span 3; }
 .feature:nth-child(5) {
   background: linear-gradient(315deg, rgba(236, 72, 153, 0.05), rgba(245, 158, 11, 0.04) 60%, var(--surface));
 }
