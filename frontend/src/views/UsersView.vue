@@ -268,19 +268,19 @@ async function doRecharge() {
       </div>
 
       <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm table-fixed min-w-[1060px]">
+      <table class="w-full text-sm table-fixed min-w-[1280px]">
         <colgroup>
           <col class="w-10" />     <!-- select -->
           <col />                  <!-- user (avatar+name+email+notes) -->
           <col class="w-20" />     <!-- role -->
           <col class="w-14" />     <!-- status switch -->
-          <col class="w-20" />     <!-- credits -->
+          <col class="w-24" />     <!-- credits -->
           <col class="w-24" />     <!-- recharge total -->
-          <col class="w-24" />     <!-- concurrency -->
+          <col class="w-32" />     <!-- concurrency -->
           <col class="w-16" />     <!-- generation count -->
           <col class="w-16" />     <!-- banned word hits -->
-          <col class="w-24" />     <!-- registered -->
-          <col class="w-36" />     <!-- last login + ip -->
+          <col class="w-28" />     <!-- registered -->
+          <col class="w-40" />     <!-- last login + ip -->
           <col class="w-28" />     <!-- actions -->
         </colgroup>
         <thead>
