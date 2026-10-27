@@ -144,414 +144,340 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <section class="space-y-4">
-    <!-- ===== Toolbar: overall health + refresh ===== -->
-    <div class="flex items-center justify-between gap-3">
-      <span class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ring-1 tabular-nums"
-            :class="statusPill(overallHealth.tone)">
-        <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(overallHealth.tone)"></span>
-        {{ overallHealth.label }}
-      </span>
-      <button @click="refreshAll" class="btn-ghost">刷新</button>
+  <section class="ov">
+    <!-- ===== 顶部：健康状态 + 刷新 ===== -->
+    <div class="ov-bar">
+      <div>
+        <h2 class="ov-title">运营概览</h2>
+        <p class="ov-sub">数据每 10 秒自动刷新</p>
+      </div>
+      <div class="ov-bar__right">
+        <span class="pill" :class="'pill--' + overallHealth.tone">
+          <span class="dot" :class="'dot--' + overallHealth.tone"></span>{{ overallHealth.label }}
+        </span>
+        <button @click="refreshAll" class="ov-btn"><Icon name="refresh" :size="14" /> 刷新</button>
+      </div>
     </div>
 
-    <!-- ===== KPI strip ===== -->
-    <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-      <!-- 用户 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">用户</span>
-          <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-300 grid place-items-center ring-1 ring-sky-400/20">
-            <Icon name="accounts" class="w-3.5 h-3.5" />
-          </span>
+    <!-- ===== KPI 带：一张卡四列 ===== -->
+    <div class="panel kpis">
+      <div class="kpi">
+        <div class="kpi-label">今日生成</div>
+        <div class="kpi-num">{{ fmtInt(today.total) }}</div>
+        <div class="kpi-meta">
+          <span class="ok">{{ today.success }} 成功</span>
+          <span v-if="today.failed" class="bad">{{ today.failed }} 失败</span>
+          <span v-if="today.pending" class="warn">{{ today.pending }} 进行中</span>
         </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2">{{ fmtInt(userStats.total) }}</div>
-        <div class="text-[11px] text-white/45 mt-1">{{ userStats.active }} 活跃 · {{ userStats.admins }} 管理员</div>
-        <div class="text-[11px] text-emerald-300/80 mt-0.5">
-          今日新增 <span class="tabular-nums font-medium">{{ fmtInt(userStats.new_24h) }}</span>
-          · 7日 <span class="tabular-nums font-medium">{{ fmtInt(userStats.new_7d) }}</span>
-        </div>
+        <div class="kpi-foot">消耗 {{ fmtCredits(today.spent) }} 积分 · {{ fmtInt(todayDau) }} 人活跃</div>
       </div>
-
-      <!-- 今日(零点起 · Asia/Shanghai) -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">今日生成</span>
-          <span class="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 grid place-items-center ring-1 ring-rose-400/20">
-            <Icon name="spark" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2">{{ fmtInt(today.total) }}</div>
-        <div class="text-[11px] mt-1 flex flex-wrap gap-x-2">
-          <span class="text-emerald-300 tabular-nums">{{ today.success }} 成功</span>
-          <span v-if="today.failed" class="text-rose-300 tabular-nums">{{ today.failed }} 失败</span>
-          <span v-if="today.pending" class="text-amber-300 tabular-nums">{{ today.pending }} 进行中</span>
-        </div>
-        <div class="text-[11px] text-amber-300 mt-1 tabular-nums">
-          消耗 {{ fmtCredits(today.spent) }} 积分 · {{ fmtInt(todayDau) }} 活跃
-        </div>
-      </div>
-
-      <!-- 24h -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">近 24 小时生成</span>
-          <span class="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-300 grid place-items-center ring-1 ring-orange-400/20">
-            <Icon name="spark" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2 flex items-baseline gap-2">
-          <span>{{ fmtInt(day.total) }}</span>
-          <span v-if="dayDelta.pct != null"
-                class="text-[11px] font-medium tabular-nums"
-                :class="dayDelta.dir === 'up' ? 'text-emerald-300' : dayDelta.dir === 'down' ? 'text-rose-300' : 'text-white/45'">
+      <div class="kpi">
+        <div class="kpi-label">近 24 小时</div>
+        <div class="kpi-num">
+          {{ fmtInt(day.total) }}
+          <span v-if="dayDelta.pct != null" class="delta" :class="'delta--' + dayDelta.dir">
             {{ dayDelta.dir === 'up' ? '↑' : dayDelta.dir === 'down' ? '↓' : '·' }}{{ Math.abs(dayDelta.pct) }}%
           </span>
         </div>
-        <div class="text-[11px] mt-1 flex flex-wrap gap-x-2">
-          <span class="text-emerald-300 tabular-nums">{{ day.success }} 成功</span>
-          <span v-if="day.failed" class="text-rose-300 tabular-nums">{{ day.failed }} 失败</span>
-          <span v-if="day.pending" class="text-amber-300 tabular-nums">{{ day.pending }} 进行中</span>
+        <div class="kpi-meta">
+          <span class="ok">{{ day.success }} 成功</span>
+          <span v-if="day.failed" class="bad">{{ day.failed }} 失败</span>
+          <span class="mute">成功率 {{ successRate }}%</span>
         </div>
-        <div v-if="day.total" class="text-[10px] text-white/40 mt-1 tabular-nums">
-          Web {{ day.web }} · API {{ day.api }} · 图 {{ day.image }} · 视 {{ day.video }}
-        </div>
+        <div class="kpi-foot">Web {{ day.web }} · API {{ day.api }} · 图 {{ day.image }} · 视 {{ day.video }}</div>
       </div>
-
-      <!-- 累计生成(全部 · 持久计数,不随日志清理变化) -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">累计生成</span>
-          <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-300 grid place-items-center ring-1 ring-sky-400/20">
-            <Icon name="overview" class="w-3.5 h-3.5" />
-          </span>
+      <div class="kpi">
+        <div class="kpi-label">累计生成</div>
+        <div class="kpi-num">{{ fmtInt(lifetime.total || 0) }}</div>
+        <div class="kpi-meta">
+          <span class="ok">{{ lifetime.success || 0 }} 成功</span>
+          <span v-if="lifetime.failed" class="bad">{{ lifetime.failed }} 失败</span>
         </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2">{{ fmtInt(lifetime.total || 0) }}</div>
-        <div class="text-[11px] mt-1 flex flex-wrap gap-x-2">
-          <span class="text-emerald-300 tabular-nums">{{ lifetime.success || 0 }} 成功</span>
-          <span v-if="lifetime.failed" class="text-rose-300 tabular-nums">{{ lifetime.failed }} 失败</span>
-        </div>
-        <div class="text-[10px] text-white/40 mt-1 tabular-nums">
-          API {{ lifetime.api || 0 }} · 图 {{ lifetime.image || 0 }} · 视 {{ lifetime.video || 0 }}
-        </div>
+        <div class="kpi-foot">API {{ lifetime.api || 0 }} · 图 {{ lifetime.image || 0 }} · 视 {{ lifetime.video || 0 }}</div>
       </div>
-
-      <!-- 平均耗时 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">平均耗时</span>
-          <span class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-300 grid place-items-center ring-1 ring-emerald-400/20">
-            <Icon name="refresh" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2">{{ fmtMs(avg24hMs) }}</div>
-        <div class="text-[11px] text-white/45 mt-1">{{ successRate }}% 成功率 · 24h</div>
-      </div>
-
-      <!-- 存储 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">产物存储</span>
-          <span class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-300 grid place-items-center ring-1 ring-amber-400/20">
-            <Icon name="files" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-2xl font-semibold tabular-nums mt-2">{{ fmtSize(stats.generated_size_bytes || 0) }}</div>
-        <div class="text-[11px] text-white/45 mt-1">{{ fmtInt(stats.generated_count) }} 个文件</div>
+      <div class="kpi">
+        <div class="kpi-label">平均耗时 · 24h</div>
+        <div class="kpi-num">{{ fmtMs(avg24hMs) }}</div>
+        <div class="kpi-meta"><span class="mute">产物存储 {{ fmtSize(stats.generated_size_bytes || 0) }}</span></div>
+        <div class="kpi-foot">{{ fmtInt(stats.generated_count) }} 个文件</div>
       </div>
     </div>
 
-    <!-- ===== Secondary stat row ===== -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div class="card p-4">
-        <div class="text-xs text-white/55">系统积分总和</div>
-        <div class="text-xl font-semibold tabular-nums mt-2">{{ fmtCredits(userStats.credits_total) }}</div>
-        <div class="text-[11px] text-white/45 mt-1">
-          所有用户余额累加 · <span class="text-amber-300">24h 消耗 {{ fmtCredits(day.spent) }}</span>
-        </div>
+    <!-- ===== 资源条：用户 / 渠道 / 模型 / 积分 ===== -->
+    <div class="strip">
+      <div class="chip">
+        <span class="chip-ic"><Icon name="accounts" :size="16" /></span>
+        <div><div class="chip-num">{{ fmtInt(userStats.total) }}</div>
+          <div class="chip-label">用户 · {{ userStats.active }} 活跃 · 今日 +{{ fmtInt(userStats.new_24h) }}</div></div>
       </div>
-      <div class="card p-4">
-        <div class="text-xs text-white/55">渠道</div>
-        <div class="text-xl font-semibold tabular-nums mt-2 flex items-baseline gap-1">
-          <span class="text-emerald-300">{{ tokens.active }}</span>
-          <span class="text-white/30">/</span>
-          <span>{{ tokens.total }}</span>
-        </div>
-        <div class="text-[11px] text-white/45 mt-1">启用 / 已配置</div>
+      <div class="chip">
+        <span class="chip-ic"><Icon name="plug" :size="16" /></span>
+        <div><div class="chip-num">{{ tokens.active }}<small> / {{ tokens.total }}</small></div>
+          <div class="chip-label">渠道 · 启用 / 已配置</div></div>
       </div>
-      <div class="card p-4">
-        <div class="text-xs text-white/55">模型</div>
-        <div class="text-xl font-semibold tabular-nums mt-2">{{ modelTypes.total }}</div>
-        <div class="text-[11px] text-white/45 mt-1">图像 {{ modelTypes.image }} · 视频 {{ modelTypes.video }}</div>
+      <div class="chip">
+        <span class="chip-ic"><Icon name="models" :size="16" /></span>
+        <div><div class="chip-num">{{ modelTypes.total }}</div>
+          <div class="chip-label">模型 · 图像 {{ modelTypes.image }} · 视频 {{ modelTypes.video }}</div></div>
       </div>
-      <div class="card p-4">
-        <div class="text-xs text-white/55">活跃用户 · 24h</div>
-        <div class="text-xl font-semibold tabular-nums mt-2">{{ fmtInt(dau) }}</div>
-        <div class="text-[11px] text-white/45 mt-1">近 3 天累计生成 {{ fmtInt(week.total) }}</div>
+      <div class="chip">
+        <span class="chip-ic"><Icon name="receipt" :size="16" /></span>
+        <div><div class="chip-num">{{ fmtCredits(userStats.credits_total) }}</div>
+          <div class="chip-label">系统积分总和 · 24h 消耗 {{ fmtCredits(day.spent) }}</div></div>
       </div>
     </div>
 
-    <!-- ===== Operations row: CDK / 邀请 / 签到 ===== -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <!-- 兑换码 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">兑换码 CDK</span>
-          <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-300 grid place-items-center ring-1 ring-sky-400/20">
-            <Icon name="spark" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-xl font-semibold tabular-nums mt-2 flex items-baseline gap-1">
-          <span class="text-emerald-300">{{ fmtInt(cdk.active) }}</span>
-          <span class="text-white/30 text-sm">未用 /</span>
-          <span class="text-white/70 text-base">{{ fmtInt(cdk.redeemed) }} 已兑</span>
-        </div>
-        <div class="text-[11px] text-white/45 mt-1">
-          待兑积分 <span class="text-amber-300 tabular-nums">{{ fmtCredits(cdk.active_amount) }}</span>
-          · 已发出 <span class="tabular-nums">{{ fmtCredits(cdk.redeemed_amount) }}</span>
-        </div>
-      </div>
-
-      <!-- 邀请 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">邀请</span>
-          <span class="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 grid place-items-center ring-1 ring-rose-400/20">
-            <Icon name="accounts" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-xl font-semibold tabular-nums mt-2 flex items-baseline gap-1">
-          <span>{{ fmtInt(invites.total) }}</span>
-          <span class="text-white/40 text-sm">邀请注册</span>
-        </div>
-        <div class="text-[11px] text-white/45 mt-1">
-          <span class="text-emerald-300 tabular-nums">{{ fmtInt(invites.completed) }}</span> 已达成奖励
-          · 已发 <span class="text-amber-300 tabular-nums">{{ fmtCredits(invites.reward_paid) }}</span> 积分
-        </div>
-      </div>
-
-      <!-- 签到 -->
-      <div class="card p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-white/55">今日签到</span>
-          <span class="w-7 h-7 rounded-lg bg-teal-500/15 text-teal-300 grid place-items-center ring-1 ring-teal-400/20">
-            <Icon name="refresh" class="w-3.5 h-3.5" />
-          </span>
-        </div>
-        <div class="text-xl font-semibold tabular-nums mt-2 flex items-baseline gap-1">
-          <span>{{ fmtInt(checkin.today) }}</span>
-          <span class="text-white/40 text-sm">人</span>
-        </div>
-        <div class="text-[11px] text-white/45 mt-1">
-          发放 <span class="text-amber-300 tabular-nums">{{ fmtCredits(checkin.awarded_today) }}</span> 积分
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== Provider health + 24h trend ===== -->
-    <div class="grid lg:grid-cols-2 gap-3">
-      <div class="card">
-        <div class="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
-          <h2 class="text-sm font-semibold">渠道健康</h2>
-          <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
-                :class="statusPill(overallHealth.tone)">
-            <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(overallHealth.tone)"></span>
-            {{ overallHealth.label }}
-          </span>
-        </div>
-        <div class="p-3">
-          <div v-if="!providerHealth.length" class="text-center text-xs text-white/40 py-8">未配置渠道</div>
-          <div v-else class="space-y-0.5">
-            <div v-for="p in providerHealth" :key="p.id"
-                 class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium truncate">{{ p.name }}</div>
-                <div class="text-[11px] text-white/45 mt-0.5 truncate">
-                  {{ p.model_count }} 模型 · 成功 {{ p.success_total || 0 }}
-                  <span v-if="p.upstream_balance != null"> · 余额 {{ p.upstream_balance }}</span>
-                </div>
-              </div>
-              <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 tabular-nums"
-                    :class="statusPill(p.status)">
-                <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(p.status)"></span>
-                {{ statusLabel(p.status) }}
-              </span>
-            </div>
+    <!-- ===== 趋势（宽）+ 渠道健康 ===== -->
+    <div class="split">
+      <div class="panel">
+        <div class="panel-h">
+          <h3>24 小时生成趋势</h3>
+          <div class="legend">
+            <span><i class="sw sw--ink"></i>图像</span>
+            <span><i class="sw sw--soft"></i>视频</span>
+            <span class="tnum">峰值 {{ hourMax }}/h</span>
           </div>
         </div>
-      </div>
-
-      <div class="card flex flex-col">
-        <div class="px-5 py-3 border-b border-white/[0.06] flex items-baseline justify-between">
-          <h2 class="text-sm font-semibold">24 小时生成趋势</h2>
-          <div class="text-[11px] text-white/45 flex items-center gap-3">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-sky-400/80"></span>图像</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-rose-400/80"></span>视频</span>
-            <span class="tabular-nums">峰值 {{ hourMax }}/h</span>
-          </div>
-        </div>
-        <div class="p-5 flex-1 flex flex-col">
-          <div class="flex items-end gap-[3px] flex-1 min-h-[8rem]">
-            <div v-for="(b, i) in hourBuckets" :key="i"
-                 class="group/bar relative flex-1 flex flex-col justify-end rounded-t overflow-visible"
+        <div class="trend">
+          <div class="trend-bars">
+            <div v-for="(b, i) in hourBuckets" :key="i" class="tb"
                  :style="{ height: Math.max(4, ((b.image + b.video) / hourMax) * 100) + '%' }">
-              <!-- hover tooltip -->
-              <div class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 z-10 hidden group-hover/bar:block
-                          whitespace-nowrap rounded-md bg-black/90 ring-1 ring-white/10 px-2 py-1 text-[10px] text-white/90 tabular-nums">
-                {{ 23 - i }}h 前 · 图 {{ b.image }} / 视 {{ b.video }}
-              </div>
-              <div v-if="b.video" class="bg-rose-400/80 group-hover/bar:bg-rose-400" :style="{ flex: b.video }"></div>
-              <div v-if="b.image" class="bg-sky-400/80 group-hover/bar:bg-sky-400" :style="{ flex: b.image }"></div>
-              <div v-if="!b.image && !b.video" class="bg-white/[0.06] group-hover/bar:bg-white/15 flex-1 rounded-t"></div>
+              <div class="tip">{{ 23 - i }}h 前 · 图 {{ b.image }} / 视 {{ b.video }}</div>
+              <div v-if="b.video" class="tb-v" :style="{ flex: b.video }"></div>
+              <div v-if="b.image" class="tb-i" :style="{ flex: b.image }"></div>
+              <div v-if="!b.image && !b.video" class="tb-0"></div>
             </div>
           </div>
-          <div class="flex justify-between text-[10px] text-white/40 mt-2 tabular-nums">
-            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>现在</span>
+          <div class="trend-x"><span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>现在</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><h3>渠道健康</h3></div>
+        <div class="list">
+          <div v-if="!providerHealth.length" class="empty">未配置渠道</div>
+          <div v-for="p in providerHealth" :key="p.id" class="row">
+            <div class="row-main">
+              <div class="row-name">{{ p.name }}</div>
+              <div class="row-sub">{{ p.model_count }} 模型 · 成功 {{ p.success_total || 0 }}<span v-if="p.upstream_balance != null"> · 余额 {{ p.upstream_balance }}</span></div>
+            </div>
+            <span class="pill" :class="'pill--' + p.status"><span class="dot" :class="'dot--' + p.status"></span>{{ statusLabel(p.status) }}</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ===== Analytics (range-toggled): top models / failures / spenders ===== -->
-    <div class="flex items-center justify-between gap-3 pt-1">
-      <h2 class="text-sm font-semibold text-white/80">使用分析 · <span class="text-white/45 font-normal">{{ rangeLabel }}</span></h2>
-      <div class="inline-flex rounded-lg bg-white/[0.04] ring-1 ring-white/[0.08] p-0.5 text-xs">
-        <button @click="range = 'day'"
-                class="px-3 py-1 rounded-md transition-colors"
-                :class="range === 'day' ? 'bg-white/10 text-white font-medium' : 'text-white/50 hover:text-white/80'">
-          近 24h
-        </button>
-        <button @click="range = 'week'"
-                class="px-3 py-1 rounded-md transition-colors"
-                :class="range === 'week' ? 'bg-white/10 text-white font-medium' : 'text-white/50 hover:text-white/80'">
-          近 3d
-        </button>
+    <!-- ===== 运营：CDK / 邀请 / 签到 ===== -->
+    <div class="trio">
+      <div class="panel ops">
+        <div class="ops-label">兑换码 CDK</div>
+        <div class="ops-num"><span class="ok">{{ fmtInt(cdk.active) }}</span><small>未用</small> <span class="sep">/</span> {{ fmtInt(cdk.redeemed) }}<small>已兑</small></div>
+        <div class="ops-foot">待兑 {{ fmtCredits(cdk.active_amount) }} 积分 · 已发出 {{ fmtCredits(cdk.redeemed_amount) }}</div>
+      </div>
+      <div class="panel ops">
+        <div class="ops-label">邀请</div>
+        <div class="ops-num">{{ fmtInt(invites.total) }}<small>邀请注册</small></div>
+        <div class="ops-foot">{{ fmtInt(invites.completed) }} 已达成奖励 · 已发 {{ fmtCredits(invites.reward_paid) }} 积分</div>
+      </div>
+      <div class="panel ops">
+        <div class="ops-label">今日签到</div>
+        <div class="ops-num">{{ fmtInt(checkin.today) }}<small>人</small></div>
+        <div class="ops-foot">发放 {{ fmtCredits(checkin.awarded_today) }} 积分</div>
       </div>
     </div>
 
-    <div class="grid lg:grid-cols-2 gap-3">
-      <div class="card">
-        <div class="px-5 py-3 border-b border-white/[0.06]">
-          <h2 class="text-sm font-semibold">热门模型</h2>
-        </div>
-        <div class="p-5">
-          <div v-if="!modelUsage.length" class="text-center text-xs text-white/40 py-6">尚无生成记录</div>
-          <div v-else class="space-y-3">
-            <div v-for="m in modelUsage" :key="m.model" class="text-sm">
-              <div class="flex items-baseline justify-between gap-3 mb-1">
-                <span class="font-mono text-[12px] text-white/85 truncate">{{ m.model }}</span>
-                <span class="flex items-baseline gap-2 shrink-0">
-                  <span v-if="m.avg_ms" class="text-[10px] text-white/40 tabular-nums">{{ fmtMs(m.avg_ms) }}</span>
-                  <span class="tabular-nums text-xs font-semibold">{{ m.count }}</span>
-                </span>
-              </div>
-              <div class="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-orange-400 to-rose-500"
-                     :style="{ width: ((m.count / usageMax) * 100) + '%' }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="px-5 py-3 border-b border-white/[0.06]">
-          <h2 class="text-sm font-semibold">失败原因 Top</h2>
-        </div>
-        <div class="p-5">
-          <div v-if="!failures.length" class="text-center text-xs text-white/40 py-6">{{ rangeLabel }}内没有失败 — 一切正常</div>
-          <div v-else class="space-y-2">
-            <div v-for="f in failures" :key="f.reason"
-                 class="flex items-start gap-3 px-2 py-2 rounded-lg hover:bg-white/[0.04]">
-              <span class="w-1.5 h-1.5 mt-1.5 rounded-full bg-rose-400 shrink-0"></span>
-              <div class="flex-1 min-w-0">
-                <div class="text-xs text-white/85 break-all leading-snug">{{ f.reason }}</div>
-              </div>
-              <span class="tabular-nums text-xs font-semibold text-rose-300 shrink-0">×{{ f.count }}</span>
-            </div>
-          </div>
-        </div>
+    <!-- ===== 使用分析 ===== -->
+    <div class="ov-bar ov-bar--sub">
+      <h2 class="ov-title ov-title--sm">使用分析 <span class="mute">· {{ rangeLabel }}</span></h2>
+      <div class="seg">
+        <button :class="{ on: range === 'day' }" @click="range = 'day'">近 24h</button>
+        <button :class="{ on: range === 'week' }" @click="range = 'week'">近 3d</button>
       </div>
     </div>
 
-    <!-- ===== User consumption + spend summary ===== -->
-    <div class="grid lg:grid-cols-2 gap-3">
-      <div class="card">
-        <div class="px-5 py-3 border-b border-white/[0.06]">
-          <h2 class="text-sm font-semibold">用户消耗 Top · {{ rangeLabel }}</h2>
-        </div>
-        <div class="p-5">
-          <div v-if="!topUsers.length" class="text-center text-xs text-white/40 py-6">{{ rangeLabel }}内无消耗记录</div>
-          <div v-else class="space-y-3">
-            <div v-for="u in topUsers" :key="u.user_id || u.name" class="text-sm">
-              <div class="flex items-baseline justify-between gap-3 mb-1">
-                <span class="text-[12px] text-white/85 truncate">{{ u.name }}</span>
-                <span class="flex items-baseline gap-2 shrink-0">
-                  <span class="text-[10px] text-white/40 tabular-nums">{{ u.count }} 次</span>
-                  <span class="tabular-nums text-xs font-semibold text-amber-300">{{ fmtCredits(u.spent) }}</span>
-                </span>
-              </div>
-              <div class="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
-                     :style="{ width: ((u.spent / topUserMax) * 100) + '%' }"></div>
-              </div>
+    <div class="split split--even">
+      <div class="panel">
+        <div class="panel-h"><h3>热门模型</h3></div>
+        <div class="list list--pad">
+          <div v-if="!modelUsage.length" class="empty">尚无生成记录</div>
+          <div v-for="m in modelUsage" :key="m.model" class="bar-row">
+            <div class="bar-top">
+              <span class="mono">{{ m.model }}</span>
+              <span class="bar-right"><em v-if="m.avg_ms">{{ fmtMs(m.avg_ms) }}</em><b>{{ m.count }}</b></span>
             </div>
+            <div class="bar"><i :style="{ width: ((m.count / usageMax) * 100) + '%' }"></i></div>
           </div>
         </div>
       </div>
-
-      <div class="card">
-        <div class="px-5 py-3 border-b border-white/[0.06]">
-          <h2 class="text-sm font-semibold">积分消耗概览</h2>
+      <div class="panel">
+        <div class="panel-h"><h3>失败原因 Top</h3></div>
+        <div class="list list--pad">
+          <div v-if="!failures.length" class="empty">{{ rangeLabel }}内没有失败，一切正常</div>
+          <div v-for="f in failures" :key="f.reason" class="fail">
+            <span class="dot dot--down"></span>
+            <span class="fail-r">{{ f.reason }}</span>
+            <b class="bad">×{{ f.count }}</b>
+          </div>
         </div>
-        <div class="p-5 grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-xs text-white/55">近 24 小时</div>
-            <div class="text-2xl font-semibold tabular-nums mt-1 text-amber-300">{{ fmtCredits(day.spent) }}</div>
-            <div class="text-[11px] text-white/40 mt-1">{{ day.success }} 次成功生成</div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>用户消耗 Top</h3></div>
+        <div class="list list--pad">
+          <div v-if="!topUsers.length" class="empty">{{ rangeLabel }}内无消耗记录</div>
+          <div v-for="u in topUsers" :key="u.user_id || u.name" class="bar-row">
+            <div class="bar-top">
+              <span>{{ u.name }}</span>
+              <span class="bar-right"><em>{{ u.count }} 次</em><b>{{ fmtCredits(u.spent) }}</b></span>
+            </div>
+            <div class="bar"><i :style="{ width: ((u.spent / topUserMax) * 100) + '%' }"></i></div>
           </div>
-          <div>
-            <div class="text-xs text-white/55">近 3 天</div>
-            <div class="text-2xl font-semibold tabular-nums mt-1 text-amber-300">{{ fmtCredits(week.spent) }}</div>
-            <div class="text-[11px] text-white/40 mt-1">{{ week.success }} 次成功生成</div>
-          </div>
-          <div>
-            <div class="text-xs text-white/55">单次均价</div>
-            <div class="text-xl font-semibold tabular-nums mt-1">{{ day.success ? fmtCredits(Math.round(day.spent / day.success)) : '—' }}</div>
-            <div class="text-[11px] text-white/40 mt-1">24h 平均</div>
-          </div>
-          <div>
-            <div class="text-xs text-white/55">消耗用户数</div>
-            <div class="text-xl font-semibold tabular-nums mt-1">{{ topUsers.length }}</div>
-            <div class="text-[11px] text-white/40 mt-1">{{ rangeLabel }}有消耗</div>
-          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>积分消耗概览</h3></div>
+        <div class="mini">
+          <div><div class="mini-l">近 24 小时</div><div class="mini-n">{{ fmtCredits(day.spent) }}</div><div class="mini-s">{{ day.success }} 次成功生成</div></div>
+          <div><div class="mini-l">近 3 天</div><div class="mini-n">{{ fmtCredits(week.spent) }}</div><div class="mini-s">{{ week.success }} 次成功生成</div></div>
+          <div><div class="mini-l">单次均价</div><div class="mini-n">{{ day.success ? fmtCredits(Math.round(day.spent / day.success)) : '—' }}</div><div class="mini-s">24h 平均</div></div>
+          <div><div class="mini-l">消耗用户数</div><div class="mini-n">{{ topUsers.length }}</div><div class="mini-s">{{ rangeLabel }}有消耗</div></div>
         </div>
       </div>
     </div>
 
-    <!-- ===== Recent activity (full width) ===== -->
-    <div class="card">
-      <div class="px-5 py-3 border-b border-white/[0.06] flex items-baseline justify-between">
-        <h2 class="text-sm font-semibold">最近活动</h2>
-        <router-link to="/admin/logs" class="text-[11px] text-white/55 hover:text-white">查看全部 →</router-link>
+    <!-- ===== 最近活动 ===== -->
+    <div class="panel">
+      <div class="panel-h">
+        <h3>最近活动</h3>
+        <router-link to="/admin/logs" class="more">查看全部 →</router-link>
       </div>
-      <div class="p-3">
-        <div v-if="!recentLogs.length" class="text-center text-xs text-white/40 py-6">尚无活动</div>
-        <div v-else>
-          <div v-for="e in recentLogs" :key="e.id"
-               class="flex items-center gap-3 px-2 py-2 text-xs rounded-lg hover:bg-white/[0.03]">
-            <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="logDot(e.status)"></span>
-            <span class="text-[10px] uppercase tracking-wider font-medium w-9"
-                  :class="e.kind === 'video' ? 'text-rose-300' : 'text-sky-300'">
-              {{ e.kind === 'video' ? '视频' : '图像' }}
-            </span>
-            <span class="font-mono text-white/85 truncate w-40 shrink-0">{{ e.model }}</span>
-            <span class="text-white/55 truncate flex-1 min-w-0">{{ e.prompt }}</span>
-            <span class="text-white/40 tabular-nums whitespace-nowrap w-12 text-right">{{ fmtMs(e.elapsed_ms) }}</span>
-            <span class="text-white/40 whitespace-nowrap text-right tabular-nums">{{ fmtTs(e.ts) }}</span>
-          </div>
+      <div class="list">
+        <div v-if="!recentLogs.length" class="empty">尚无活动</div>
+        <div v-for="e in recentLogs" :key="e.id" class="ov-act">
+          <span class="dot" :class="e.status === 'success' ? 'dot--healthy' : e.status === 'pending' ? 'dot--warning' : 'dot--down'"></span>
+          <span class="ov-act-kind">{{ e.kind === 'video' ? '视频' : '图像' }}</span>
+          <span class="mono ov-act-model">{{ e.model }}</span>
+          <span class="ov-act-prompt">{{ e.prompt }}</span>
+          <span class="ov-act-ms tnum">{{ fmtMs(e.elapsed_ms) }}</span>
+          <span class="ov-act-ts tnum">{{ fmtTs(e.ts) }}</span>
         </div>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.ov { display: flex; flex-direction: column; gap: 16px; color: var(--fg); }
+.tnum { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 12px; }
+.mute { color: var(--fg-3); font-weight: 500; }
+.ok { color: #15803d; } .bad { color: #dc2626; } .warn { color: #b45309; }
+
+.ov-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ov-bar--sub { margin-top: 8px; align-items: center; }
+.ov-bar__right { display: flex; align-items: center; gap: 10px; }
+.ov-title { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); }
+.ov-title--sm { font-size: 16px; }
+.ov-sub { margin-top: 2px; font-size: 12px; color: var(--fg-3); }
+.ov-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(24 24 27 / 0.12); background: #fff; font-size: 13px; font-weight: 600; color: var(--fg); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.ov-btn:hover { border-color: rgb(24 24 27 / 0.3); box-shadow: 0 4px 12px rgb(24 24 27 / 0.08); }
+
+.panel { background: #fff; border: 1px solid rgb(24 24 27 / 0.07); border-radius: 18px; box-shadow: 0 1px 2px rgb(24 24 27 / 0.03), 0 10px 28px -16px rgb(24 24 27 / 0.12); }
+.panel-h { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+.panel-h h3 { font-size: 14px; font-weight: 800; color: var(--fg); letter-spacing: -0.01em; }
+.more { font-size: 12px; font-weight: 600; color: var(--fg-3); text-decoration: none; }
+.more:hover { color: var(--fg); }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #f4f4f5; color: var(--fg-2); }
+.pill--healthy { background: rgb(21 128 61 / 0.1); color: #15803d; }
+.pill--warning { background: rgb(180 83 9 / 0.1); color: #b45309; }
+.pill--down { background: rgb(220 38 38 / 0.1); color: #dc2626; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #a1a1aa; flex-shrink: 0; }
+.dot--healthy { background: #22c55e; } .dot--warning { background: #f59e0b; } .dot--down { background: #ef4444; }
+
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); }
+.kpi { padding: 22px 24px; }
+.kpi + .kpi { border-left: 1px solid rgb(24 24 27 / 0.07); }
+.kpi-label { font-size: 12px; font-weight: 700; color: var(--fg-3); letter-spacing: .02em; }
+.kpi-num { margin-top: 10px; font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; }
+.kpi-meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-weight: 700; }
+.kpi-foot { margin-top: 8px; font-size: 11.5px; color: var(--fg-3); }
+.delta { font-size: 12px; font-weight: 700; }
+.delta--up { color: #15803d; } .delta--down { color: #dc2626; } .delta--flat { color: var(--fg-3); }
+
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.chip { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fff; border: 1px solid rgb(24 24 27 / 0.07); border-radius: 16px; }
+.chip-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: #f4f4f5; color: #18181b; flex-shrink: 0; }
+.chip-num { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--fg); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.chip-num small { font-size: 13px; font-weight: 600; color: var(--fg-3); }
+.chip-label { margin-top: 3px; font-size: 11.5px; color: var(--fg-3); }
+
+.split { display: grid; grid-template-columns: 1.7fr 1fr; gap: 16px; }
+.split--even { grid-template-columns: 1fr 1fr; }
+
+.legend { display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--fg-3); }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.sw--ink { background: #18181b; } .sw--soft { background: #d4d4d8; }
+.trend { padding: 18px 20px 16px; display: flex; flex-direction: column; height: calc(100% - 44px); min-height: 220px; }
+.trend-bars { flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 150px; }
+.tb { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; border-radius: 4px 4px 0 0; overflow: visible; }
+.tb-i { background: #18181b; border-radius: 3px 3px 0 0; } .tb-v { background: #d4d4d8; }
+.tb-0 { flex: 1; background: #f1f1f3; border-radius: 3px 3px 0 0; }
+.tb:hover .tb-i { background: #3f3f46; }
+.tip { display: none; position: absolute; top: -34px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; background: #18181b; color: #fff; font-size: 10.5px; padding: 4px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.tb:hover .tip { display: block; }
+.trend-x { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10.5px; color: var(--fg-3); }
+
+.list { padding: 8px 12px 12px; }
+.list--pad { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 14px; }
+.empty { padding: 28px 0; text-align: center; font-size: 12.5px; color: var(--fg-3); }
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 12px; }
+.row:hover { background: #f7f7f8; }
+.row-main { flex: 1; min-width: 0; }
+.row-name { font-size: 13.5px; font-weight: 700; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-sub { margin-top: 2px; font-size: 11.5px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ops { padding: 18px 20px; }
+.ops-label { font-size: 12px; font-weight: 700; color: var(--fg-3); }
+.ops-num { margin-top: 8px; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--fg); }
+.ops-num small { margin-left: 4px; font-size: 12px; font-weight: 600; color: var(--fg-3); letter-spacing: 0; }
+.ops-num .sep { color: #d4d4d8; font-weight: 400; }
+.ops-foot { margin-top: 6px; font-size: 11.5px; color: var(--fg-3); }
+
+.seg { display: inline-flex; padding: 3px; border-radius: 999px; background: #f0f0f2; }
+.seg button { padding: 5px 14px; border: 0; border-radius: 999px; background: transparent; font-size: 12px; font-weight: 700; color: var(--fg-3); cursor: pointer; transition: all .15s; }
+.seg button.on { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgb(24 24 27 / 0.12); }
+
+.bar-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 13px; color: var(--fg); }
+.bar-top > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-right { display: flex; align-items: baseline; gap: 10px; flex-shrink: 0; }
+.bar-right em { font-style: normal; font-size: 11px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.bar-right b { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bar { height: 6px; border-radius: 999px; background: #f1f1f3; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #18181b, #52525b); }
+
+.fail { display: flex; align-items: flex-start; gap: 10px; }
+.fail .dot { margin-top: 6px; }
+.fail-r { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.5; color: var(--fg); word-break: break-all; }
+
+.mini { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; padding: 18px 20px 22px; }
+.mini-l { font-size: 12px; font-weight: 700; color: var(--fg-3); }
+.mini-n { margin-top: 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--fg); }
+.mini-s { margin-top: 2px; font-size: 11.5px; color: var(--fg-3); }
+
+.ov-act { display: flex; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 10px; font-size: 12.5px; }
+.ov-act:hover { background: #f7f7f8; }
+.ov-act-kind { width: 32px; font-size: 11px; font-weight: 700; color: var(--fg-3); }
+.ov-act-model { width: 170px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.ov-act-prompt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); }
+.ov-act-ms { width: 52px; text-align: right; color: var(--fg-3); }
+.ov-act-ts { color: var(--fg-3); white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .kpis, .strip { grid-template-columns: repeat(2, 1fr); }
+  .kpi:nth-child(3) { border-left: 0; }
+  .kpi:nth-child(n+3) { border-top: 1px solid rgb(24 24 27 / 0.07); }
+  .split, .split--even, .trio { grid-template-columns: 1fr; }
+}
+</style>

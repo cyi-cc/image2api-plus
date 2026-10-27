@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import Logo from '../components/Logo.vue'
@@ -26,8 +26,6 @@ const tabs = [
   { label: '系统配置', to: '/admin/config',   icon: 'config' },
 ]
 
-const currentLabel = computed(() => route.meta?.label || '')
-
 // 二级菜单展开状态：当前路由命中子项时默认展开，也可手动切换。
 const openGroups = ref(new Set())
 function groupActive(t) { return (t.children || []).some((c) => route.path.startsWith(c.to)) }
@@ -48,7 +46,7 @@ watch(() => route.path, () => {
 <template>
   <div class="theme-x h-screen flex bg-[var(--app-bg)] text-[color:var(--fg-2)] selection:bg-orange-400/30 overflow-hidden">
     <!-- ===== Sidebar ===== -->
-    <aside class="w-60 shrink-0 border-r border-r-[color:var(--ink-soft)] bg-[var(--surface)] backdrop-blur-xl flex flex-col">
+    <aside class="w-60 shrink-0 border-r border-r-[color:var(--ink-soft)] bg-white flex flex-col">
       <router-link to="/" class="h-16 flex items-center gap-2.5 px-5 border-b border-b-[color:var(--ink-soft)] group">
         <img v-if="site.logo" :src="site.logo" :alt="site.title" class="w-8 h-8 rounded-[10px] object-contain ring-1 ring-[color:var(--ink)]" />
         <Logo v-else :size="32" />
@@ -63,16 +61,16 @@ watch(() => route.path, () => {
           <router-link v-if="!t.children" :to="t.to"
             class="admin-link group"
             active-class="active">
-            <span class="absolute left-1 top-1/2 -translate-y-1/2 w-[6px] h-6 rounded-sm opacity-0 transition-opacity"
-                  style="background: var(--m-orange)"></span>
+            <span class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full opacity-0 transition-opacity"
+                  style="background: #18181b"></span>
             <Icon :name="t.icon" class="w-4 h-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
             <span class="text-sm">{{ t.label }}</span>
           </router-link>
           <div v-else>
             <button type="button" @click="toggleGroup(t.label)"
                     class="admin-link group w-full text-left" :class="groupActive(t) && 'active'">
-              <span class="absolute left-1 top-1/2 -translate-y-1/2 w-[6px] h-6 rounded-sm opacity-0 transition-opacity"
-                    style="background: var(--m-orange)"></span>
+              <span class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full opacity-0 transition-opacity"
+                    style="background: #18181b"></span>
               <Icon :name="t.icon" class="w-4 h-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
               <span class="text-sm">{{ t.label }}</span>
               <svg class="w-3 h-3 ml-auto transition-transform" :class="openGroups.has(t.label) && 'rotate-90'"
@@ -100,14 +98,8 @@ watch(() => route.path, () => {
     <!-- ===== Main ===== -->
     <div class="flex-1 min-w-0 flex flex-col relative">
 
-      <header class="relative z-10 h-14 shrink-0 border-b border-b-[color:var(--ink-soft)] bg-[var(--app-bg)]/60 backdrop-blur-xl flex items-center px-8">
-        <div class="admin-badge text-[10px] uppercase tracking-[0.25em] font-extrabold mr-3 px-2.5 py-1 rounded-lg text-white select-none">Admin</div>
-        <div class="text-[color:var(--fg-faint)] mr-3">/</div>
-        <h1 class="text-sm font-semibold tracking-tight text-[color:var(--fg)]">{{ currentLabel }}</h1>
-      </header>
-
       <main :class="['theme-text flex-1 overflow-y-auto overscroll-y-none relative z-10']">
-        <div class="px-8 py-7">
+        <div class="px-8 py-8 max-w-[1500px] mx-auto">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
               <component :is="Component" />
@@ -126,10 +118,6 @@ watch(() => route.path, () => {
   background-clip: text;
   color: transparent;
 }
-.admin-badge {
-  background: linear-gradient(120deg, #18181b, #27272a 60%, #52525b 140%);
-  box-shadow: 0 4px 14px var(--accent-glow);
-}
 .admin-link {
   position: relative;
   display: flex;
@@ -142,14 +130,14 @@ watch(() => route.path, () => {
   font-weight: 600;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.admin-link:hover { background: var(--hover); color: var(--fg); border-color: rgb(24 24 27 / 0.3); }
+.admin-link:hover { background: rgb(24 24 27 / 0.05); color: var(--fg); }
 .admin-link.active {
-  color: #fff;
-  background: linear-gradient(120deg, #18181b, #27272a);
-  border-color: transparent;
-  box-shadow: 0 4px 14px var(--accent-glow);
+  color: #18181b;
+  background: rgb(24 24 27 / 0.07);
+  font-weight: 800;
 }
-.admin-link.active > span:first-child { opacity: 0; }
+.admin-link.active > :deep(svg) { opacity: 1; }
+.admin-link.active > span:first-child { opacity: 1 !important; }
 
 .admin-sublink {
   display: flex;
@@ -161,8 +149,8 @@ watch(() => route.path, () => {
   font-weight: 600;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.admin-sublink:hover { background: var(--hover); color: var(--fg); border-color: rgb(24 24 27 / 0.3); }
-.admin-sublink.active { color: var(--m-orange); background: var(--hover); border-color: rgb(24 24 27 / 0.35); font-weight: 700; }
+.admin-sublink:hover { background: rgb(24 24 27 / 0.05); color: var(--fg); }
+.admin-sublink.active { color: #18181b; background: rgb(24 24 27 / 0.07); font-weight: 800; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .fade-enter-from { opacity: 0; transform: translateY(4px); }
