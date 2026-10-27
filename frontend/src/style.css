@@ -139,11 +139,18 @@ html:not(.dark) .theme-text :is([class*="text-teal-300"], [class*="text-teal-200
    Recolor them centrally in light mode — the extra .theme-text class outranks
    the scoped `.x[data-v-*]` rules. Dark mode keeps the scoped look (gated on
    :not(.dark)). */
-html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x, .ro-chip) {
+html:not(.dark) .theme-text :is(.fp, .pg, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x, .ro-chip) {
   color: var(--fg-2); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--hairline);
 }
-html:not(.dark) .theme-text :is(.fp, .pg, .act, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x):hover {
+html:not(.dark) .theme-text :is(.fp, .pg, .filter-pill, .kind-btn, .preset-btn, .opt, .chip-x):hover {
   color: var(--fg); background: var(--hover);
+}
+/* 行内操作图标按钮：白底灰边，悬停浅灰加深描边 */
+html:not(.dark) .theme-text .act {
+  color: var(--fg-3); background: var(--surface-solid); box-shadow: inset 0 0 0 1px var(--hairline);
+}
+html:not(.dark) .theme-text .act:hover {
+  color: var(--fg); background: var(--surface-2); box-shadow: inset 0 0 0 1px rgb(24 24 27 / 0.14);
 }
 html:not(.dark) .theme-text :is(.fp-on, .pg-on, .seg-on, .opt-on) {
   background: linear-gradient(120deg, #18181b, #27272a); color: #fff;
@@ -264,8 +271,8 @@ html:not(.dark) .theme-text .lbl { color: var(--fg); }
 html:not(.dark) .theme-text :is(.hint, .flbl) { color: var(--fg-3); }
 /* Delete icon button: a clean neutral button with a red glyph (not a heavy pink
    box), filling solid red on hover. */
-html:not(.dark) .theme-text .act.danger { color: rgb(225 29 72); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--hairline); }
-html:not(.dark) .theme-text .act.danger:hover { color: #fff; background: rgb(244 63 94); box-shadow: inset 0 0 0 1px rgb(225 29 72); }
+html:not(.dark) .theme-text .act.danger { color: rgb(225 29 72); background: var(--surface-solid); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.25); }
+html:not(.dark) .theme-text .act.danger:hover { color: #dc2626; background: rgb(244 63 94 / 0.08); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.3); }
 /* Soft "danger" toolbar buttons (删除选中 / 删除异常账号 …): a muted red, not a
    heavy pink fill; solid red on hover. Outranks the per-view scoped pink. */
 html:not(.dark) .theme-text .btn-soft.danger { color: rgb(190 18 60); background: rgb(244 63 94 / 0.08); box-shadow: inset 0 0 0 1px rgb(244 63 94 / 0.22); }
